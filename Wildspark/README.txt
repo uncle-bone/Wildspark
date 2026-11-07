@@ -1,5 +1,8 @@
-Wildspark 1.3.1
+Wildspark 1.3.2
 
+1.3.2: Adds queued notifications for newly learned spells. Available local Forever
+API research does not establish a safe addon method for changing action slots,
+so Wildspark reminds the player to drag each spell from the spellbook.
 1.3.1: Prevents World Map camp-pin refreshes during combat lockdown, avoiding
 Blizzard's protected SetPassThroughButtons call. Deferred pins refresh when
 combat ends while the World Map is open.
@@ -35,14 +38,14 @@ WildBuffs never changes friendly nameplate CVars. Finding nearby strangers by
 nameplate depends on friendly player nameplates already being enabled by the
 player. It scans only friendly player units.
 
-Action-bar spell helper
-The first login seeds a per-character list of currently known spells and does
-not move them. After that, newly learned active spells are detected and placed
-in the first empty action slot out of combat. Spells learned in combat wait
-until combat ends. Existing action-bar slots are never replaced. If all slots
-are full, Wildspark reports the spell for manual placement. Turn the helper off
-under Settings > General > Add new spells to empty action slots.
-
+New-spell helper
+The first login records the spells already known, without changing any bars.
+After that, newly learned active spells are detected and queued with a chat
+notification and a small reminder. Drag each new spell from the spellbook to
+an empty action-bar slot. The Forever client API findings available for this
+build do not verify a safe addon-driven placement method, so Wildspark does not
+pick up spells or change action slots. The reminder can be moved with Shift-drag.
+Toggle the helper under Settings > General > Notify me about new spells.
 WildBuffs
 Open /wildspark and select the WildBuffs tab for button visibility, minimap icon,
 dungeon, combat, and glow settings. The minimap icon is hidden by default; turn on
@@ -50,7 +53,7 @@ Show minimap icon in this tab if you want it. The full settings window includes 
 choices, refresh timing, button size, stats, and keybind.
 
 The rotating all-buffs button picks the next nearby player who needs any enabled
-buff. Turn off “Show rotating all-buffs button” to hide it and keep only the
+buff. Turn off "Show rotating all-buffs button" to hide it and keep only the
 individual spell buttons. Each spell button shows its icon, the next player's
 name, a pulsing glow, and +N for additional nearby players who need that same
 spell. Clicking a spell button buffs the named player. Shift-drag a visible
