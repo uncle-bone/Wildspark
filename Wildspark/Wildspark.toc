@@ -1,12 +1,12 @@
 ## Interface: 11509, 16001
 ## Title: Wildspark
 ## Notes: Makes ore veins, herbs, quest objects and chests glow as you approach them, with a choice of light effects, and shows herbs and veins on the minimap as their own icons (uses Blizzard's soft targeting).
-## Notes-frFR: Fait briller les filons, les plantes, les objets de quête et les coffres à ton approche, avec plusieurs effets de lumière au choix, et montre plantes et filons sur la minimap par leur icône (via le soft targeting de Blizzard).
-## Notes-deDE: Lässt Erzadern, Kräuter, Questobjekte und Truhen aufleuchten, wenn du dich ihnen näherst, mit mehreren Lichteffekten zur Auswahl, und zeigt Kräuter und Erze auf der Minikarte mit ihrem eigenen Symbol (nutzt Blizzards Soft-Targeting).
-## Notes-esES: Hace brillar los filones, las hierbas, los objetos de misión y los cofres cuando te acercas, con varios efectos de luz a elegir, y muestra hierbas y filones en el minimapa con su propio icono (usa el soft targeting de Blizzard).
-## Notes-esMX: Hace brillar los filones, las hierbas, los objetos de misión y los cofres cuando te acercas, con varios efectos de luz a elegir, y muestra hierbas y filones en el minimapa con su propio icono (usa el soft targeting de Blizzard).
-## Notes-ruRU: Подсвечивает рудные жилы, травы, квестовые объекты и сундуки при приближении к ним, с выбором световых эффектов, и показывает травы и жилы на миникарте их собственными иконками (использует soft targeting от Blizzard).
-## Version: 1.3.1
+## Notes-frFR: Fait briller les filons, les plantes, les objets de qu�te et les coffres � ton approche, avec plusieurs effets de lumi�re au choix, et montre plantes et filons sur la minimap par leur ic�ne (via le soft targeting de Blizzard).
+## Notes-deDE: L�sst Erzadern, Kr�uter, Questobjekte und Truhen aufleuchten, wenn du dich ihnen n�herst, mit mehreren Lichteffekten zur Auswahl, und zeigt Kr�uter und Erze auf der Minikarte mit ihrem eigenen Symbol (nutzt Blizzards Soft-Targeting).
+## Notes-esES: Hace brillar los filones, las hierbas, los objetos de misi�n y los cofres cuando te acercas, con varios efectos de luz a elegir, y muestra hierbas y filones en el minimapa con su propio icono (usa el soft targeting de Blizzard).
+## Notes-esMX: Hace brillar los filones, las hierbas, los objetos de misi�n y los cofres cuando te acercas, con varios efectos de luz a elegir, y muestra hierbas y filones en el minimapa con su propio icono (usa el soft targeting de Blizzard).
+## Notes-ruRU: ???????????? ?????? ????, ?????, ????????? ??????? ? ??????? ??? ??????????? ? ???, ? ??????? ???????? ????????, ? ?????????? ????? ? ???? ?? ????????? ?? ???????????? ???????? (?????????? soft targeting ?? Blizzard).
+## Version: 1.3.2
 ## IconTexture: Interface\AddOns\Wildspark\Media\icon.tga
 ## AddonCompartmentFunc: Wildspark_OnAddonCompartmentClick
 ## SavedVariables: WildsparkDB, LeashHelperDB, ForeverBuffs_DB, CampingKitDB, KitDockDB
