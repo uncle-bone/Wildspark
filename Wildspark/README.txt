@@ -1,0 +1,114 @@
+Wildspark 1.3.1
+
+1.3.1: Prevents World Map camp-pin refreshes during combat lockdown, avoiding
+Blizzard's protected SetPassThroughButtons call. Deferred pins refresh when
+combat ends while the World Map is open.
+WoW Forever 1.60.1
+
+Wildspark highlights nearby gathering and useful world objects. It is based on
+Lueur 1.4.0 by Armytille, with upstream source changes credited in LICENSE.txt.
+Wildspark has its own addon name and SavedVariables.
+
+Included features
+- Glow effects, colors, size, silhouette, preview, and object labels.
+- Nearby herb, ore, quest object, chest, and fishing bobber highlighting.
+- Herb and ore minimap icons, learned node data, and optional alternating tracking.
+- Range, arc, combat/instance, locked-object, and untrained-profession settings.
+- Settings panel, minimap button, slash commands, diagnostics, and localization.
+- Optional spell helper for spells learned after installation.
+- LeashHelperForever integrated into Wildspark, with per-mob timer display,
+  combat-event tracking, preview, debug panel, and full settings.
+- WildBuffs integrated as its own tab, with class-specific spell choices,
+  keybind, settings, stats, and stacked full-size spell buttons.
+- Wildfire Kit, based on Camping Kit v1.8, integrated as its own tab, including
+  the tent, profession objects, camp benefit and Well Fed timers, camp tracking,
+  sharing, and map pins.
+
+Nameplate behavior
+Wildspark does not highlight NPCs or corpses and does not call interaction
+functions on them. In "Only show highlighted targets" mode, it closes the game's
+soft-target nameplate CVar for unhighlighted targets and suppresses that resolved
+soft-target plate if the Forever client leaves it visible. Version 1.0.2 also
+checks the live CVar instead of relying only on cached state.
+
+WildBuffs never changes friendly nameplate CVars. Finding nearby strangers by
+nameplate depends on friendly player nameplates already being enabled by the
+player. It scans only friendly player units.
+
+Action-bar spell helper
+The first login seeds a per-character list of currently known spells and does
+not move them. After that, newly learned active spells are detected and placed
+in the first empty action slot out of combat. Spells learned in combat wait
+until combat ends. Existing action-bar slots are never replaced. If all slots
+are full, Wildspark reports the spell for manual placement. Turn the helper off
+under Settings > General > Add new spells to empty action slots.
+
+WildBuffs
+Open /wildspark and select the WildBuffs tab for button visibility, minimap icon,
+dungeon, combat, and glow settings. The minimap icon is hidden by default; turn on
+Show minimap icon in this tab if you want it. The full settings window includes class
+choices, refresh timing, button size, stats, and keybind.
+
+The rotating all-buffs button picks the next nearby player who needs any enabled
+buff. Turn off “Show rotating all-buffs button” to hide it and keep only the
+individual spell buttons. Each spell button shows its icon, the next player's
+name, a pulsing glow, and +N for additional nearby players who need that same
+spell. Clicking a spell button buffs the named player. Shift-drag a visible
+button to move the group. The default and reset position is screen center.
+WildBuffs casts only when you press a button or its keybind.
+
+Wildfire Kit
+Open /wildspark and select the Wildfire Kit tab to show or hide the tent, manage
+its minimap button, open or close the tent, and reach Wildfire Kit's full settings.
+The tent contains camping objects, profession tools, food and drink slots, camp
+benefit timers, and nearby camp details. Disable the standalone Camping Kit
+addon when using this integrated copy, so the game does not create two tents.
+
+Druids can enable Thorns in the class settings; its separate spell button then
+appears alongside Mark of the Wild. Other supported classes are Mage, Paladin,
+and Priest. Use /wildbuffs (or /wb) for settings and /wildspark buffs to open the
+WildBuffs settings window.
+
+Install
+1. Extract the Wildspark folder into World of Warcraft\\_classic_beta_\\Interface\\AddOns.
+2. Disable Lueur before enabling Wildspark; both addons manage some game CVars.
+3. Disable the older separate buff-helper addon and standalone Camping Kit while
+   using the integrated copies.
+4. Reload the UI and enable Wildspark in the AddOns list if needed.
+
+Commands
+/wildspark             Open or close settings
+/wildspark help        Show commands
+/wildspark status      Show detected target and CVar status
+/wildspark on|off      Enable or disable Wildspark
+/wildspark preview     Open or close the effect preview
+/wildspark leash       Open the integrated leash timer settings
+/wildspark leash test  Show a sample mob timer
+/wildspark buffs       Open WildBuffs settings
+/wildfirekit           Open or close Wildfire Kit settings
+/wildfire              Open or close Wildfire Kit settings
+/wildbuffs             Open WildBuffs settings
+/wb                   Alias for /wildbuffs
+/leash                 Open the leash timer settings
+/leash debug           Open its copyable diagnostic report
+
+Leash timer note
+The embedded LeashHelperForever source is version 1.0.12 from public GitHub
+commit fbd3a5e0616f61189d5fc78a1c8775555f198711. It uses public combat events,
+refreshes linked packs on qualifying hits, and pauses timers during recognized
+crowd control. The timer estimates chase time since a qualifying action; it is
+not a promise that a mob will reset after that many seconds of running. Forever
+does not expose the server's exact leash distance or reset state. Disable the
+separate LeashHelperForever addon while using Wildspark's integrated timer.
+
+Credits
+Lueur by Armytille, version 1.4.0, MIT License.
+Wildspark changes by Uncle Bone.
+LeashHelperForever by Foofi, version 1.0.12, MIT License; source and license are
+preserved in LEASHHELPER_LICENSE.txt.
+WildBuffs integration based on Jim's user-supplied 0.8 source. Its friendly
+nameplate CVar changes were removed. Internal saved-variable keys are retained,
+but saved data from the separate addon's file may not import automatically.
+Camping Kit by Doug Mansell, version 1.8, rebranded here as Wildfire Kit;
+license and upstream notices are
+preserved in CampingKitEmbedded/LICENSE and CampingKitEmbedded/Libs.
