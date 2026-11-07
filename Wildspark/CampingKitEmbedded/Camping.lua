@@ -1154,6 +1154,7 @@ ns.kit = Core.NewKit({
         campOthers = true,    -- camps from Happy Camper's channel and map pins in chat (CampOthers.lua)
         campWorldMap = true,  -- tent pins for camps on the world map
         campMinimap = true,   -- ... and on the minimap
+        minimapButton = false, -- use the main Wildspark button by default
     },
     dock = ns.Dock,
     alwaysHideInCombat = true, -- (Kit Core v7: no "Hide in combat" setting; older copies keep it, on by default)
