@@ -1,6 +1,6 @@
 -- Wildspark : textes en anglais
 -- C'est la langue de repli : un texte absent d'une autre langue s'affiche en anglais, et un
--- client dont la langue n'a pas de fichier ici reçoit l'anglais.
+-- client dont la langue n'a pas de fichier ici re�oit l'anglais.
 
 local _, ns = ...
 
@@ -11,17 +11,17 @@ L.LANGUAGE_NAME = "English"   -- le nom que cette langue se donne : c'est ainsi 
 L.PREFIX = "|cffffd200Wildspark|r: "
 L.YES = "yes"
 L.NO = "no"
-L.SETTING = "%s: %s"          -- un réglage et sa valeur
+L.SETTING = "%s: %s"          -- un r�glage et sa valeur
 L.FORMAT_PERCENT = "%d%%"
 L.FORMAT_RANGE = "%d yd"
 L.CONFIRM = "Confirm?"       -- sur un bouton qui attend un second geste
 
--- Mots de commande propres à cette langue -> nom anglais de la commande. Les noms anglais
--- répondent partout ; les accents sont facultatifs.
+-- Mots de commande propres � cette langue -> nom anglais de la commande. Les noms anglais
+-- r�pondent partout ; les accents sont facultatifs.
 L.COMMANDS = {}
 
 ---------------------------------------------------------------------------
--- Catégories, états, effets
+-- Cat�gories, �tats, effets
 ---------------------------------------------------------------------------
 
 L.CATEGORY_ORE = "Ore"
@@ -35,9 +35,9 @@ L.CATEGORY_CHEST_TIP = "Chests, crates and other containers you can loot."
 L.CATEGORY_BOBBER = "Fishing bobber"
 L.CATEGORY_BOBBER_TIP = "The bobber of your fishing line."
 L.CATEGORY_OTHER = "Other objects"
-L.CATEGORY_OTHER_TIP = "Everyday objects: doors, mailboxes, levers…"
+L.CATEGORY_OTHER_TIP = "Everyday objects: doors, mailboxes, levers."
 
--- la catégorie d'un objet, dans une phrase du diagnostic
+-- la cat�gorie d'un objet, dans une phrase du diagnostic
 L.NAME_ORE = "ore"
 L.NAME_HERB = "herb"
 L.NAME_QUEST = "quest"
@@ -46,7 +46,7 @@ L.NAME_BOBBER = "bobber"
 L.NAME_OTHER = "other"
 L.NAME_NONE = "none"
 
--- l'objet que l'aperçu montre pour chaque catégorie
+-- l'objet que l'aper�u montre pour chaque cat�gorie
 L.SAMPLE_ORE = "Copper Vein"
 L.SAMPLE_HERB = "Peacebloom"
 L.SAMPLE_QUEST = "Supply Crate"
@@ -144,7 +144,7 @@ L.EFFECT = "Effect"
 L.EFFECT_TIP = "The shape of the light."
 L.LOOK_OF_ALL = "Appearance of all objects"
 L.LOOK_OF = "Appearance: %s"
-L.OF_CATEGORY = "%s (%s)"     -- un réglage, et la catégorie pour laquelle il vient de changer
+L.OF_CATEGORY = "%s (%s)"     -- un r�glage, et la cat�gorie pour laquelle il vient de changer
 L.SHARED = "Same as all objects"
 L.SHARED_TIP = "Takes away this category's own effect and appearance: it goes back to those of all objects."
 
@@ -189,11 +189,11 @@ L.HIDE_COMBAT_TIP = "No effect while you are in combat."
 L.HIDE_INSTANCE = "In instances"
 L.HIDE_INSTANCE_TIP = "No effect in dungeons, raids and battlegrounds."
 L.HIDE_LOCKED = "On objects I cannot use"
-L.HIDE_LOCKED_TIP = "The effect goes out on an object the game refuses for now: skill too low, object locked… The game only says so once you are within reach."
+L.HIDE_LOCKED_TIP = "The effect goes out on an object the game refuses for now: skill too low, object locked. The game only says so once you are within reach."
 L.HIDE_UNTRAINED = "Herbs and ore without the profession"
 L.HIDE_UNTRAINED_TIP = "No effect on herbs if this character does not have Herbalism, nor on ore without Mining."
-L.AUTO_PUSH_SPELLS = "Add new spells to empty action slots"
-L.AUTO_PUSH_SPELLS_TIP = "After this addon is installed, newly learned active spells are placed in an empty action-bar slot out of combat. Existing actions are never replaced."
+L.AUTO_PUSH_SPELLS = "Notify me about new spells"
+L.AUTO_PUSH_SPELLS_TIP = "New active spells are detected and queued with a reminder. Drag them from the spellbook to an empty action-bar slot; this client does not provide a verified addon API for safe placement."
 
 L.RANGE = "Range"
 L.RANGE_TIP = "How far away the game may pick an object to highlight."
@@ -206,14 +206,14 @@ L.ARC_1_TIP = "Anything in front of you."
 L.ARC_2 = "Everywhere"
 L.ARC_2_TIP = "In every direction, even behind your back."
 L.EXCLUSIVE = "Only show highlighted targets"
-L.EXCLUSIVE_TIP = "The game no longer points out interaction targets that get no effect: NPCs, mailboxes… Unchecked, it shows a name and an icon on every one of them."
+L.EXCLUSIVE_TIP = "The game no longer points out interaction targets that get no effect: NPCs, mailboxes. Unchecked, it shows a name and an icon on every one of them."
 
 L.KEY = "Interact key"
 L.KEY_TIP = "The key that picks up, gathers or uses the highlighted object once it is within reach. It is the game's own interact key: it works on NPCs too, and can also be changed in the game's key bindings."
 L.KEY_NONE = "Not bound"
 L.KEY_LISTEN = "Press a key"
 L.KEY_LISTEN_TIP = "Press the key, mouse button or mouse wheel direction to use. Escape cancels."
-L.KEY_TAKEN = "%s is already used for “%s”. Press it again to give it to the interact key instead, or press another key."
+L.KEY_TAKEN = "%s is already used for "%s". Press it again to give it to the interact key instead, or press another key."
 L.TIP_KEY_SET = "Left-click: choose a key"
 L.TIP_KEY_CLEAR = "Right-click: remove the key"
 
@@ -248,10 +248,10 @@ L.PREVIEW = "Preview"
 L.PREVIEW_STOP = "Close preview"
 L.PREVIEW_TIP = "Opens a window that shows the effect on a 3D object, in each of its states. Settings changed here apply to it at once."
 L.PREVIEW_NO_MODEL = "3D model unavailable on this client"
-L.PREVIEW_HINT = "Drag: turn  ·  right-drag: move  ·  wheel: zoom"
+L.PREVIEW_HINT = "Drag: turn  �  right-drag: move  �  wheel: zoom"
 L.DEFAULTS = "Defaults"
 L.DEFAULTS_TIP = "Puts the effect and detection settings back to their original values. A second click confirms."
-L.FOOTER = "Wildspark %s  ·  /wildspark help: all commands"
+L.FOOTER = "Wildspark %s  �  /wildspark help: all commands"
 
 L.OPTIONS_NOTE = "Makes ore veins, herbs, quest objects and chests glow as you approach them."
 L.OPTIONS_OPEN = "Open Wildspark's settings"
@@ -271,7 +271,7 @@ L.MSG_ENABLED = "enabled."
 L.MSG_DISABLED = "disabled, your original settings are restored."
 L.MSG_RESTART = "restart the game completely to finish updating Wildspark."
 L.MSG_EXCLUSIVE_ON = "the game no longer points out targets that get no effect."
-L.MSG_EXCLUSIVE_OFF = "the game shows the name and icon of every interaction target (NPCs, world objects…)."
+L.MSG_EXCLUSIVE_OFF = "the game shows the name and icon of every interaction target (NPCs, world objects.)."
 L.MSG_SILHOUETTE_ON = "the effect passes behind your character."
 L.MSG_SILHOUETTE_OFF = "the effect covers your character."
 L.MSG_CUTOUT_UNAVAILABLE = "cut-out unavailable: %s."
@@ -297,8 +297,8 @@ L.MSG_RANGE = "range: %d yd"
 L.MSG_RANGE_COMBAT = "range: %d yd, applied once you leave combat."
 L.MSG_RANGE_CLIENT = "range: %d yd requested, the client kept %s."
 L.MSG_KEY_COMBAT = "key bindings cannot be changed in combat."
-L.MSG_KEY_REFUSED = "the game refused the key “%s”."
-L.MSG_KEY_REPLACED = "%s no longer triggers “%s”."
+L.MSG_KEY_REFUSED = "the game refused the key "%s"."
+L.MSG_KEY_REPLACED = "%s no longer triggers "%s"."
 L.MSG_NODES_UNAVAILABLE = "minimap icons unavailable: %s."
 
 L.FAIL_NO_MASK = "this client does not support masks"
@@ -316,7 +316,7 @@ L.GATE_OPEN = "open"
 L.GATE_CLOSED = "closed"
 L.STATUS_SILHOUETTE = "effect behind the character: %s"
 L.STATUS_UNAVAILABLE = "unavailable, %s"
-L.STATUS_DIRECT = "target read straight from “softinteract”: %s"
+L.STATUS_DIRECT = "target read straight from "softinteract": %s"
 L.STATUS_NOT_YET = "not seen yet"
 L.STATUS_RANGE_API = "interaction range readable: %s"
 L.STATUS_LINE = "fishing line out: %s | channel in progress: %s"
@@ -373,10 +373,10 @@ L.DEBUG_LINE_OUT = "fishing line out: %d yd requested, the client kept %s"
 L.DEBUG_LINE_IN = "fishing line reeled in: %d yd requested, the client kept %s"
 L.DEBUG_IGNORED = "%s ignored (not a world object)"
 L.DEBUG_SKIPPED = "%s ignored (on your list of ignored objects)"
-L.DEBUG_HIDDEN = "%s → %s, no effect (category hidden or unknown)"
-L.DEBUG_UNTRAINED = "%s → %s, no effect (this character does not have the profession)"
-L.DEBUG_NO_PLATE = "%s → %s, detected but without a nameplate: no effect possible"
-L.DEBUG_SHOWN = "%s → %s, %s"
+L.DEBUG_HIDDEN = "%s  %s, no effect (category hidden or unknown)"
+L.DEBUG_UNTRAINED = "%s  %s, no effect (this character does not have the profession)"
+L.DEBUG_NO_PLATE = "%s  %s, detected but without a nameplate: no effect possible"
+L.DEBUG_SHOWN = "%s  %s, %s"
 L.DEBUG_CURSOR = "cursor: %s"
 L.DEBUG_VIA = "target: %s"
 L.VIA_DIRECT = "direct"
@@ -390,46 +390,46 @@ L.MATCH_NONE = "nothing"
 L.MATCH_CURSOR = "nothing, its cursor says what it is"
 L.MATCH_TOOLTIP = "its tooltip"
 L.MATCH_NAME = "its name"
-L.MATCH_WORD = "the word “%s”"
+L.MATCH_WORD = "the word "%s""
 L.MATCH_LOOT = "its loot, taken before"
 L.DEBUG_CHEST = "known as a container by: %s"
 L.DEBUG_SECRET = "secret identity: %s"
 L.DEBUG_BEHIND = "behind the camera: %s"
 
 ---------------------------------------------------------------------------
--- Aide (/wildspark help). {réglage} : ses bornes ; {réglage=} : sa valeur par défaut
+-- Aide (/wildspark help). {r�glage} : ses bornes ; {r�glage=} : sa valeur par d�faut
 ---------------------------------------------------------------------------
 
 L.HELP_HEADER = "commands:"
 L.HELP = {
-	"/wildspark — opens or closes the settings window (like a click on the minimap button)",
-	"/wildspark minimap — shows or hides the minimap button",
-	"/wildspark on | off — enables or disables Wildspark (off restores your settings)",
-	"/wildspark preview — opens or closes the preview window, which shows the effect on a 3D object",
-	"/wildspark effect [category] <name> — gives this effect to every category, or to one of them (ore, herb, quest, chest, bobber, other); without a name, lists them",
-	"/wildspark color <category> <rrggbb> | default — color of a category's effect; without a color, shows it",
-	"/wildspark shared <category> — gives a category back the effect and appearance of all objects",
-	"/wildspark size [category] <{size}> — size of the effect (default {size=})",
-	"/wildspark intensity [category] <{intensity}> — brightness of the effect, in % (default {intensity=})",
-	"/wildspark offset [category] <{offsetY}> — vertical offset of the effect (default {offsetY=})",
-	"/wildspark fade [category] — whether the effect fades with the nameplate (object hidden by the scenery)",
-	"/wildspark name | icon [category] — whether the object's name, or its icon, shows above it; text [category] <{textSize}> sets the size of the name, in % (default {textSize=})",
-	"/wildspark font [category] <name> | default — font of the object's name; without a name, lists them",
-	"/wildspark silhouette [category] — whether the effect passes behind your character instead of covering it",
-	"/wildspark silhouette show | <size %> [height %] — shows and adjusts the cut-out",
-	"/wildspark range <{range}> — how far the game picks objects, in yards (default {range=})",
-	"/wildspark arc <{arc}> — 0 dead ahead, 1 in front, 2 every direction (default {arc=})",
-	"/wildspark exclusive — whether the game only points out the targets that get an effect",
-	"/wildspark combat | instance | unavailable | profession — whether the effect hides in combat, in instances, on objects you cannot use, on herbs and ore without the profession",
-	"/wildspark key <KEY> | none — binds the key that picks up the highlighted object (F, SHIFT-E, BUTTON4…); without a key, shows it",
-	"/wildspark ore | herb | quest | chest | bobber | other — shows or hides a category, for this character",
-	"/wildspark nodes [ore | herb] — shows or hides the icons of herbs and veins on the minimap; nodes size <{nodeSize}> sets their size (default {nodeSize=})",
-	"/wildspark switch [<{nodeSwitchYards}>] — with both gathering professions: alternates Find Herbs and Find Minerals as you move; a number sets how far apart, in yards (default {nodeSwitchYards=})",
-	"/wildspark scan — shows what the last scan of the minimap read, and what Wildspark made of it",
-	"/wildspark ignore — ignores the object you are facing, or stops ignoring it; ignore list, ignore clear, ignore <name>",
-	"/wildspark language <auto | de | en | es | fr | ru> — language of Wildspark's texts and commands",
-	"/wildspark debug — describes each object targeted and what Wildspark makes of it",
-	"/wildspark objectives — lists the quest objectives that object names are compared to",
-	"/wildspark status — shows the values the client actually applies",
-	"/wildspark help — shows this list",
+	"/wildspark - opens or closes the settings window (like a click on the minimap button)",
+	"/wildspark minimap - shows or hides the minimap button",
+	"/wildspark on | off - enables or disables Wildspark (off restores your settings)",
+	"/wildspark preview - opens or closes the preview window, which shows the effect on a 3D object",
+	"/wildspark effect [category] <name> - gives this effect to every category, or to one of them (ore, herb, quest, chest, bobber, other); without a name, lists them",
+	"/wildspark color <category> <rrggbb> | default - color of a category's effect; without a color, shows it",
+	"/wildspark shared <category> - gives a category back the effect and appearance of all objects",
+	"/wildspark size [category] <{size}> - size of the effect (default {size=})",
+	"/wildspark intensity [category] <{intensity}> - brightness of the effect, in % (default {intensity=})",
+	"/wildspark offset [category] <{offsetY}> - vertical offset of the effect (default {offsetY=})",
+	"/wildspark fade [category] - whether the effect fades with the nameplate (object hidden by the scenery)",
+	"/wildspark name | icon [category] - whether the object's name, or its icon, shows above it; text [category] <{textSize}> sets the size of the name, in % (default {textSize=})",
+	"/wildspark font [category] <name> | default - font of the object's name; without a name, lists them",
+	"/wildspark silhouette [category] - whether the effect passes behind your character instead of covering it",
+	"/wildspark silhouette show | <size %> [height %] - shows and adjusts the cut-out",
+	"/wildspark range <{range}> - how far the game picks objects, in yards (default {range=})",
+	"/wildspark arc <{arc}> - 0 dead ahead, 1 in front, 2 every direction (default {arc=})",
+	"/wildspark exclusive - whether the game only points out the targets that get an effect",
+	"/wildspark combat | instance | unavailable | profession - whether the effect hides in combat, in instances, on objects you cannot use, on herbs and ore without the profession",
+	"/wildspark key <KEY> | none - binds the key that picks up the highlighted object (F, SHIFT-E, BUTTON4.); without a key, shows it",
+	"/wildspark ore | herb | quest | chest | bobber | other - shows or hides a category, for this character",
+	"/wildspark nodes [ore | herb] - shows or hides the icons of herbs and veins on the minimap; nodes size <{nodeSize}> sets their size (default {nodeSize=})",
+	"/wildspark switch [<{nodeSwitchYards}>] - with both gathering professions: alternates Find Herbs and Find Minerals as you move; a number sets how far apart, in yards (default {nodeSwitchYards=})",
+	"/wildspark scan - shows what the last scan of the minimap read, and what Wildspark made of it",
+	"/wildspark ignore - ignores the object you are facing, or stops ignoring it; ignore list, ignore clear, ignore <name>",
+	"/wildspark language <auto | de | en | es | fr | ru> - language of Wildspark's texts and commands",
+	"/wildspark debug - describes each object targeted and what Wildspark makes of it",
+	"/wildspark objectives - lists the quest objectives that object names are compared to",
+	"/wildspark status - shows the values the client actually applies",
+	"/wildspark help - shows this list",
 }
