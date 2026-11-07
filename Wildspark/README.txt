@@ -1,5 +1,8 @@
-Wildspark 1.3.2
+Wildspark 1.3.3
 
+1.3.3: Defers World Map camp-pin removal and acquisition to the next frame,
+outside Blizzard's secure map-data-provider refresh callback. This addresses
+SetPassThroughButtons action-blocked errors while opening or refreshing the map.
 1.3.2: Adds queued notifications for newly learned spells. Available local Forever
 API research does not establish a safe addon method for changing action slots,
 so Wildspark reminds the player to drag each spell from the spellbook.
