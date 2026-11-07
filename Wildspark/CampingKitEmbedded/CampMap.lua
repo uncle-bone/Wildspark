@@ -200,21 +200,22 @@ local function MakeProvider()
     function provider:RemoveAllData()
         self:GetMap():RemoveAllPinsByTemplate(TEMPLATE)
     end
-    function provider:RefreshAllData()
-        -- Blizzard's map pin acquisition checks mouse-button passthrough by
-        -- calling the protected SetPassThroughButtons API. Opening or
-        -- refreshing the map during combat can therefore taint/block the
-        -- entire pin refresh. Leave the current pins alone and rebuild them
-        -- once combat lockdown ends.
+    local function RefreshPinsNow()
+        if not provider then return end
+        provider.refreshScheduled = false
         if InCombatLockdown and InCombatLockdown() then
-            self.pendingRefresh = true
+            provider.pendingRefresh = true
             return
         end
-        self.pendingRefresh = false
-        self:RemoveAllData()
+        if not WorldMapFrame or not WorldMapFrame.IsShown or not WorldMapFrame:IsShown() then
+            provider.pendingRefresh = true
+            return
+        end
+        provider.pendingRefresh = false
+        provider:RemoveAllData()
         if Settings().campWorldMap == false then return end
-        local map = self:GetMap()
-        local mapID = map:GetMapID()
+        local map = provider:GetMap()
+        local mapID = map and map:GetMapID()
         if not mapID then return end
         local onlyZone = ZoomedOut(mapID) and ZoneOf(C_Map.GetBestMapForUnit("player"))
         for _, f in ipairs(ns.CampNet.Visible()) do
@@ -222,6 +223,26 @@ local function MakeProvider()
                 local x, y = OnMap(f, mapID)
                 if x then map:AcquirePin(TEMPLATE, f, x, y) end
             end
+        end
+    end
+    function provider:RefreshAllData()
+        -- MapCanvas invokes data-provider refreshes inside secureexecuterange.
+        -- Acquiring a custom pin synchronously there taints the later
+        -- CheckMouseButtonPassthrough call (Frame:SetPassThroughButtons).
+        -- Defer the actual pool mutation and AcquirePin calls until the next
+        -- frame, outside Blizzard's protected refresh callback.
+        self.pendingRefresh = true
+        if InCombatLockdown and InCombatLockdown() then return end
+        if self.refreshScheduled then return end
+        self.refreshScheduled = true
+        if C_Timer and C_Timer.After then
+            C_Timer.After(0, RefreshPinsNow)
+        else
+            if not self.refreshFrame then self.refreshFrame = CreateFrame("Frame") end
+            self.refreshFrame:SetScript("OnUpdate", function(frame)
+                frame:SetScript("OnUpdate", nil)
+                RefreshPinsNow()
+            end)
         end
     end
     WorldMapFrame:AddDataProvider(provider)
