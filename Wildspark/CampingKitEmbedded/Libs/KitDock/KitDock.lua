@@ -88,6 +88,7 @@ local function DB()
     db.order = db.order or { "fak", "ck", "fk" }
     if db.triUp == nil then db.triUp = true end
     db.two = db.two or 0
+    if db.minimap == nil then db.minimap = false end -- separate dock button hidden by default
     return db
 end
 D.DB = DB -- the kits' settings panels bind their docking options to it
