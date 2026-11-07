@@ -1,5 +1,5 @@
-Warning: truncated output (original token count: 27181)
-Total output lines: 2594
+Warning: truncated output (original token count: 27214)
+Total output lines: 2597
 
 -- Wildspark : met en lumi�re l'objet interactif vis� (filons, plantes, objets de qu�te)
 -- Principe : le "soft targeting" officiel de Blizzard d�signe � tout instant une seule cible
@@ -621,7 +621,7 @@ end
 local function ReadCursor(unit)
 	if not SafeCall(SetUnitCursorTexture, probe, unit, nil, true) then return false end
 	local texture = probe:GetTexture()
-	local atlas = probe.GetAtla…12181 tokens truncated…lages synchronis�s avec le compte peuvent arriver apr�s PLAYER_LOGIN et
+	local atlas = probe.GetAtla…12214 tokens truncated…lages synchronis�s avec le compte peuvent arriver apr�s PLAYER_LOGIN et
 -- �craser nos valeurs : on les r�applique � ces moments-l�.
 function handlers.VARIABLES_LOADED()
 	if db.enabled then ApplyCVars() end
