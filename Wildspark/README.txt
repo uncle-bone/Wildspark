@@ -1,5 +1,8 @@
-Wildspark 1.3.3
+Wildspark 1.3.4
 
+1.3.4: Keeps the main Wildspark minimap button visible and hides separate
+WildBuffs and Wildfire Kit minimap buttons by default. Existing saved choices
+remain unchanged and can still be adjusted in their settings.
 1.3.3: Defers World Map camp-pin removal and acquisition to the next frame,
 outside Blizzard's secure map-data-provider refresh callback. This addresses
 SetPassThroughButtons action-blocked errors while opening or refreshing the map.
@@ -65,7 +68,8 @@ WildBuffs casts only when you press a button or its keybind.
 
 Wildfire Kit
 Open /wildspark and select the Wildfire Kit tab to show or hide the tent, manage
-its minimap button, open or close the tent, and reach Wildfire Kit's full settings.
+its minimap button (hidden by default), open or close the tent, and reach
+Wildfire Kit's full settings. Camp pins on the minimap remain enabled.
 The tent contains camping objects, profession tools, food and drink slots, camp
 benefit timers, and nearby camp details. Disable the standalone Camping Kit
 addon when using this integrated copy, so the game does not create two tents.
