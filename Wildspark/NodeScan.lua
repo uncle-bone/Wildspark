@@ -138,6 +138,12 @@ end
 -- Nom du texte qui dit pourquoi ce client ne permet pas le balayage, ou nil
 local function Failure()
 	if broken then return "FAIL_SCAN_ERROR" end
+	-- Forever build 70862 stopped honoring simulated minimap mouse positions for
+	-- tracking-dot tooltips. Keep native dots intact, but do not run a scan that
+	-- will silently return no nodes. Recheck this gate if a later client restores it.
+	local _, build = GetBuildInfo()
+	build = tonumber(build)
+	if build and build >= 70862 then return "FAIL_SCAN_SIMULATED_CURSOR" end
 	if not (Minimap and Minimap.UpdateMouseoverAtPoint and Minimap.SetUsingSoftCursor
 		and C_TooltipInfo and C_TooltipInfo.GetMinimapMouseover
 		and C_Minimap and C_Minimap.GetViewRadius and C_Minimap.GetNumTrackingTypes and C_Minimap.GetTrackingInfo) then
