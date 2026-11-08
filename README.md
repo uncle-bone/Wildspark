@@ -1,5 +1,9 @@
 # Wildspark
 
+> **[Download Latest Stable — v1.3.5](https://github.com/uncle-bone/Wildspark/archive/refs/tags/v1.3.5.zip)**
+
+**Stable release: 1.3.5 for WoW Forever 1.60.1.**
+
 **Current build: 1.3.5 for WoW Forever 1.60.1**
 
 Wildspark highlights nearby gathering nodes and useful world objects. It includes WildBuffs, leash helpers, and the integrated Camping Kit rebranded as **Wildfire Kit**.
