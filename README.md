@@ -6,7 +6,7 @@ Wildspark highlights nearby gathering nodes and useful world objects. It include
 
 ## Install
 
-1. Download the [Wildspark 1.3.5 source archive](https://github.com/uncle-bone/Wildspark/archive/refs/heads/main.zip).
+1. Download the [Wildspark 1.3.5 source archive](https://github.com/uncle-bone/Wildspark/archive/refs/tags/v1.3.5.zip).
 2. Extract the archive and copy its `Wildspark/Wildspark` folder into your Forever client's `Interface/AddOns` directory.
 3. Disable Lueur, the separate buff helper, and standalone Camping Kit to avoid overlapping features.
 4. Enable Wildspark and reload the UI.
