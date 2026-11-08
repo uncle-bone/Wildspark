@@ -306,6 +306,7 @@ L.FAIL_MASK_TEXTURE = "mask texture not found (fully restart the game)"
 L.FAIL_MASK_REFUSED = "the client refused the mask"
 L.FAIL_NO_SCAN = "this client does not let an addon read the dots of the minimap"
 L.FAIL_SCAN_ERROR = "the game refused the minimap scan (/wildspark scan says why)"
+L.FAIL_SCAN_SIMULATED_CURSOR = "this Forever build no longer reports nodes at simulated cursor positions; the game dots still work, but custom herb/ore icons cannot be placed"
 
 L.STATUS_CLIENT = "client %s (%s), language %s; Wildspark's texts: %s. Values in effect:"
 L.STATUS_CVAR_UNKNOWN = "unknown to this client"
