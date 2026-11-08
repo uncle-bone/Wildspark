@@ -1,5 +1,8 @@
-Wildspark 1.3.4
+Wildspark 1.3.5
 
+1.3.5: Detects Forever build 70862 and later's simulated-cursor minimap tooltip
+regression. The addon stops futile node sweeps and explains that native tracking
+dots remain available while custom herb/ore replacement icons cannot be placed.
 1.3.4: Keeps the main Wildspark minimap button visible and hides separate
 WildBuffs and Wildfire Kit minimap buttons by default. Existing saved choices
 remain unchanged and can still be adjusted in their settings.
