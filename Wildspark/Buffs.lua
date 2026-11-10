@@ -554,8 +554,14 @@ local function CreateSpellButton(buff, index)
       if UnitExists("mouseover") and UnitIsFriend("player", "mouseover") then unit = "mouseover"
       elseif UnitExists("target") and UnitIsFriend("player", "target") then unit = "target" end
     end
-    last.guid, last.buff, last.spellID, last.time = unit and UnitGUID(unit) or (state and state.guid), buff, state and state.spellID, GetTime()
-    last.isSelf = unit and UnitIsUnit(unit, "player") or (state and state.unit and UnitIsUnit(state.unit, "player"))
+    if InCombatLockdown() then
+      last.guid = unit and UnitGUID(unit)
+      last.isSelf = unit and UnitIsUnit(unit, "player") or false
+    else
+      last.guid = unit and UnitGUID(unit) or (state and state.guid)
+      last.isSelf = state and state.unit and UnitIsUnit(state.unit, "player") or false
+    end
+    last.buff, last.spellID, last.time = buff, state and state.spellID, GetTime()
     if state and state.saying then pendingSay = nil end
   end)
   local state = { button = button, buff = buff, texture = texture, bg = bg,
@@ -651,8 +657,14 @@ btn:HookScript("PreClick", function(self, mouse, down)
     if UnitExists("mouseover") and UnitIsFriend("player", "mouseover") then unit = "mouseover"
     elseif UnitExists("target") and UnitIsFriend("player", "target") then unit = "target" end
   end
-  last.guid, last.buff, last.spellID, last.time = unit and UnitGUID(unit) or cur.guid, cur.buff, cur.spellID, GetTime()
-  last.isSelf = unit and UnitIsUnit(unit, "player") or cur.isSelf
+  if InCombatLockdown() then
+    last.guid = unit and UnitGUID(unit)
+    last.isSelf = unit and UnitIsUnit(unit, "player") or false
+  else
+    last.guid = unit and UnitGUID(unit) or cur.guid
+    last.isSelf = cur.isSelf
+  end
+  last.buff, last.spellID, last.time = cur.buff, cur.spellID, GetTime()
   if cur.saying then pendingSay = nil end
   if DEBUG then
     local mt = self:GetAttribute("macrotext")
@@ -695,6 +707,7 @@ holder:SetScript("OnUpdate", function(_, dt)
   if not ok then unit, buff, spellID, count, byBuff = nil, nil, nil, 0, {} end
   UpdateSpellButtons(byBuff)
   ApplyBinding()
+  cur.unit = unit
   cur.guid, cur.buff, cur.spellID, cur.saying = unit and UnitGUID(unit), buff, spellID, nil
   cur.isSelf = unit and UnitIsUnit(unit, "player")
   SetGlow(unit ~= nil and ForeverBuffs_DB.flash ~= false)
