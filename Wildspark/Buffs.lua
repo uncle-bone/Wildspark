@@ -364,7 +364,7 @@ local function UpdateVisibility()
   end
 end
 
-local btn = CreateFrame("Button", "WildBuffsButton", holder, "SecureActionButtonTemplate")
+local btn = CreateFrame("Button", "WildBuffsButton", holder, "SecureActionButtonTemplate,SecureHandlerStateTemplate")
 btn:SetAllPoints()
 btn:RegisterForClicks("AnyUp", "AnyDown")
 btn:RegisterForDrag("LeftButton")
@@ -376,6 +376,27 @@ btn:SetScript("OnDragStop", function()
   local p, _, rp, x, y = holder:GetPoint()
   ForeverBuffs_DB.pos = { p, rp, x, y }
 end)
+
+local function InstallCombatAction(button)
+  -- Secure state handling switches to a prepared mouseover/target macro during combat.
+  button:SetAttribute("_onstate-wildcombat", [[
+    if newstate == "1" then
+      self:SetAttribute("macrotext", self:GetAttribute("wildCombatMacro") or "")
+    else
+      self:SetAttribute("macrotext", self:GetAttribute("wildMacro") or "")
+    end
+  ]])
+  RegisterStateDriver(button, "wildcombat", "[combat] 1; 0")
+end
+
+local function SetButtonActions(button, normalMacro, combatMacro)
+  button:SetAttribute("type", normalMacro and "macro" or nil)
+  button:SetAttribute("wildMacro", normalMacro)
+  button:SetAttribute("wildCombatMacro", combatMacro)
+  button:SetAttribute("macrotext", normalMacro)
+end
+
+InstallCombatAction(btn)
 
 local function UpdateRotatingButtonVisibility()
   if InCombatLockdown() then return end
@@ -447,6 +468,12 @@ local function SpellCastName(buff, spellID)
   return name
 end
 
+local function CombatCastMacro(buff, spellID)
+  if not buff or not spellID then return nil end
+  local castName = SpellCastName(buff, spellID)
+  return "/cast [@mouseover,help,nodead][@target,help,nodead] " .. castName
+end
+
 local function CastMacro(unit, buff, spellID)
   local castName = SpellCastName(buff, spellID)
   local text
@@ -462,8 +489,9 @@ local function CastMacro(unit, buff, spellID)
 end
 
 local function CreateSpellButton(buff, index)
-  local button = CreateFrame("Button", "WildBuffsSpellButton" .. index, holder, "SecureActionButtonTemplate")
+  local button = CreateFrame("Button", "WildBuffsSpellButton" .. index, holder, "SecureActionButtonTemplate,SecureHandlerStateTemplate")
   button:SetSize(36, 36)
+  InstallCombatAction(button)
   button:RegisterForClicks("AnyUp", "AnyDown")
   button:RegisterForDrag("LeftButton")
   button:SetScript("OnDragStart", function()
@@ -538,8 +566,7 @@ local function UpdateSpellButtons(targets)
 
   if #active == 0 or (#active < 2 and ForeverBuffs_DB.showRotating ~= false) then
     for _, state in ipairs(spellButtons) do
-      state.button:SetAttribute("type", nil)
-      state.button:SetAttribute("macrotext", nil)
+      SetButtonActions(state.button, nil, nil)
       state.button:Hide()
     end
     return
@@ -567,8 +594,7 @@ local function UpdateSpellButtons(targets)
     state.guid = state.target and UnitGUID(state.target)
     state.saying = target ~= nil and pendingSay ~= nil
     if target then
-      button:SetAttribute("type", "macro")
-      button:SetAttribute("macrotext", CastMacro(target.unit, buff, target.spellID))
+      SetButtonActions(button, CastMacro(target.unit, buff, target.spellID), CombatCastMacro(buff, target.spellID))
       button:SetAlpha(1)
       button:Enable()
       state.label:SetText(UnitName(target.unit) or "?")
@@ -577,8 +603,7 @@ local function UpdateSpellButtons(targets)
       state.bg:SetColorTexture(0, 0, 0, 0)
       state.SetGlow(ForeverBuffs_DB.flash ~= false)
     else
-      button:SetAttribute("type", nil)
-      button:SetAttribute("macrotext", nil)
+      SetButtonActions(button, nil, nil)
       button:SetAlpha(0.45)
       button:Disable()
       state.label:SetText("Nobody to buff")
@@ -594,8 +619,7 @@ local function UpdateSpellButtons(targets)
     local activeBuff = false
     for _, item in ipairs(active) do if item.buff == state.buff then activeBuff = true; break end end
     if not activeBuff then
-      state.button:SetAttribute("type", nil)
-      state.button:SetAttribute("macrotext", nil)
+      SetButtonActions(state.button, nil, nil)
       state.SetGlow(false)
       state.button:Hide()
     end
@@ -624,10 +648,23 @@ holder:SetScript("OnUpdate", function(_, dt)
   t = 0
 
   if InCombatLockdown() then
+    -- Secure state drivers have switched to the prepared combat action.
+    -- Do not rewrite protected button attributes while lockdown is active.
     SetGlow(false)
     moreText:SetText("")
-    label:SetText("In combat")
-    bg:SetColorTexture(0.5, 0, 0, 0.6)
+    if cur.buff then
+      label:SetText("Mouseover or target to buff")
+      bg:SetColorTexture(0, 0, 0, 0)
+    else
+      label:SetText("No combat buff queued")
+      bg:SetColorTexture(0.25, 0.08, 0.08, 0.55)
+    end
+    for _, state in ipairs(spellButtons) do
+      if state.button:GetAttribute("wildCombatMacro") then
+        state.label:SetText("Mouseover or target to buff")
+        state.moreText:SetText("")
+      end
+    end
     return
   end
 
@@ -668,14 +705,13 @@ holder:SetScript("OnUpdate", function(_, dt)
       cur.saying = true
     end
 
-    btn:SetAttribute("type", "macro")
-    btn:SetAttribute("macrotext", text)
+    SetButtonActions(btn, text, CombatCastMacro(buff, spellID))
     icon:SetTexture(SpellIcon(spellID))
     label:SetText(UnitName(unit) or "?")
     moreText:SetText(count > 1 and ("+" .. (count - 1)) or "")
     bg:SetColorTexture(0, 0, 0, 0)
   else
-    btn:SetAttribute("type", nil)
+    SetButtonActions(btn, nil, nil)
     moreText:SetText("")
     label:SetText("|cff888888Nobody to buff|r")
     bg:SetColorTexture(0, 0, 0, 0.65)
