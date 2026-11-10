@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 27214)
-Total output lines: 2597
-
 -- Wildspark : met en lumi�re l'objet interactif vis� (filons, plantes, objets de qu�te)
 -- Principe : le "soft targeting" officiel de Blizzard d�signe � tout instant une seule cible
 -- d'interaction (l'unit� "softinteract") et lui donne une nameplate. Wildspark accroche � cette
