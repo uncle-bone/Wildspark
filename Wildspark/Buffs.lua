@@ -549,8 +549,13 @@ local function CreateSpellButton(buff, index)
   button:HookScript("PreClick", function(self, mouse, down)
     if down ~= GetCVarBool("ActionButtonUseKeyDown") then return end
     local state = self.wildBuffState
-    last.guid, last.buff, last.spellID, last.time = state and state.guid, buff, state and state.spellID, GetTime()
-    last.isSelf = state and state.unit and UnitIsUnit(state.unit, "player")
+    local unit = state and state.target
+    if InCombatLockdown() then
+      if UnitExists("mouseover") and UnitIsFriend("player", "mouseover") then unit = "mouseover"
+      elseif UnitExists("target") and UnitIsFriend("player", "target") then unit = "target" end
+    end
+    last.guid, last.buff, last.spellID, last.time = unit and UnitGUID(unit) or (state and state.guid), buff, state and state.spellID, GetTime()
+    last.isSelf = unit and UnitIsUnit(unit, "player") or (state and state.unit and UnitIsUnit(state.unit, "player"))
     if state and state.saying then pendingSay = nil end
   end)
   local state = { button = button, buff = buff, texture = texture, bg = bg,
@@ -641,8 +646,13 @@ end
 btn:HookScript("PreClick", function(self, mouse, down)
   -- the button only acts on one of down/up, matching this CVar
   if down ~= GetCVarBool("ActionButtonUseKeyDown") then return end
-  last.guid, last.buff, last.spellID, last.time = cur.guid, cur.buff, cur.spellID, GetTime()
-  last.isSelf = cur.isSelf
+  local unit = cur.unit
+  if InCombatLockdown() then
+    if UnitExists("mouseover") and UnitIsFriend("player", "mouseover") then unit = "mouseover"
+    elseif UnitExists("target") and UnitIsFriend("player", "target") then unit = "target" end
+  end
+  last.guid, last.buff, last.spellID, last.time = unit and UnitGUID(unit) or cur.guid, cur.buff, cur.spellID, GetTime()
+  last.isSelf = unit and UnitIsUnit(unit, "player") or cur.isSelf
   if cur.saying then pendingSay = nil end
   if DEBUG then
     local mt = self:GetAttribute("macrotext")
