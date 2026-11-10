@@ -64,7 +64,7 @@ local CHAR_DEFAULTS = {
 	bodyShift   = 0,      -- d�calage vertical de cette zone (% de la hauteur du personnage)
 	nodeSwitch  = false,  -- deux m�tiers de r�colte : Wildspark allume tour � tour le pistage des plantes et celui des minerais
 	nodeSwitchYards = 15, -- distance parcourue entre deux de ces bascules (m�tres)
-	autoPushSpells = true, -- queue new active spells for deliberate out-of-combat placement
+	autoPushSpells = false, -- newly learned spells are announced; action bars are never edited
 	knownSpells = {}, -- per-character spellbook snapshot
 }
 
@@ -618,7 +618,1113 @@ end
 local function ReadCursor(unit)
 	if not SafeCall(SetUnitCursorTexture, probe, unit, nil, true) then return false end
 	local texture = probe:GetTexture()
-	local atlas = probe.GetAtla…12214 tokens truncated…lages synchronis�s avec le compte peuvent arriver apr�s PLAYER_LOGIN et
+	local atlas = probe.GetAtlas and probe:GetAtlas()
+	if IsSecret(texture) then texture = nil end
+	if IsSecret(atlas) then atlas = nil end
+
+	local category, blocked
+	local known = type(texture) == "number" and cursorLookup[texture]
+	if known then
+		category, blocked = known[1], known[2]
+	else
+		category, blocked = ReadCursorName(texture)
+		if not category then
+			local fromAtlas, atlasBlocked = ReadCursorName(atlas)
+			category, blocked = fromAtlas, blocked or atlasBlocked
+		end
+	end
+	return true, category, blocked or false, atlas or texture
+end
+
+-- Numéro de l'objet dans les données du jeu, le même pour tous les objets d'une sorte. Il se lit
+-- dans son GUID (GameObject-0-serveur-instance-zone-numéro-exemplaire) ; nil si le jeu ne le donne pas.
+local function GUIDObject(guid)
+	return type(guid) == "string" and tonumber(guid:match("^GameObject%-%d+%-%d+%-%d+%-%d+%-(%d+)")) or nil
+end
+
+local function ObjectID(unit)
+	return GUIDObject(SafeCall(UnitGUID, unit))
+end
+
+-- Un coffre n'a pas de curseur à lui : le jeu lui donne celui d'un levier (vu en jeu le
+-- 2026-10-13 : « Coffre endommagé → autre »). Deux choses le rangent parmi les contenants : le
+-- joueur a déjà fouillé un objet de ce numéro (LearnContainers), ou un mot de son nom commence ou
+-- finit comme un nom de coffre dans la langue du client. Renvoie ce qui l'y range (affiché par le
+-- debug), ou nil.
+local CHEST_WORDS = {}
+for word in ns.ChestWords():gmatch("%S+") do CHEST_WORDS[#CHEST_WORDS + 1] = Fold(word) end
+
+local function MatchContainer(id, name)
+	if id and db.containers[id] then return L.MATCH_LOOT end
+	if type(name) ~= "string" then return nil end
+	for word in NameKey(name):gmatch("[^%s%p]+") do
+		for _, chest in ipairs(CHEST_WORDS) do
+			if word:sub(1, #chest) == chest or word:sub(-#chest) == chest then return L.MATCH_NAME end
+		end
+	end
+end
+
+-- Le butin s'ouvre : le jeu dit de quel objet vient chaque part (son GUID). Le numéro d'un objet
+-- du décor que le joueur fouille est retenu : c'est ce qui range parmi les coffres une caisse ou
+-- un tonneau, dont le nom ne dit rien, et tout coffre dans une langue que CHEST_WORDS n'a pas.
+-- Ni le flotteur, ni les filons et les plantes, que leur curseur désigne.
+local gathered = {}  -- numéro des filons et des plantes que le jeu a désignés depuis le chargement
+
+local function LearnContainers()
+	if not (GetNumLootItems and GetLootSourceInfo) then return end
+	for slot = 1, SafeCall(GetNumLootItems) or 0 do
+		local id = GUIDObject(SafeCall(GetLootSourceInfo, slot))
+		if id and not BOBBER_IDS[id] and not gathered[id] then db.containers[id] = true end
+	end
+end
+
+-- Renvoie la catégorie de l'objet, l'indicateur "grisé", le nom de curseur brut et le numéro de
+-- l'objet, si le jeu le donne
+local function Classify(unit, name)
+	local hasCursor, category, blocked, cursor = ReadCursor(unit)
+	-- Un curseur de service dit ce qu'est l'objet : ni son nom ni la pêche n'en font autre chose.
+	-- (Vu en jeu le 2026-10-13 : « Boîte aux lettres → quête », par le mot « boîte » d'un objectif.)
+	-- Seul le jeu peut encore le rattacher à une quête.
+	local service = category == "service"
+	if service then category = "other" end
+	-- le jeu n'a pas de curseur pour le flotteur, qui porte celui de n'importe quel objet : c'est
+	-- son numéro qui le désigne
+	local id = ObjectID(unit)
+	if id and BOBBER_IDS[id] then
+		category = "bobber"
+	elseif category ~= "ore" and category ~= "herb" and category ~= "bobber" then
+		if IsQuestUnit(unit) then
+			category = "quest"
+		elseif service then
+			-- un autre objet, sans plus
+		elseif not id and (category == nil or category == "other") and ReadLine() then
+			-- faute de numéro lisible : un objet sans curseur à lui, désigné pendant que le
+			-- joueur pêche, est pris pour son flotteur
+			category = "bobber"
+		elseif MatchQuestObjective(name) ~= nil then
+			category = "quest"
+		elseif (category == nil or category == "other") and MatchContainer(id, name) ~= nil then
+			category = "chest"
+		end
+	end
+	if not category and (hasCursor or (UnitIsInteractable and SafeCall(UnitIsInteractable, unit) == true)) then
+		category = "other"
+	end
+	return category, blocked, cursor, id
+end
+
+-- Le personnage a-t-il le métier qui récolte cette catégorie ? true, false, ou nil quand le jeu ne le
+-- dit pas (client sans ces API, compétences pas encore chargées). Le sort de pistage connu ou la
+-- compétence lue suffisent l'un comme l'autre ; il faut que tout ce qui sait répondre dise non.
+local Trained
+do
+	-- pour chaque catégorie, la ligne de compétence du métier dans les données du jeu, et les sorts de
+	-- pistage qu'il apprend (Découverte d'herbes, Découverte de gisements), ceux que NodeScan.lua reconnaît
+	local PROFESSIONS = { herb = { line = 182, finders = { 2383, 8387 } }, ore = { line = 186, finders = { 2580, 8388 } } }
+
+	function Trained(category)
+		local profession = PROFESSIONS[category]
+		if not profession then return nil end
+		local answered = false
+		local IsKnown = C_SpellBook and C_SpellBook.IsSpellKnown or IsPlayerSpell
+		if IsKnown then
+			for _, spell in ipairs(profession.finders) do
+				local known = SafeCall(IsKnown, spell)
+				if known == true then return true end
+				answered = answered or known == false
+			end
+		end
+		if C_SkillInfo and C_SkillInfo.GetSkillLineInfoByID then
+			-- aucune ligne : le jeu ne les a pas encore données (juste après la connexion)
+			if (SafeCall(C_SkillInfo.GetNumSkillLines) or 0) == 0 then return nil end
+			local ok, info = pcall(C_SkillInfo.GetSkillLineInfoByID, profession.line)
+			if not ok or IsSecret(info) then return nil end
+			if type(info) == "table" then
+				local most = info.maxRank
+				if IsSecret(most) or type(most) ~= "number" or most > 0 then return true end
+			end
+			answered = true
+		end
+		if answered then return false end
+		return nil
+	end
+end
+
+-- "ready" : on peut interagir ; "far" : trop loin ; "locked" : à portée mais le jeu refuse
+-- (compétence insuffisante, objet verrouillé…). Sans l'API de portée (Classic Era), un
+-- curseur grisé est simplement considéré comme trop loin.
+local function ReadState(unit, blocked)
+	local inRange
+	if UnitIsInInteractRange then inRange = SafeCall(UnitIsInInteractRange, unit) end
+	if inRange == false then return "far", inRange end
+	if blocked then return inRange == true and "locked" or "far", inRange end
+	return "ready", inRange
+end
+
+---------------------------------------------------------------------------
+-- Cible
+---------------------------------------------------------------------------
+
+local function GetNamePlate(unit)
+	return C_NamePlate and SafeCall(C_NamePlate.GetNamePlateForUnit, unit)
+end
+
+-- Y a-t-il une cible d'interaction ? true, false, ou nil si le client ne le dit pas
+-- (valeurs secrètes). Un objet du décor n'"existe" pas au sens de UnitExists.
+local function SoftTargetExists()
+	local isUnit, isObject = SafeCall(UnitExists, SOFT), SafeCall(UnitIsGameObject, SOFT)
+	if isUnit == true or isObject == true then return true end
+	if isUnit == false and isObject == false then return false end
+	return nil
+end
+
+-- Renvoie le jeton d'unité à interroger, sa nameplate (nil si le jeu ne l'affiche pas, ou
+-- pas encore) et le chemin suivi (pour le debug). Le jeton "softinteract" suffit en général ;
+-- tant qu'il n'a jamais donné la nameplate d'un objet du décor sur ce client, on la cherche
+-- aussi en balayant les nameplates visibles. Sans cible lisible, la quatrième valeur dit si
+-- c'est faute de le savoir.
+local function ResolveTarget()
+	local exists = SoftTargetExists()
+	if exists == false then return nil end
+	local plate = GetNamePlate(SOFT)
+	if plate then
+		if not directWorks and SafeCall(UnitIsGameObject, SOFT) == true then directWorks = true end
+		return SOFT, plate, L.VIA_DIRECT
+	end
+	if not directWorks then
+		for unit in pairs(activeUnits) do
+			if SafeCall(UnitIsGameObject, unit) == true or SafeCall(UnitIsUnit, unit, SOFT) == true then
+				plate = GetNamePlate(unit)
+				if plate then return unit, plate, L.VIA_SWEEP end
+			end
+		end
+	end
+	if exists then return SOFT, nil, L.VIA_DIRECT end
+	return nil, nil, nil, true
+end
+
+---------------------------------------------------------------------------
+-- Wildspark
+---------------------------------------------------------------------------
+
+-- Donne à une couche une image de l'addon ; à défaut, une texture du jeu. Renvoie false si
+-- l'image manque.
+local function LoadImage(texture, file)
+	if texture:SetTexture(MEDIA .. file .. ".tga") == false then
+		texture:SetTexture(FALLBACK_TEXTURE)
+		return false
+	end
+	return true
+end
+
+-- Renvoie la couche, et si son image a été trouvée
+local function NewLayer(parent, file, drawLayer, subLevel, blendMode)
+	local texture = parent:CreateTexture(nil, drawLayer, nil, subLevel)
+	local found = LoadImage(texture, file)
+	texture:SetBlendMode(blendMode or "ADD")
+	texture:SetPoint("CENTER")
+	texture:SetVertexColor(1, 1, 1, 0)
+	-- positions et tailles animées au sous-pixel : pas d'accrochage à la grille
+	if texture.SetSnapToPixelGrid then texture:SetSnapToPixelGrid(false) end
+	if texture.SetTexelSnappingBias then texture:SetTexelSnappingBias(0) end
+	return texture, found
+end
+
+local silhouette = {}     -- owner, mask, outline, applied, show, failed (nom du texte qui dit pourquoi elle est indisponible)
+
+-- Crée les couches d'un effet, et celles de ses ondes
+local function BuildEffect(effect)
+	local fx = { waves = {} }
+	effect.fx, effect.layers = fx, {}
+	local function Layer(...)
+		local texture, found = NewLayer(glow.frame, ...)
+		if not found then effect.missing = true end
+		effect.layers[#effect.layers + 1] = texture
+		glow.layers[#glow.layers + 1] = texture
+		if silhouette.applied then pcall(texture.AddMaskTexture, texture, silhouette.mask) end
+		return texture
+	end
+	effect.Build(fx, Layer)
+	if effect.wave then
+		for i = 1, 2 do fx.waves[i] = { texture = Layer(effect.wave, "BORDER") } end
+	end
+end
+
+-- Renvoie l'effet à dessiner : celui de la catégorie de l'objet, construit à son premier usage,
+-- ou l'effet de secours si ses images manquent. Quand il change, ses couches remplacent celles
+-- du précédent.
+local function UseEffect()
+	local effect = EFFECTS[Look(glow.category, "effect")]
+	if not effect.fx then BuildEffect(effect) end
+	if effect.missing then
+		effect = EFFECTS.fallback
+		if not effect.fx then BuildEffect(effect) end
+	end
+	if effect ~= glow.effect then
+		if glow.effect then
+			for _, texture in ipairs(glow.effect.layers) do texture:Hide() end
+		end
+		for _, texture in ipairs(effect.layers) do texture:Show() end
+		for _, wave in ipairs(effect.fx.waves) do
+			wave.age = nil
+			Tint(wave.texture, 1, 1, 1, 0)
+		end
+		glow.effect = effect
+	end
+	return effect
+end
+
+-- Lance une onde : un anneau qui s'élargit en s'éteignant, ou qui se resserre sur la wildspark
+local function StartWave(from, to, duration, peak, inward)
+	local chosen
+	for _, wave in ipairs(glow.effect.fx.waves) do
+		if not wave.age then chosen = wave break end
+		if not chosen or wave.age > chosen.age then chosen = wave end
+	end
+	if not chosen then return end
+	chosen.age, chosen.from, chosen.to = 0, from, to
+	chosen.duration, chosen.peak, chosen.inward = duration, peak, inward
+end
+
+local function SetState(state)
+	if state == glow.state then return end
+	if state == "ready" then
+		-- verrouillage : un anneau se resserre sur la wildspark, qui s'illumine un instant
+		glow.flash = 1
+		StartWave(1.50, 1.00, 0.35, 0.9, true)
+	end
+	glow.state = state
+end
+
+-- Mémorise la position de la wildspark à l'écran, pour pouvoir la dissiper sur place quand sa
+-- nameplate disparaît. Certaines mesures sont interdites ou secrètes selon le contexte.
+local function CachePosition(frame)
+	glow.gx = nil
+	if glow.measureFailed then return end
+	local ok, x, y = pcall(frame.GetCenter, frame)
+	local okScale, scale = pcall(frame.GetEffectiveScale, frame)
+	if not ok or not okScale then glow.measureFailed = true return end
+	local uiScale = UIParent:GetEffectiveScale()
+	-- une valeur secrète ne se teste même pas : on l'écarte avant tout autre examen
+	if IsSecret(x) or IsSecret(y) or IsSecret(scale) or IsSecret(uiScale) then return end
+	if not x or not y or not scale or uiScale == 0 then return end
+	local ratio = scale / uiScale
+	glow.gx, glow.gy, glow.gscale = x * ratio, y * ratio, ratio
+end
+
+local context = {}  -- ce que l'effet reçoit à chaque image, réutilisé de l'une à l'autre
+
+local function Animate(self, elapsed)
+	if elapsed > 0.1 then elapsed = 0.1 end -- pas de saut après un gel d'image
+	local effect = UseEffect()
+	local fx, c = effect.fx, context
+
+	glow.appear = Approach(glow.appear, 1, elapsed / APPEAR_TIME)
+	glow.ready  = Approach(glow.ready, glow.state == "ready" and 1 or 0, elapsed / BLEND_TIME)
+	glow.locked = Approach(glow.locked, glow.state == "locked" and 1 or 0, elapsed / BLEND_TIME)
+	glow.flash  = max(glow.flash - elapsed / FLASH_TIME, 0)
+	local blend = min(elapsed * 8, 1)
+	glow.r = Lerp(glow.r, glow.targetR, blend)
+	glow.g = Lerp(glow.g, glow.targetG, blend)
+	glow.b = Lerp(glow.b, glow.targetB, blend)
+
+	local ready, locked = glow.ready, glow.locked
+	-- respiration et mouvement, plus vifs à portée, ralentis sur un objet indisponible
+	glow.phase = glow.phase + elapsed * TWO_PI / Lerp(3.4, 1.7, ready)
+	glow.spin = glow.spin - elapsed * Lerp(0.55, 1.6, ready) * (1 - 0.7 * locked)
+
+	c.frame, c.elapsed, c.size = self, elapsed, Look(glow.category, "size")
+	c.arrive = 1 - (1 - glow.appear) ^ 3            -- 0 -> 1 en décélérant
+	-- sur un objet indisponible la wildspark faiblit de moitié, ou s'éteint si le joueur l'a demandé
+	local dim = db.hideLocked and 1 or 0.5
+	c.alpha = c.arrive * Look(glow.category, "intensity") / 100 * (1 - dim * locked)
+	c.ready, c.locked, c.flash, c.phase, c.spin = ready, locked, glow.flash, glow.phase, glow.spin
+	c.breath = 0.5 + 0.5 * sin(glow.phase)
+	c.twinkle = 0.5 + 0.5 * sin(glow.phase * 2.3 + 1.3)
+	-- couleur : éteinte vers le gris sur un objet indisponible, tirée vers le blanc pour les
+	-- traits fins (h) et plus encore pour le cœur des éclats (w)
+	local r = Lerp(glow.r, 0.62, 0.75 * locked)
+	local g = Lerp(glow.g, 0.62, 0.75 * locked)
+	local b = Lerp(glow.b, 0.62, 0.75 * locked)
+	c.r, c.g, c.b = r, g, b
+	c.hr, c.hg, c.hb = Lerp(r, 1, 0.55), Lerp(g, 1, 0.55), Lerp(b, 1, 0.55)
+	c.wr, c.wg, c.wb = Lerp(r, 1, 0.75), Lerp(g, 1, 0.75), Lerp(b, 1, 0.75)
+
+	effect.Update(fx, c)
+
+	-- ondes : un "ping" régulier vers l'extérieur, qui se tait sur un objet indisponible
+	glow.nextPing = glow.nextPing - elapsed
+	if glow.nextPing <= 0 then
+		glow.nextPing = Lerp(2.4, 3.8, ready)
+		if glow.state ~= "locked" and effect.ping ~= false then StartWave(0.55, 1.45, 1.0, 0.55) end
+	end
+	local base, flat, gain = fx.waveSize or c.size, effect.flat or 1, c.alpha * (effect.waveGain or 1)
+	for _, wave in ipairs(fx.waves) do
+		if wave.age then
+			wave.age = wave.age + elapsed
+			local progress = wave.age / wave.duration
+			if progress >= 1 then
+				wave.age = nil
+				Tint(wave.texture, 1, 1, 1, 0)
+			else
+				local fade
+				if wave.inward then
+					fade = progress < 0.7 and progress / 0.7 or (1 - progress) / 0.3
+				else
+					fade = (1 - progress) ^ 1.5
+				end
+				local width = base * Lerp(wave.from, wave.to, 1 - (1 - progress) ^ 2)
+				Sized(wave.texture, width, width * flat)
+				if fx.waveY then Place(wave.texture, self, 0, fx.waveY) end
+				if fx.waveAngle then wave.texture:SetRotation(fx.waveAngle) end
+				Tint(wave.texture, c.hr, c.hg, c.hb, gain * wave.peak * fade)
+			end
+		end
+	end
+
+	if label and label:IsShown() then
+		-- le nom reste lisible quelle que soit l'intensité : il ne suit que l'arrivée et l'état
+		label:SetAlpha(c.arrive * (1 - (db.hideLocked and 1 or 0.4) * locked))
+		label.name:SetTextColor(c.hr, c.hg, c.hb)
+	end
+
+	CachePosition(self)
+end
+
+local function CreateGlow()
+	local frame = CreateFrame("Frame")
+	frame:SetSize(1, 1)
+	frame:Hide()
+	frame:SetScript("OnUpdate", Animate)
+	glow.frame = frame
+	return frame
+end
+
+---------------------------------------------------------------------------
+-- Nom et icône de l'objet
+---------------------------------------------------------------------------
+
+-- Le jeu écrit le nom de sa cible d'interaction sur sa nameplate, sous une icône. Sur la
+-- nameplate qui porte la wildspark, Wildspark les masque et dessine les siens à la même place : ils
+-- se règlent, prennent la couleur de la catégorie, et l'aperçu les montre tels quels.
+local function CreateLabel()
+	label = CreateFrame("Frame", nil, glow.frame)
+	label:SetSize(1, 1)
+	label.icon = label:CreateTexture(nil, "OVERLAY")
+	label.icon:SetSize(22, 22)
+	label.name = label:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	label.name:SetPoint("CENTER", label, "CENTER", 0, 0)
+	-- la police du jeu : la taille du texte se règle à partir de la sienne
+	label.font, label.height, label.flags = label.name:GetFont()
+	return label
+end
+
+-- Montre le nom et l'icône de l'objet à l'endroit de sa nameplate, ou les retire selon les
+-- réglages. L'icône est celle que le jeu donne à l'unité ; sans unité (aperçu), celle de la
+-- catégorie. Elle se pose sur le nom, ou à sa place quand il n'est pas écrit.
+local function ShowLabel(unit, name, category)
+	local showName, showIcon = Look(category, "showName"), Look(category, "showIcon")
+	if not glow.anchor or not (showName or showIcon) then
+		if label then label:Hide() end
+		return
+	end
+	local frame = label or CreateLabel()
+	local hasIcon = false
+	if showIcon and unit then
+		hasIcon = SafeCall(SetUnitCursorTexture, frame.icon, unit, nil, true) == true
+	elseif showIcon then
+		hasIcon = frame.icon:SetTexture(CURSORS .. (SAMPLE_CURSOR[category] or SAMPLE_CURSOR.other)) ~= false
+	end
+	frame.icon:SetShown(hasIcon)
+	frame.name:SetText(name or "")
+	frame.name:SetShown(showName)
+	frame.icon:ClearAllPoints()
+	if showName then
+		local height = frame.height or 12
+		if frame.font then
+			height = height * Look(category, "textSize") / 100
+			-- une police que le client refuserait laisse place à celle du jeu
+			local file, ok, done = ns.FontFile(Look(category, "textFont"))
+			if file then ok, done = pcall(frame.name.SetFont, frame.name, file, height, frame.flags) end
+			if not (ok and done ~= false) then frame.name:SetFont(frame.font, height, frame.flags) end
+		end
+		frame.icon:SetPoint("BOTTOM", frame, "CENTER", 0, height / 2 + 2)
+	else
+		frame.icon:SetPoint("CENTER", frame, "CENTER", 0, 0)
+	end
+	if frame.anchor ~= glow.anchor then
+		frame.anchor = glow.anchor
+		frame:ClearAllPoints()
+		frame:SetPoint("CENTER", glow.anchor, "CENTER", 0, 0)
+	end
+	frame:Show()
+end
+
+-- Rend au jeu l'affichage de la nameplate que la wildspark vient de quitter
+local function RestoreNative()
+	if glow.native then
+		pcall(glow.native.SetAlpha, glow.native, 1)
+		glow.native = nil
+	end
+end
+
+-- Masque ce que le jeu dessine sur la nameplate qui porte la wildspark. Le cadre masqué est gardé :
+-- le jeu le recycle pour d'autres unités, et c'est lui qu'il faudra rétablir.
+local function HideNative(plate)
+	local ok, unitFrame = pcall(function() return plate.UnitFrame end)
+	if not ok or type(unitFrame) ~= "table" then unitFrame = nil end
+	if unitFrame ~= glow.native then RestoreNative() end
+	if unitFrame and pcall(unitFrame.SetAlpha, unitFrame, 0) then glow.native = unitFrame end
+end
+
+-- En combat le jeu ne laisse plus toucher aux CVars, et l'affichage natif a été ouvert juste avant
+-- pour que la wildspark y paraisse encore (PLAYER_REGEN_DISABLED) : le jeu donne alors une nameplate à
+-- toute cible d'interaction, PNJ et cadavres compris, avec leur barre de vie. Celle d'une cible que
+-- Wildspark n'éclaire pas est donc masquée de la même façon, le temps qu'elle est la cible (`muted`).
+-- (Signalé le 2026-10-13 : « certains nameplates de pnj apparaissent en combat avec l'addon, des
+-- barres de vies notamment, cela ne devrait pas ».)
+local muted
+
+local function Unmute()
+	if not muted then return end
+	-- Preserve the frame's alpha as supplied by the nameplate skin/addons.
+	if muted ~= glow.native then pcall(muted.SetAlpha, muted, glow.mutedAlpha or 1) end
+	muted, glow.mutedAlpha = nil, nil
+end
+
+local function Mute(plate)
+	-- Hide the whole soft-target plate. Some Forever nameplate skins replace or
+	-- wrap UnitFrame, so muting only plate.UnitFrame can leave the visible bar up.
+	local ok, setAlpha = pcall(function() return plate and plate.SetAlpha end)
+	if not ok or type(setAlpha) ~= "function" then return end
+	if plate ~= muted then
+		Unmute()
+		local ok, alpha = pcall(plate.GetAlpha, plate)
+		glow.mutedAlpha = ok and type(alpha) == "number" and alpha or 1
+		muted = plate
+	end
+	pcall(plate.SetAlpha, plate, 0)
+end
+
+-- La cible n'est pas mise en lumière : l'affichage natif se referme. En combat, les CVars
+-- sont verrouillées ; si le gate est resté ouvert, masque toujours cette cible soft-interact.
+-- Cela évite que Wildspark laisse une plaque de PNJ ou de cadavre ouverte simplement parce que
+-- les réglages généraux du joueur autorisent aussi les plaques amicales.
+local function Shut(unit, plate)
+	SetGate(false)
+	-- A client can leave the resolved soft-target plate visible after the CVar
+	-- closes. Keep suppressing that exact plate in exclusive mode until it is
+	-- recycled or the target becomes a highlighted world object.
+	if plate and db.exclusive then return plate end
+end
+
+local function CreateGhost()
+	ghost = CreateFrame("Frame", nil, UIParent)
+	ghost:SetFrameStrata("BACKGROUND")
+	ghost:SetSize(1, 1)
+	ghost:Hide()
+	ghost.band = NewLayer(ghost, "halo", "BACKGROUND")
+	ghost.ring = NewLayer(ghost, "ring", "BORDER")
+	ghost:SetScript("OnUpdate", function(self, elapsed)
+		self.age = self.age + elapsed
+		local progress = self.age / GHOST_TIME
+		if progress >= 1 then self:Hide() return end
+		local size = self.size * (1 + 0.35 * (1 - (1 - progress) ^ 3))
+		local fade = self.alpha * (1 - progress) ^ 2
+		Sized(self.band, size * self.spread, size * self.spread * self.flat)
+		Tint(self.band, self.r, self.g, self.b, 0.7 * fade)
+		Sized(self.ring, size, size * self.flat)
+		Tint(self.ring, Lerp(self.r, 1, 0.55), Lerp(self.g, 1, 0.55), Lerp(self.b, 1, 0.55), self.ringed and fade or 0)
+	end)
+	return ghost
+end
+
+-- Dissipation sur place : la wildspark s'élargit et s'éteint là où elle se trouvait, sous les
+-- traits de son effet (sa wildspark, l'anneau de ses ondes)
+local function PlayGhost()
+	local effect = glow.effect
+	-- pas dans l'aperçu : la dissipation se joue sur l'écran, sous la fenêtre qui le montre
+	if not glow.gx or glow.preview or effect == EFFECTS.fallback or glow.appear < 0.3 then return end
+	local frame = ghost or CreateGhost()
+	if frame.effect ~= effect then
+		frame.effect = effect
+		LoadImage(frame.band, effect.band or "glow")
+		LoadImage(frame.ring, effect.wave or "ring")
+	end
+	local fx = effect.fx
+	frame.spread = effect.band and 1 or 1.5  -- une simple wildspark n'occupe que le centre de son image
+	frame.flat, frame.ringed = effect.flat or 1, effect.wave ~= nil
+	frame.ring:SetRotation(fx.waveAngle or 0)
+	frame:ClearAllPoints()
+	frame:SetPoint("CENTER", UIParent, "BOTTOMLEFT", glow.gx, glow.gy + (fx.waveY or 0) * glow.gscale)
+	frame.size = (fx.waveSize or Look(glow.category, "size")) * glow.gscale
+	frame.r, frame.g, frame.b = glow.r, glow.g, glow.b
+	frame.alpha = Look(glow.category, "intensity") / 100 * (1 - (db.hideLocked and 1 or 0.5) * glow.locked)
+	frame.age = 0
+	frame:Show()
+end
+
+---------------------------------------------------------------------------
+-- Silhouette
+---------------------------------------------------------------------------
+
+-- L'interface se dessine toujours par-dessus le monde : un addon ne peut rien faire passer
+-- derrière un modèle 3D. On triche pour le personnage du joueur, seul modèle dont la place
+-- à l'écran se déduit sans mesure : la caméra vise sa tête, et sa taille ne dépend que du
+-- zoom. Un masque en ellipse y découpe la wildspark, qui semble alors passer derrière lui.
+local BODY_HEIGHT = 1.9   -- hauteur du personnage en hauteurs d'écran, caméra à 1 m, champ de vision par défaut
+
+local function Smoothstep(low, high, value)
+	local t = Clamp((value - low) / (high - low), 0, 1)
+	return t * t * (3 - 2 * t)
+end
+
+-- Renvoie la largeur et la hauteur du personnage à l'écran, et la position de ses pieds par
+-- rapport au centre de l'écran (unités de l'interface) ; nil en vue subjective
+local function MeasureBody()
+	local zoom = GetCameraZoom and SafeCall(GetCameraZoom)
+	if not zoom or zoom < 2 then return nil end
+	local fov = tonumber(GetCVarValue("cameraFov")) or 90
+	local height = BODY_HEIGHT * UIParent:GetHeight() / zoom / math.tan(math.rad(fov / 2)) * cdb.bodyScale / 100
+	local width = height * 0.45
+	if IsMounted and SafeCall(IsMounted) == true then
+		height = height * 1.3
+		width = height * 0.8
+	end
+	-- vu d'en haut, le corps paraît raccourci et tient presque entier sous le centre de l'écran
+	height = height * 0.9
+	return width, height, (cdb.bodyShift / 100 - 0.92) * height
+end
+
+local function UpdateSilhouette()
+	local mask, outline = silhouette.mask, silhouette.outline
+	local width, height, feet = MeasureBody()
+	if not width then
+		mask:SetSize(0.01, 0.01)
+		outline:Hide()
+		return
+	end
+	-- la découpe ne vaut que si l'objet est plus loin que le personnage, donc plus haut à
+	-- l'écran que ses pieds ; plus près de la caméra, c'est à la wildspark de le recouvrir
+	local strength = 1
+	if glow.preview then
+		strength = 0 -- l'aperçu se joue dans sa fenêtre, où le personnage n'est pas
+	elseif glow.anchor and glow.gx then
+		strength = Smoothstep(feet - 0.10 * height, feet + 0.20 * height, glow.gy - UIParent:GetHeight() / 2)
+	end
+	local centerY = feet + height / 2
+	local maskWidth, maskHeight = width * 1.9, height * 1.5
+	mask:SetSize(max(maskWidth * strength, 0.01), max(maskHeight * strength, 0.01))
+	mask:SetPoint("CENTER", silhouette.owner, "CENTER", 0, centerY)
+	if silhouette.show then
+		-- contour de la zone entièrement masquée : le cœur du masque en occupe 55 %, et
+		-- l'anneau qui le dessine est à 74 % de sa texture
+		outline:SetSize(maskWidth * 0.55 / 0.74, maskHeight * 0.55 / 0.74)
+		outline:SetPoint("CENTER", silhouette.owner, "CENTER", 0, centerY)
+		outline:Show()
+	else
+		outline:Hide()
+	end
+end
+
+local function CreateSilhouette()
+	local owner = CreateFrame("Frame", nil, UIParent)
+	owner:SetSize(1, 1)
+	owner:SetPoint("CENTER", WorldFrame or UIParent, "CENTER", 0, 0)
+	owner:Hide()
+	local ok, mask = pcall(owner.CreateMaskTexture, owner)
+	if not ok or not mask then
+		silhouette.failed = "FAIL_NO_MASK"
+		return
+	end
+	-- hors du masque, "blanc" : la wildspark n'est entamée que dans l'ellipse
+	local set, loaded = pcall(mask.SetTexture, mask, MEDIA .. "hole.tga", "CLAMPTOWHITE", "CLAMPTOWHITE")
+	if not set or loaded == false then
+		silhouette.failed = "FAIL_MASK_TEXTURE"
+		return
+	end
+	mask:SetSize(0.01, 0.01)
+	mask:SetPoint("CENTER", owner, "CENTER", 0, 0)
+	local outline = owner:CreateTexture(nil, "OVERLAY")
+	outline:SetTexture(MEDIA .. "ring.tga")
+	outline:SetVertexColor(1, 0.25, 0.25, 0.9)
+	outline:Hide()
+	silhouette.owner, silhouette.mask, silhouette.outline = owner, mask, outline
+	owner:SetScript("OnUpdate", UpdateSilhouette)
+end
+
+-- Pose ou retire la découpe sur les couches de la wildspark, selon le réglage et son état
+local function ApplySilhouette()
+	-- la découpe se règle par catégorie : c'est celle de l'objet que porte la wildspark qui compte
+	local wanted = Look(glow.anchor and glow.category, "silhouette") and not silhouette.failed
+	if not (wanted or silhouette.show or silhouette.applied) then return end
+	if not silhouette.owner and not silhouette.failed then CreateSilhouette() end
+	if not silhouette.owner then return end
+	if glow.frame and wanted ~= (silhouette.applied == true) then
+		local method = wanted and "AddMaskTexture" or "RemoveMaskTexture"
+		for _, texture in ipairs(glow.layers) do
+			if not pcall(texture[method], texture, silhouette.mask) then
+				silhouette.failed = "FAIL_MASK_REFUSED"
+				break
+			end
+		end
+		if silhouette.failed then
+			for _, texture in ipairs(glow.layers) do pcall(texture.RemoveMaskTexture, texture, silhouette.mask) end
+			wanted = false
+		end
+		silhouette.applied = wanted
+	end
+	if (silhouette.applied and glow.anchor) or silhouette.show then
+		silhouette.owner:Show()
+	else
+		silhouette.owner:Hide()
+	end
+end
+
+local function Release()
+	RestoreNative()
+	if not glow.anchor then return end
+	PlayGhost()
+	glow.frame:Hide()
+	glow.frame:ClearAllPoints()
+	glow.frame:SetParent(nil)
+	if label then
+		label:Hide()
+		label:ClearAllPoints()
+		label.anchor = nil
+	end
+	glow.anchor, glow.preview, glow.retarget, glow.gx = nil, nil, nil, nil
+	ApplySilhouette()
+end
+
+-- Accroche la wildspark à un cadre (la nameplate de la cible, ou celle que simule l'aperçu), au
+-- décalage réglé, et relance son animation d'arrivée
+local function Attach(anchor, category, state)
+	local frame = glow.frame or CreateGlow()
+	frame:SetParent(anchor)
+	-- sous le contenu de la nameplate, pour ne pas laver son texte
+	local ok, level = pcall(anchor.GetFrameLevel, anchor)
+	if ok and not IsSecret(level) and level then frame:SetFrameLevel(max(level - 1, 0)) end
+	frame:ClearAllPoints()
+	frame:SetPoint("CENTER", anchor, "CENTER", 0, Look(category, "offsetY"))
+	frame:SetIgnoreParentAlpha(not Look(category, "followAlpha"))
+
+	glow.anchor, glow.category = anchor, category
+	glow.state, glow.pending = state, nil
+	glow.ready  = state == "ready" and 1 or 0
+	glow.locked = state == "locked" and 1 or 0
+	glow.r, glow.g, glow.b = Color(category)
+	glow.targetR, glow.targetG, glow.targetB = glow.r, glow.g, glow.b
+	glow.appear, glow.flash, glow.phase, glow.nextPing = 0, 0, 0, 1.6
+	glow.spin = math.random() * TWO_PI
+	for _, wave in ipairs(UseEffect().fx.waves) do
+		wave.age = nil
+		Tint(wave.texture, 1, 1, 1, 0)
+	end
+	StartWave(0.50, 1.50, 0.9, 0.8)
+	frame:Show()
+	ApplySilhouette()
+end
+
+-- Un nouvel état n'est affiché qu'une fois stable, pour ne pas scintiller à la limite de portée
+local function ProposeState(state)
+	if state == glow.state then glow.pending = nil return end
+	local now = GetTime()
+	if glow.pending ~= state then
+		glow.pending, glow.pendingSince = state, now
+	elseif now - glow.pendingSince >= (state == "locked" and LOCK_DELAY or STATE_DELAY) then
+		glow.pending = nil
+		SetState(state)
+	end
+end
+
+local function Present(plate, unit, name, category, state)
+	-- une nameplate qui change de catégorie se traite comme une autre cible : effet, taille,
+	-- décalage et couleur peuvent tous changer avec elle
+	if glow.anchor ~= plate or glow.retarget or glow.category ~= category then
+		Release()
+		Attach(plate, category, state)
+	else
+		glow.targetR, glow.targetG, glow.targetB = Color(category)
+		ProposeState(state)
+	end
+	HideNative(plate)
+	ShowLabel(unit, name, category)
+end
+
+---------------------------------------------------------------------------
+-- Évaluation
+---------------------------------------------------------------------------
+
+local function Flag(value)
+	if value == nil then return "?" end
+	return value and L.YES or L.NO
+end
+
+local function Report(line, detail)
+	if not db.debug or line == lastReport then return end
+	lastReport = line
+	Print(line)
+	local text = detail and detail()
+	if text and text ~= "" then print("    " .. text) end
+end
+
+local function DescribeTarget(unit, name, via, cursor, inRange)
+	local parts = { L.DEBUG_CURSOR:format(tostring(cursor)), L.DEBUG_VIA:format(via), L.DEBUG_RANGE:format(Flag(inRange)),
+		L.DEBUG_OBJECT:format(tostring(ObjectID(unit) or "?")), L.DEBUG_FISHING:format(Flag(ReadLine())) }
+	if C_QuestLog and C_QuestLog.UnitIsRelatedToActiveQuest then
+		parts[#parts + 1] = L.DEBUG_QUEST:format(Flag(SafeCall(C_QuestLog.UnitIsRelatedToActiveQuest, unit)))
+	end
+	-- (un curseur de service : le nom de l'objet n'est pas regardé, et le détail le dit)
+	local _, kind = ReadCursor(unit)
+	local service = kind == "service" and L.MATCH_CURSOR
+	parts[#parts + 1] = L.DEBUG_MATCH:format(service or MatchQuestObjective(name) or L.MATCH_NONE, #questTexts)
+	parts[#parts + 1] = L.DEBUG_CHEST:format(service or MatchContainer(ObjectID(unit), name) or L.MATCH_NONE)
+	if C_Secrets and C_Secrets.ShouldUnitIdentityBeSecret then
+		parts[#parts + 1] = L.DEBUG_SECRET:format(Flag(SafeCall(C_Secrets.ShouldUnitIdentityBeSecret, unit)))
+	end
+	if C_NamePlateManager and C_NamePlateManager.IsNamePlateUnitBehindCamera then
+		parts[#parts + 1] = L.DEBUG_BEHIND:format(Flag(SafeCall(C_NamePlateManager.IsNamePlateUnitBehindCamera, unit)))
+	end
+	return table.concat(parts, " | ")
+end
+
+-- La wildspark est-elle suspendue par le contexte : en combat, ou en instance, si le joueur l'a demandé
+local function Paused()
+	if db.hideInCombat and (inCombat or InCombatLockdown()) then return true end
+	return db.hideInInstance and IsInInstance ~= nil and SafeCall(IsInInstance) == true
+end
+
+-- Détermine la cible d'interaction courante, puis met en accord avec elle l'affichage natif
+-- du jeu (ouvert seulement si elle mérite d'être mise en lumière) et la wildspark elle-même.
+-- Renvoie la nameplate d'une cible sans wildspark que le jeu montre quand même, faute de pouvoir
+-- refermer son affichage : Evaluate la masque.
+local function Decide()
+	if glow.preview or leaving then return end
+	if not db.enabled then Release() return end
+	if Paused() then
+		Report(L.DEBUG_PAUSED)
+		Release()
+		local unit, plate = ResolveTarget()
+		if unit then return Shut(unit, plate) end
+		SetGate(false)
+		return
+	end
+
+	local unit, plate, via, unknown = ResolveTarget()
+	if plate or not unit then glow.plateMissingSince = nil end
+	if not unit then
+		if lastReport then Report(L.DEBUG_NO_TARGET) end
+		-- Fail closed when the client hides the target identity: never open the
+		-- interaction plate gate for an unknown unit, since it could be an NPC.
+		SetGate(false)
+		Release()
+		return
+	end
+	local name = SafeCall(UnitName, unit)
+	local label = name or "?"
+	-- seuls les objets du décor sont mis en lumière : ni PNJ, ni cadavres
+	if SafeCall(UnitIsGameObject, unit) ~= true then
+		Report(L.DEBUG_IGNORED:format(label))
+		Release()
+		return Shut(unit, plate)
+	end
+	-- ni les objets que le joueur a écartés par leur nom
+	if name and db.ignored[NameKey(name)] then
+		Report(L.DEBUG_SKIPPED:format(label))
+		Release()
+		return Shut(unit, plate)
+	end
+
+	local category, blocked, cursor, id = Classify(unit, name)
+	-- un filon ou une plante que le jeu désigne : Nodes.lua en retient le nom, pour le reconnaître sur la minimap
+	if name and ns.LearnNode and (category == "ore" or category == "herb") then ns.LearnNode(name, id, category) end
+	if id and (category == "ore" or category == "herb") then gathered[id] = true end
+	local state, inRange = ReadState(unit, blocked)
+	local wanted = category and cdb.categories[category] or false
+	if not wanted then
+		Report(L.DEBUG_HIDDEN:format(label, CategoryName(category)),
+			function() return DescribeTarget(unit, name, via, cursor, inRange) end)
+		Release()
+		return Shut(unit, plate)
+	end
+	-- ni une plante ou un filon que ce personnage ne sait pas récolter (demandé par des joueurs le 2026-10-14)
+	if db.hideUntrained and Trained(category) == false then
+		Report(L.DEBUG_UNTRAINED:format(label, CategoryName(category)),
+			function() return DescribeTarget(unit, name, via, cursor, inRange) end)
+		Release()
+		return Shut(unit, plate)
+	end
+	SetGate(true)
+	if not plate then
+		-- la nameplate vient d'être demandée au jeu : la wildspark s'y posera à son arrivée.
+		-- Si elle tarde, c'est que le jeu connaît la cible sans vouloir l'afficher.
+		Release()
+		local now = GetTime()
+		glow.plateMissingSince = glow.plateMissingSince or now
+		if now - glow.plateMissingSince > 0.5 then
+			Report(L.DEBUG_NO_PLATE:format(label, CategoryName(category)),
+				function() return DescribeTarget(unit, name, via, cursor, inRange) end)
+		end
+		return
+	end
+
+	Present(plate, unit, name, category, state)
+	Report(L.DEBUG_SHOWN:format(label, CategoryName(category), StateName(glow.state)),
+		function() return DescribeTarget(unit, name, via, cursor, inRange) end)
+end
+
+function Evaluate()
+	local plate = Decide()
+	if plate then Mute(plate) else Unmute() end
+end
+
+-- Tant que la ligne de pêche est à l'eau, le jeu cherche le flotteur plus loin que la portée du réglage
+local function WatchLine()
+	local out = db.enabled and cdb.categories.bobber and ReadLine() or false
+	if out == lineOut then return end
+	lineOut = out
+	if ApplyRange() and db.debug then
+		Print((out and L.DEBUG_LINE_OUT or L.DEBUG_LINE_IN):format(WantedRange(), tostring(GetCVarValue("SoftTargetInteractRange"))))
+	end
+end
+
+---------------------------------------------------------------------------
+-- Aperçu
+---------------------------------------------------------------------------
+
+-- Déroulé de l'aperçu : chaque état, en boucle
+local PREVIEW_STAGES = { { "far", 3.0 }, { "ready", 4.5 }, { "locked", 2.5 } }
+
+-- Nom d'objet que l'aperçu montre pour une catégorie
+local function SampleName(category)
+	return L["SAMPLE_" .. category:upper()]
+end
+
+-- Montre la wildspark d'une catégorie sur `anchor`, le cadre que la fenêtre d'aperçu place là où le
+-- jeu mettrait la nameplate de l'objet, et enchaîne ses états en boucle jusqu'à StopPreview
+local function StartPreview(anchor, category)
+	Release()
+	Unmute()
+	Attach(anchor, category, "far")
+	glow.preview = { stage = 1, left = PREVIEW_STAGES[1][2] }
+	ShowLabel(nil, SampleName(category), category)
+end
+
+local function StopPreview()
+	if glow.preview then Release() end
+end
+
+local function UpdatePreview(elapsed)
+	local preview = glow.preview
+	preview.left = preview.left - elapsed
+	if preview.left > 0 then return end
+	preview.stage = preview.stage + 1
+	local stage = PREVIEW_STAGES[preview.stage]
+	if not stage then
+		StartPreview(glow.anchor, glow.category)
+		return
+	end
+	SetState(stage[1])
+	preview.left = stage[2]
+end
+
+---------------------------------------------------------------------------
+-- Événements
+---------------------------------------------------------------------------
+
+local events = CreateFrame("Frame")
+local sincePoll = 0
+
+events:SetScript("OnUpdate", function(_, elapsed)
+	if not db or leaving then return end
+	if glow.preview then
+		UpdatePreview(elapsed)
+		return
+	end
+	sincePoll = sincePoll + elapsed
+	if sincePoll >= POLL_INTERVAL then
+		sincePoll = 0
+		WatchLine()
+		EnsureIconCVars()
+		Evaluate()
+		if ns.AutoPushSpells then ns.AutoPushSpells.Drain() end
+	end
+end)
+
+local handlers = {}
+
+-- Track learned spells and use the game's out-of-combat cursor APIs to fill empty
+-- action slots. Existing buttons are never replaced; the initial scan only seeds
+-- the character's spellbook snapshot so installing the addon does not flood bars.
+ns.AutoPushSpells = ns.AutoPushSpells or { pending = {} }
+function ns.AutoPushSpells.Scan()
+	if not cdb or type(GetNumSpellTabs) ~= "function" or type(GetSpellTabInfo) ~= "function" or type(GetSpellBookItemInfo) ~= "function" then return end
+	cdb.knownSpells = type(cdb.knownSpells) == "table" and cdb.knownSpells or {}
+	local found = {}
+	local tabs = SafeCall(GetNumSpellTabs) or 0
+	for tab = 1, tabs do
+		local _, _, offset, count = SafeCall(GetSpellTabInfo, tab)
+		offset, count = tonumber(offset) or 0, tonumber(count) or 0
+		for slot = offset + 1, offset + count do
+			local kind, spellID = SafeCall(GetSpellBookItemInfo, slot, BOOKTYPE_SPELL or "spell")
+			if type(kind) == "number" and not spellID then spellID, kind = kind, "SPELL" end
+			spellID = tonumber(spellID)
+			if spellID and kind == "SPELL" then found[spellID] = true end
+		end
+	end
+	if not cdb.spellSnapshotInitialized then
+		for spellID in pairs(found) do cdb.knownSpells[spellID] = true end
+		cdb.spellSnapshotInitialized = true
+		return
+	end
+	for spellID in pairs(found) do
+		if not cdb.knownSpells[spellID] then
+			cdb.knownSpells[spellID] = true
+			if cdb.autoPushSpells then ns.AutoPushSpells.pending[spellID] = true end
+		end
+	end
+	ns.AutoPushSpells.Drain()
+end
+
+function ns.AutoPushSpells.Drain()
+	if not cdb or InCombatLockdown and InCombatLockdown() then return end
+	if not next(ns.AutoPushSpells.pending) then return end
+	for spellID in pairs(ns.AutoPushSpells.pending) do
+		local name
+		if C_Spell and C_Spell.GetSpellName then name = SafeCall(C_Spell.GetSpellName, spellID) end
+		if not name and GetSpellInfo then name = SafeCall(GetSpellInfo, spellID) end
+		print("|cff66ccffWildspark:|r New spell learned: " .. tostring(name or spellID) .. ". Add it from the spellbook if wanted.")
+		ns.AutoPushSpells.pending[spellID] = nil
+	end
+end
+function handlers.ADDON_LOADED(name)
+	if name ~= ADDON_NAME then return end
+	WildsparkDB = WildsparkDB or {}
+	db = WildsparkDB
+	if db.schema ~= SCHEMA then
+		local from = db.schema or 1
+		if from < 2 then db.size = nil end -- le halo a changé de nature : l'ancienne taille n'a plus le même sens
+		if from < 3 then RepairSavedCVars() end
+		if from < 4 then
+			-- les styles du halo sont devenus des effets parmi d'autres ; cadavres à dépecer et
+			-- butin ne sont plus mis en lumière
+			db.effect, db.style = db.effect or LEGACY_STYLES[db.style], nil
+			if type(db.categories) == "table" then db.categories.skin, db.categories.loot = nil, nil end
+		end
+		if from < 5 then
+			-- catégories et découpe deviennent propres à chaque personnage : celles du compte sont
+			-- mises de côté, et chaque personnage en hérite à sa première connexion. Les coffres,
+			-- jusque-là rangés parmi les autres objets, les suivent.
+			if type(db.categories) == "table" then
+				db.inherited = { categories = db.categories, bodyScale = db.bodyScale, bodyShift = db.bodyShift }
+				db.inherited.categories.chest = db.showOther == true
+				db.inherited.categories.other = db.showOther == true
+			end
+			db.categories, db.showOther, db.bodyScale, db.bodyShift = nil, nil, nil, nil
+		end
+		if from < 6 and type(db.categoryEffects) == "table" then
+			-- l'effet propre à une catégorie n'est plus qu'un de ses réglages de personnalisation
+			db.categorySettings = type(db.categorySettings) == "table" and db.categorySettings or {}
+			for category, effect in pairs(db.categoryEffects) do
+				if type(db.categorySettings[category]) ~= "table" then db.categorySettings[category] = {} end
+				db.categorySettings[category].effect = effect
+			end
+		end
+		db.categoryEffects = nil
+		if from < 7 then
+			-- le nom et l'icône de l'objet, d'abord réglés ensemble, se règlent chacun à part
+			local function Split(store)
+				if type(store) ~= "table" then return end
+				if type(store.showLabel) == "boolean" then store.showName, store.showIcon = store.showLabel, store.showLabel end
+				store.showLabel = nil
+			end
+			Split(db)
+			if type(db.categorySettings) == "table" then
+				for _, own in pairs(db.categorySettings) do Split(own) end
+			end
+		end
+		if from < 8 then
+			-- les majuscules cyrilliques se replient désormais en minuscules : les noms retenus sous
+			-- leur ancienne clé passent sous la nouvelle
+			local function Rekey(store)
+				if type(store) ~= "table" then return end
+				local moved = {}
+				for key, value in pairs(store) do
+					if type(key) == "string" and NameKey(key) ~= key then moved[key] = value end
+				end
+				for key, value in pairs(moved) do
+					store[key] = nil
+					if store[NameKey(key)] == nil then store[NameKey(key)] = value end
+				end
+			end
+			Rekey(db.ignored)
+			if type(db.nodeNames) == "table" then
+				for _, names in pairs(db.nodeNames) do Rekey(names) end
+			end
+		end
+		db.schema = SCHEMA
+	end
+	CopyDefaults(DEFAULTS, db)
+	WildsparkCharDB = WildsparkCharDB or {}
+	cdb = WildsparkCharDB
+	if next(cdb) == nil and type(db.inherited) == "table" then CopyDefaults(db.inherited, cdb) end
+	CopyDefaults(CHAR_DEFAULTS, cdb)
+
+	if not EFFECTS[db.effect] or db.effect == "fallback" then db.effect = DEFAULTS.effect end
+	if not ns.IsFont(db.textFont) then db.textFont = DEFAULTS.textFont end
+	-- réglages propres aux catégories : seuls restent ceux qui ont un sens
+	for category, own in pairs(db.categorySettings) do
+		if not DEFAULTS.colors[category] or type(own) ~= "table" then
+			db.categorySettings[category] = nil
+		else
+			for key, value in pairs(own) do
+				local limits = LIMITS[key]
+				if not LOOK[key] or type(value) ~= type(DEFAULTS[key]) or (key == "effect" and (not EFFECTS[value] or value == "fallback"))
+					or (key == "textFont" and not ns.IsFont(value)) then
+					own[key] = nil
+				elseif limits then
+					own[key] = Clamp(value, limits[1], limits[2]) + 0
+				end
+			end
+			if next(own) == nil then db.categorySettings[category] = nil end
+		end
+	end
+	for category, default in pairs(DEFAULTS.colors) do
+		local color = db.colors[category]
+		for index = 1, 3 do
+			color[index] = type(color[index]) == "number" and Clamp(color[index], 0, 1) or default[index]
+		end
+	end
+	if not ns.LOCALES[db.language] then db.language = DEFAULTS.language end
+	UseLanguage()
+	for key, limits in pairs(LIMITS) do
+		local store = Store(key)
+		if type(store[key]) == "number" then
+			-- "+ 0" : Lua 5.1 relit en -0 les zéros d'un fichier de réglages qui contient un -0, et l'afficherait tel quel
+			store[key] = Clamp(store[key], limits[1], limits[2]) + 0
+		else
+			store[key] = DEFAULTS[key] or CHAR_DEFAULTS[key]
+		end
+	end
+	probe = UIParent:CreateTexture(nil, "BACKGROUND")
+	probe:Hide()
+	BuildCursorLookup()
+	events:UnregisterEvent("ADDON_LOADED")
+	ns.db = db
+	if ns.SetupInterface then ns.SetupInterface() end -- Menu.lua : bouton de la minimap
+end
+
+function handlers.PLAYER_LOGIN()
+	if db.enabled then ApplyCVars() end
+	if ns.AutoPushSpells then ns.AutoPushSpells.Scan(true) end
+end
+
+function handlers.SPELLS_CHANGED()
+	if ns.AutoPushSpells then ns.AutoPushSpells.Scan(false) end
+end
+
+-- Les réglages synchronisés avec le compte peuvent arriver après PLAYER_LOGIN et
 -- �craser nos valeurs : on les r�applique � ces moments-l�.
 function handlers.VARIABLES_LOADED()
 	if db.enabled then ApplyCVars() end
@@ -1422,6 +2528,4 @@ COMMANDS.help = ShowHelp
 SLASH_WILDSPARK1 = "/wildspark"
 SlashCmdList.WILDSPARK = function(input)
 	local cmd, arg = Fold(input or ""):match("^%s*(%S*)%s*(.-)%s*$")
-	local command = COMMANDS[ALIASES[cmd] or cmd]
-	if not command or command(ALIASES[arg] or arg, tonumber(arg)) == false then ShowHelp() end
-end
+	local c
