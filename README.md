@@ -1,8 +1,8 @@
 # WildSpark
 
-> **[Download WildSpark 1.4.6](https://github.com/uncle-bone/Wildspark/releases/latest/download/WildSpark-1.4.6.zip)**
+> **[Download WildSpark 1.4.7](https://github.com/uncle-bone/Wildspark/releases/latest/download/WildSpark-1.4.7.zip)**
 
-**Current build: 1.4.6 for WoW Forever 1.60.1.** The release workflow packages the installable `WildSpark` addon folder and verifies its version metadata.
+**Current build: 1.4.7 for WoW Forever 1.60.1.** The release workflow packages the installable `WildSpark` addon folder and verifies its version metadata.
 
 WildSpark highlights nearby gathering nodes and useful world objects. It includes WildBuffs, leash helpers, the integrated Camping Kit rebranded as **Wildfire Kit**, WildAuctions, **WildResources**, and the background **ForeverLootRollMover** module. WildAuctions loads an item into Blizzard's Sell form and never posts it automatically.
 

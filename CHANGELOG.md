@@ -1,5 +1,10 @@
 # WildSpark Changelog
 
+## 1.4.7 — 2026-11-10
+
+- Fix tracker mouse pass-through when locked and refresh spell/spec data after specialization changes.
+
+
 ## 1.4.6 — 2026-11-10
 
 - Add WildResources, a movable all-class tracker that discovers exposed player powers and learned active spellbook cooldowns at runtime.

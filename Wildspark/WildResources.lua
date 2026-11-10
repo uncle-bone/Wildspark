@@ -44,6 +44,7 @@ local POWER_COLORS = {
 }
 local root, resourceRows, spellIcons, specLabel, powerOptionsPanel
 local currentPowers, knownSpells = {}, {}
+local cachedSpecText, lastSpecRead = nil, 0
 local RefreshPowerOptions
 local BAR_W, BAR_H, ICON, GAP = 236, 17, 32, 5
 local function PlayerSpec()
@@ -225,8 +226,13 @@ local function RefreshPowerList()
 end
 local function Refresh()
     if not root then return end
-    local _,class,spec=PlayerSpec()
-    specLabel:SetText(class.."  |cffbbbbbb"..spec.."|r")
+    local now=GetTime()
+    if not cachedSpecText or now-lastSpecRead>=1 then
+        local class,_,spec=PlayerSpec()
+        cachedSpecText=class.."  |cffbbbbbb"..spec.."|r"
+        lastSpecRead=now
+        specLabel:SetText(cachedSpecText)
+    end
     for _,id in ipairs(currentPowers) do
         local row=resourceRows[id]
         if row then
@@ -275,6 +281,7 @@ local function MakeRoot()
     root:RegisterForDrag("LeftButton")
     if root.SetBackdrop then root:SetBackdrop({bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",edgeFile="Interface\\Tooltips\\UI-Tooltip-Border",tile=true,tileSize=16,edgeSize=12,insets={left=3,right=3,top=3,bottom=3}}) end
     root:SetScript("OnDragStart",function(self) if not DB.locked then self:StartMoving() end end)
+    root:EnableMouse(not DB.locked)
     root:SetScript("OnDragStop",function(self)
         self:StopMovingOrSizing()
         local _,_,_,x,y=self:GetPoint(1); DB.x,DB.y=x or 0,y or -170
@@ -333,6 +340,7 @@ local function RegisterOptions()
     lock:SetSize(170,24); lock:SetPoint("TOPLEFT",16,-170); lock:SetText(DB.locked and "Unlock tracker" or "Lock tracker")
     lock:SetScript("OnClick",function()
         DB.locked=not DB.locked
+        if root then root:EnableMouse(not DB.locked) end
         lock:SetText(DB.locked and "Unlock tracker" or "Lock tracker")
     end)
     local reset=CreateFrame("Button",nil,panel,"UIPanelButtonTemplate")
@@ -358,7 +366,7 @@ end
 local events=CreateFrame("Frame")
 events:RegisterEvent("PLAYER_LOGIN")
 local function Reg(ev) pcall(events.RegisterEvent,events,ev) end
-for _,ev in ipairs({"PLAYER_ENTERING_WORLD","UNIT_POWER_UPDATE","UNIT_MAXPOWER","UNIT_DISPLAYPOWER","UPDATE_SHAPESHIFT_FORM","SPELLS_CHANGED","PLAYER_TALENT_UPDATE","ACTIVE_TALENT_GROUP_CHANGED","TRAIT_CONFIG_UPDATED","TRAIT_NODE_CHANGED","PLAYER_REGEN_DISABLED","PLAYER_REGEN_ENABLED","SPELL_UPDATE_COOLDOWN","SPELL_UPDATE_CHARGES","RUNE_POWER_UPDATE","RUNE_TYPE_UPDATE","UNIT_SPELLCAST_SUCCEEDED"}) do Reg(ev) end
+for _,ev in ipairs({"PLAYER_ENTERING_WORLD","UNIT_POWER_UPDATE","UNIT_MAXPOWER","UNIT_DISPLAYPOWER","UPDATE_SHAPESHIFT_FORM","SPELLS_CHANGED","PLAYER_TALENT_UPDATE","ACTIVE_TALENT_GROUP_CHANGED","PLAYER_SPECIALIZATION_CHANGED","TRAIT_CONFIG_UPDATED","TRAIT_NODE_CHANGED","PLAYER_REGEN_DISABLED","PLAYER_REGEN_ENABLED","SPELL_UPDATE_COOLDOWN","SPELL_UPDATE_CHARGES","RUNE_POWER_UPDATE","RUNE_TYPE_UPDATE","UNIT_SPELLCAST_SUCCEEDED"}) do Reg(ev) end
 events:SetScript("OnEvent",function(_,event,unit)
     if event=="PLAYER_LOGIN" then
         InitDB(); MakeRoot(); RegisterOptions(); RebuildSpells()
@@ -370,7 +378,7 @@ events:SetScript("OnEvent",function(_,event,unit)
             if events.elapsed>=0.20 then events.elapsed=0; Refresh() end
         end)
     elseif unit==nil or unit=="player" then
-        if event=="SPELLS_CHANGED" or event=="PLAYER_TALENT_UPDATE" or event=="ACTIVE_TALENT_GROUP_CHANGED" or event=="TRAIT_CONFIG_UPDATED" then RebuildSpells()
+        if event=="SPELLS_CHANGED" or event=="PLAYER_TALENT_UPDATE" or event=="ACTIVE_TALENT_GROUP_CHANGED" or event=="PLAYER_SPECIALIZATION_CHANGED" or event=="TRAIT_CONFIG_UPDATED" then RebuildSpells()
         else
             if event=="PLAYER_ENTERING_WORLD" or event=="UNIT_DISPLAYPOWER" or event=="UPDATE_SHAPESHIFT_FORM" or event=="RUNE_TYPE_UPDATE" then RefreshPowerList() end
             Refresh()
@@ -381,8 +389,8 @@ SLASH_WILDRESOURCES1="/wildresources"
 SLASH_WILDRESOURCES2="/wr"
 SlashCmdList.WILDRESOURCES=function(msg)
     msg=(msg or ""):lower()
-    if msg=="unlock" then DB.locked=false; print("WildResources: tracker unlocked; drag it to move.")
-    elseif msg=="lock" then DB.locked=true; print("WildResources: tracker locked.")
+    if msg=="unlock" then DB.locked=false; if root then root:EnableMouse(true) end; print("WildResources: tracker unlocked; drag it to move.")
+    elseif msg=="lock" then DB.locked=true; if root then root:EnableMouse(false) end; print("WildResources: tracker locked.")
     elseif msg=="options" then OpenOptions()
     else ToggleTracker() end
 end
