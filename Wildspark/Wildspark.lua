@@ -1757,7 +1757,7 @@ function handlers.PLAYER_REGEN_ENABLED()
 	if pendingCVars == "apply" then ApplyCVars()
 	elseif pendingCVars == "restore" then RestoreCVars() end
 	pendingCVars = false
-	if ns.AutoPushSpells then ns.AutoPushSpells.Notify() end
+	if ns.AutoPushSpells then ns.AutoPushSpells.Drain() end
 	Evaluate()
 end
 
@@ -2010,7 +2010,7 @@ end
 local function ResetOptions()
 	ResetTo(DEFAULTS, db)
 	ResetTo(CHAR_DEFAULTS, cdb)
-	if ns.AutoPushSpells then ns.AutoPushSpells.Notify() end
+	if ns.AutoPushSpells then ns.AutoPushSpells.Drain() end
 	silhouette.show = false
 	ApplySilhouette()
 	gateOpen, lastReport = nil, nil
