@@ -1,4 +1,6 @@
-WildSpark 1.4.5
+WildSpark 1.4.7
+
+1.4.7: Fixes WildAuctions bag clicks by validating either supported ItemLocation constructor form and confirming that the returned location points to the exact clicked bag slot before passing it to Blizzard's Sell form. The bag-panel selection approach is informed by the open-source auxForever Forever addon (Tyler Hampton; MIT-licensed Forever adaptation), especially auxForever/util/info.lua. No auctions are posted automatically.
 
 1.4.5: WildAuctions now follows AuctionMaster's Sell-panel item selection flow: it uses the ItemLocation method constructor, fills the available post quantity, and refreshes Blizzard's post state after selection. It remains a Sell-tab bag selector only, with no AH scanning, price display, or automatic posting. Removed AH scanning, scan buttons, price cache display, and custom AH price tooltips. The bag list includes unbound BoE gear even when Forever IsSellItemValid rejects it; bound items remain excluded. Clicking an item loads it into Blizzard Sell form and never posts an auction.
 
@@ -49,6 +51,7 @@ WildAuctions
 Open the Auction House Sell tab to see unbound items in your bags. Click an
 item to load it into Blizzard Sell form. WildAuctions does not scan listings,
 show AH price tooltips, or post auctions. Bound items are omitted. The list refreshes when bags change; use Refresh if it is stale.
+Bag-to-sell selection is informed by auxForever: https://github.com/TylerHampton/aux-forever (MIT-licensed Forever adaptation).
 
 WildBuffs never changes friendly nameplate CVars. Finding nearby strangers by
 nameplate depends on friendly player nameplates already being enabled by the
