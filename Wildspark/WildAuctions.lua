@@ -14,12 +14,19 @@ end
 local function BagLocation(bag, slot)
 	local itemLocation = _G.ItemLocation
 	if not itemLocation or type(itemLocation.CreateFromBagAndSlot) ~= "function" then return nil end
-	-- AuctionMaster uses the ItemLocation method form on the Forever client.
+	local function Matches(location)
+		if not location or type(location.IsBagAndSlot) ~= "function" or type(location.GetBagAndSlot) ~= "function" then return false end
+		local hasBagSlot, isBagSlot = pcall(location.IsBagAndSlot, location)
+		local bagOK, actualBag, actualSlot = pcall(location.GetBagAndSlot, location)
+		return hasBagSlot and isBagSlot == true and bagOK and actualBag == bag and actualSlot == slot
+	end
+	-- auxForever (MIT-licensed Forever adaptation) documents the canonical
+	-- ItemLocation:CreateFromBagAndSlot(bag, slot) path. Some Forever builds may
+	-- expose dot-call semantics; accept that only if it returns the exact slot.
 	local ok, location = pcall(itemLocation.CreateFromBagAndSlot, itemLocation, bag, slot)
-	if ok and location then return location end
-	-- Retain compatibility with clients exposing the constructor as a static function.
+	if ok and Matches(location) then return location end
 	ok, location = pcall(itemLocation.CreateFromBagAndSlot, bag, slot)
-	if ok and location then return location end
+	if ok and Matches(location) then return location end
 	return nil
 end
 
@@ -85,6 +92,12 @@ local function SelectItem(item)
 	end
 	local location = BagLocation(item.bag, item.slot)
 	if not location then Print("The client could not identify that bag item."); return end
+	local validOK, valid = pcall(function() return location:IsValid() end)
+	if not validOK or valid ~= true then
+		Print("That bag item is no longer available. Refreshing the list.")
+		if panel then panel:Refresh() end
+		return
+	end
 	if IsBound(info, location) then
 		Print("That item is soulbound and cannot be sold.")
 		if panel then panel:Refresh() end
