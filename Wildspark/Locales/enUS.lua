@@ -213,7 +213,7 @@ L.KEY_TIP = "The key that picks up, gathers or uses the highlighted object once 
 L.KEY_NONE = "Not bound"
 L.KEY_LISTEN = "Press a key"
 L.KEY_LISTEN_TIP = "Press the key, mouse button or mouse wheel direction to use. Escape cancels."
-L.KEY_TAKEN = "%s is already used for "%s". Press it again to give it to the interact key instead, or press another key."
+L.KEY_TAKEN = "%s is already used for '%s'. Press it again to give it to the interact key instead, or press another key."
 L.TIP_KEY_SET = "Left-click: choose a key"
 L.TIP_KEY_CLEAR = "Right-click: remove the key"
 
