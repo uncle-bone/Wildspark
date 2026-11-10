@@ -2528,4 +2528,6 @@ COMMANDS.help = ShowHelp
 SLASH_WILDSPARK1 = "/wildspark"
 SlashCmdList.WILDSPARK = function(input)
 	local cmd, arg = Fold(input or ""):match("^%s*(%S*)%s*(.-)%s*$")
-	local c
+	local command = COMMANDS[ALIASES[cmd] or cmd]
+	if not command or command(ALIASES[arg] or arg, tonumber(arg)) == false then ShowHelp() end
+end
