@@ -129,21 +129,34 @@ local function ScanAuras(unit)
   for i = 1, 40 do
     local name, source, dur, expires
     if C_UnitAuras and C_UnitAuras.GetAuraDataByIndex then
-      local a = C_UnitAuras.GetAuraDataByIndex(unit, i, "HELPFUL")
-      if not a then break end
-      name, source, dur, expires = a.name, a.sourceUnit, a.duration, a.expirationTime
-    else
-      local n, _, _, _, d, e, src = UnitBuff(unit, i)
-      if not n then break end
+      -- Forever uses the modern C_UnitAuras API. Aura access can be denied
+      -- for restricted unit tokens; isolate that failure to this unit/index.
+      local ok, aura = pcall(C_UnitAuras.GetAuraDataByIndex, unit, i, "HELPFUL")
+      if not ok or not aura then break end
+      local readOK
+      readOK, name, source, dur, expires = pcall(function()
+        return aura.name, aura.sourceUnit, aura.duration, aura.expirationTime
+      end)
+      if not readOK then break end
+    elseif UnitBuff then
+      -- Compatibility fallback for clients that still expose the legacy API.
+      local ok, n, _, _, d, e, src = pcall(UnitBuff, unit, i)
+      if not ok or not n then break end
       name, source, dur, expires = n, src, d, e
+    else
+      break
     end
-    local rem = math.huge
-    if dur and dur > 0 and expires and expires > 0 then
-      rem = math.max(0, expires - now)
-    end
-    if not present[name] or rem > present[name] then present[name] = rem end
-    if MY_NAMES[name] and source and UnitIsUnit(source, "player") then
-      mineName, mineRem = name, rem
+
+    -- Ignore incomplete aura records rather than indexing a table with nil.
+    if name then
+      local rem = math.huge
+      if type(dur) == "number" and dur > 0 and type(expires) == "number" and expires > 0 then
+        rem = math.max(0, expires - now)
+      end
+      if not present[name] or rem > present[name] then present[name] = rem end
+      if MY_NAMES[name] and source and UnitIsUnit(source, "player") then
+        mineName, mineRem = name, rem
+      end
     end
   end
   return present, mineName, mineRem
