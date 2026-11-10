@@ -390,7 +390,7 @@ local function InstallCombatAction(button)
 end
 
 local function SetButtonActions(button, normalMacro, combatMacro)
-  button:SetAttribute("type", normalMacro and "macro" or nil)
+  button:SetAttribute("type", (normalMacro or combatMacro) and "macro" or nil)
   button:SetAttribute("wildMacro", normalMacro)
   button:SetAttribute("wildCombatMacro", combatMacro)
   button:SetAttribute("macrotext", normalMacro)
@@ -472,6 +472,16 @@ local function CombatCastMacro(buff, spellID)
   if not buff or not spellID then return nil end
   local castName = SpellCastName(buff, spellID)
   return "/cast [@mouseover,help,nodead][@target,help,nodead] " .. castName
+end
+
+local function FindCombatBuff()
+  local list = CFG.order and CFG.order("player", CFG.byKey) or CFG.buffs
+  for _, buff in ipairs(list) do
+    if (not buff.when or buff.when("player")) then
+      local spellID = PickRank("player", buff.ranks)
+      if spellID then return buff, spellID end
+    end
+  end
 end
 
 local function CastMacro(unit, buff, spellID)
@@ -603,9 +613,11 @@ local function UpdateSpellButtons(targets)
       state.bg:SetColorTexture(0, 0, 0, 0)
       state.SetGlow(ForeverBuffs_DB.flash ~= false)
     else
-      SetButtonActions(button, nil, nil)
+      -- Keep a safe combat action prepared even when no one currently needs
+      -- this buff. The normal out-of-combat action remains empty.
+      SetButtonActions(button, nil, CombatCastMacro(buff, spellID))
       button:SetAlpha(0.45)
-      button:Disable()
+      button:Enable()
       state.label:SetText("Nobody to buff")
       state.label:SetTextColor(0.55, 0.55, 0.55)
       state.moreText:SetText("")
@@ -652,11 +664,11 @@ holder:SetScript("OnUpdate", function(_, dt)
     -- Do not rewrite protected button attributes while lockdown is active.
     SetGlow(false)
     moreText:SetText("")
-    if cur.buff then
+    if btn:GetAttribute("wildCombatMacro") then
       label:SetText("Mouseover or target to buff")
       bg:SetColorTexture(0, 0, 0, 0)
     else
-      label:SetText("No combat buff queued")
+      label:SetText("No learned combat buff")
       bg:SetColorTexture(0.25, 0.08, 0.08, 0.55)
     end
     for _, state in ipairs(spellButtons) do
@@ -711,7 +723,8 @@ holder:SetScript("OnUpdate", function(_, dt)
     moreText:SetText(count > 1 and ("+" .. (count - 1)) or "")
     bg:SetColorTexture(0, 0, 0, 0)
   else
-    SetButtonActions(btn, nil, nil)
+    local combatBuff, combatSpellID = FindCombatBuff()
+    SetButtonActions(btn, nil, CombatCastMacro(combatBuff, combatSpellID))
     moreText:SetText("")
     label:SetText("|cff888888Nobody to buff|r")
     bg:SetColorTexture(0, 0, 0, 0.65)
