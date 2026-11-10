@@ -1,52 +1,23 @@
-# Wildspark
-
+# WildSpark
 
 > **[Download Here](https://github.com/uncle-bone/Wildspark/releases/latest)**
 
+**Current build: 1.4.5 for WoW Forever 1.60.1.** (GitHub source sync; installable release ZIP is available in this conversation.)
 
-**Stable release: 1.3.5 for WoW Forever 1.60.1.**
-
-
-**Current build: 1.3.5 for WoW Forever 1.60.1**
-
-
-Wildspark highlights nearby gathering nodes and useful world objects. It includes WildBuffs, leash helpers, and the integrated Camping Kit rebranded as **Wildfire Kit**.
-
+WildSpark highlights nearby gathering nodes and useful world objects. It includes WildBuffs, leash helpers, the integrated Camping Kit rebranded as **Wildfire Kit**, and WildAuctions, a bag item selector attached to the Auction House Sell tab. WildAuctions loads an item into Blizzard's Sell form and never posts it automatically.
 
 ## Install
 
+Download the latest release ZIP from the button above, extract it, and place the included `WildSpark` folder in your Forever client's `Interface/AddOns` directory. Disable Lueur, separate buff helpers, and standalone Camping Kit to avoid overlapping features.
 
-1. Download the [Wildspark 1.3.5 source archive](https://github.com/uncle-bone/Wildspark/archive/refs/tags/v1.3.5.zip).
-2. Extract the archive and copy its `Wildspark/Wildspark` folder into your Forever client's `Interface/AddOns` directory.
-3. Disable Lueur, the separate buff helper, and standalone Camping Kit to avoid overlapping features.
-4. Enable Wildspark and reload the UI.
+Full addon notes and credits are in [WildSpark/README.txt](WildSpark/README.txt).
 
+## WildAuctions
 
-Full addon notes and credits are in [Wildspark/README.txt](Wildspark/README.txt).
-
+WildAuctions lists unbound items carried in bags while the Sell tab is open. Clicking an item selects it and fills the available quantity in Blizzard's sell form. It does not scan AH listings, display price tooltips, or post auctions.
 
 ## New spell notifications
 
+WildSpark queues newly learned active spells with a reminder. WoW Forever API research available to this build does not establish a safe addon method for editing action bars, so place new spells manually from the spellbook. Existing actions are not overwritten.
 
-Wildspark records the character's known spells on first login. Later learned active spells are detected and queued with a reminder. WoW Forever API research available to this build does not establish a safe addon method for editing action bars, so place new spells manually by dragging them from the spellbook to an empty action slot. Wildspark does not overwrite existing actions.
-
-
-Separate WildBuffs and Wildfire Kit minimap buttons are hidden by default. The main Wildspark minimap button remains visible; existing saved visibility choices are preserved.
-
-
-## Herb and ore minimap icons
-
-
-WoW Forever build 70862 and later no longer returns gathering-node tooltip names for simulated cursor positions. Wildspark reports this instead of running empty scans. The game's native tracking dots still work; custom replacement icons require the client to restore addon-readable simulated hover data.
-
-
-## World Map camp pins
-
-
-Camp pin refreshes are deferred to the next frame, outside Blizzard's secure map-provider refresh callback. The pin rebuild also waits until combat has ended before removing or acquiring pins.
-
-
-## Preserved character data
-
-
-Wildspark retains its existing SavedVariables names and Wildfire Kit branding.
+WildBuffs and Wildfire Kit minimap buttons are hidden by default; the main WildSpark minimap button remains visible. Saved-variable names and Wildfire Kit branding are preserved.
