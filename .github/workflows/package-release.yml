@@ -1,0 +1,48 @@
+name: Package WildSpark release
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Wildspark/**"
+      - "README.md"
+      - "CHANGELOG.md"
+      - ".github/workflows/package-release.yml"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - name: Package and verify installable ZIP
+        id: package
+        shell: bash
+        run: |
+          version="$(sed -n 's/^## Version: //p' Wildspark/Wildspark.toc | head -n 1)"
+          test -n "$version"
+          package="WildSpark-$version.zip"
+          mkdir -p staging/WildSpark
+          cp -a Wildspark/. staging/WildSpark/
+          (cd staging && zip -qr "$GITHUB_WORKSPACE/$package" WildSpark)
+          unzip -Z1 "$package" > package-files.txt
+          grep -Fx "WildSpark/Wildspark.toc" package-files.txt
+          grep -Fx "WildSpark/WildResources.lua" package-files.txt
+          grep -Fx "WildSpark/ForeverLootRollMover.lua" package-files.txt
+          unzip -p "$package" WildSpark/Wildspark.toc | grep -Fx "## Version: $version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "package=$package" >> "$GITHUB_OUTPUT"
+      - name: Publish latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          tag="v${{ steps.package.outputs.version }}"
+          package="${{ steps.package.outputs.package }}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" "$package" --clobber
+          else
+            gh release create "$tag" "$package" --title "WildSpark ${{ steps.package.outputs.version }}" --notes-file CHANGELOG.md --target "$GITHUB_SHA" --latest
+          fi
