@@ -129,34 +129,21 @@ local function ScanAuras(unit)
   for i = 1, 40 do
     local name, source, dur, expires
     if C_UnitAuras and C_UnitAuras.GetAuraDataByIndex then
-      -- Forever uses the modern C_UnitAuras API. Aura access can be denied
-      -- for restricted unit tokens; isolate that failure to this unit/index.
-      local ok, aura = pcall(C_UnitAuras.GetAuraDataByIndex, unit, i, "HELPFUL")
-      if not ok or not aura then break end
-      local readOK
-      readOK, name, source, dur, expires = pcall(function()
-        return aura.name, aura.sourceUnit, aura.duration, aura.expirationTime
-      end)
-      if not readOK then break end
-    elseif UnitBuff then
-      -- Compatibility fallback for clients that still expose the legacy API.
-      local ok, n, _, _, d, e, src = pcall(UnitBuff, unit, i)
-      if not ok or not n then break end
-      name, source, dur, expires = n, src, d, e
+      local a = C_UnitAuras.GetAuraDataByIndex(unit, i, "HELPFUL")
+      if not a then break end
+      name, source, dur, expires = a.name, a.sourceUnit, a.duration, a.expirationTime
     else
-      break
+      local n, _, _, _, d, e, src = UnitBuff(unit, i)
+      if not n then break end
+      name, source, dur, expires = n, src, d, e
     end
-
-    -- Ignore incomplete aura records rather than indexing a table with nil.
-    if name then
-      local rem = math.huge
-      if type(dur) == "number" and dur > 0 and type(expires) == "number" and expires > 0 then
-        rem = math.max(0, expires - now)
-      end
-      if not present[name] or rem > present[name] then present[name] = rem end
-      if MY_NAMES[name] and source and UnitIsUnit(source, "player") then
-        mineName, mineRem = name, rem
-      end
+    local rem = math.huge
+    if dur and dur > 0 and expires and expires > 0 then
+      rem = math.max(0, expires - now)
+    end
+    if not present[name] or rem > present[name] then present[name] = rem end
+    if MY_NAMES[name] and source and UnitIsUnit(source, "player") then
+      mineName, mineRem = name, rem
     end
   end
   return present, mineName, mineRem
@@ -364,7 +351,7 @@ local function UpdateVisibility()
   end
 end
 
-local btn = CreateFrame("Button", "WildBuffsButton", holder, "SecureActionButtonTemplate,SecureHandlerStateTemplate")
+local btn = CreateFrame("Button", "WildBuffsButton", holder, "SecureActionButtonTemplate")
 btn:SetAllPoints()
 btn:RegisterForClicks("AnyUp", "AnyDown")
 btn:RegisterForDrag("LeftButton")
@@ -376,27 +363,6 @@ btn:SetScript("OnDragStop", function()
   local p, _, rp, x, y = holder:GetPoint()
   ForeverBuffs_DB.pos = { p, rp, x, y }
 end)
-
-local function InstallCombatAction(button)
-  -- Secure state handling switches to a prepared mouseover/target macro during combat.
-  button:SetAttribute("_onstate-wildcombat", [[
-    if newstate == "1" then
-      self:SetAttribute("macrotext", self:GetAttribute("wildCombatMacro") or "")
-    else
-      self:SetAttribute("macrotext", self:GetAttribute("wildMacro") or "")
-    end
-  ]])
-  RegisterStateDriver(button, "wildcombat", "[combat] 1; 0")
-end
-
-local function SetButtonActions(button, normalMacro, combatMacro)
-  button:SetAttribute("type", (normalMacro or combatMacro) and "macro" or nil)
-  button:SetAttribute("wildMacro", normalMacro)
-  button:SetAttribute("wildCombatMacro", combatMacro)
-  button:SetAttribute("macrotext", normalMacro)
-end
-
-InstallCombatAction(btn)
 
 local function UpdateRotatingButtonVisibility()
   if InCombatLockdown() then return end
@@ -468,22 +434,6 @@ local function SpellCastName(buff, spellID)
   return name
 end
 
-local function CombatCastMacro(buff, spellID)
-  if not buff or not spellID then return nil end
-  local castName = SpellCastName(buff, spellID)
-  return "/cast [@mouseover,help,nodead][@target,help,nodead] " .. castName
-end
-
-local function FindCombatBuff()
-  local list = CFG.order and CFG.order("player", CFG.byKey) or CFG.buffs
-  for _, buff in ipairs(list) do
-    if (not buff.when or buff.when("player")) then
-      local spellID = PickRank("player", buff.ranks)
-      if spellID then return buff, spellID end
-    end
-  end
-end
-
 local function CastMacro(unit, buff, spellID)
   local castName = SpellCastName(buff, spellID)
   local text
@@ -499,9 +449,8 @@ local function CastMacro(unit, buff, spellID)
 end
 
 local function CreateSpellButton(buff, index)
-  local button = CreateFrame("Button", "WildBuffsSpellButton" .. index, holder, "SecureActionButtonTemplate,SecureHandlerStateTemplate")
+  local button = CreateFrame("Button", "WildBuffsSpellButton" .. index, holder, "SecureActionButtonTemplate")
   button:SetSize(36, 36)
-  InstallCombatAction(button)
   button:RegisterForClicks("AnyUp", "AnyDown")
   button:RegisterForDrag("LeftButton")
   button:SetScript("OnDragStart", function()
@@ -549,19 +498,8 @@ local function CreateSpellButton(buff, index)
   button:HookScript("PreClick", function(self, mouse, down)
     if down ~= GetCVarBool("ActionButtonUseKeyDown") then return end
     local state = self.wildBuffState
-    local unit = state and state.target
-    if InCombatLockdown() then
-      if UnitExists("mouseover") and UnitIsFriend("player", "mouseover") then unit = "mouseover"
-      elseif UnitExists("target") and UnitIsFriend("player", "target") then unit = "target" end
-    end
-    if InCombatLockdown() then
-      last.guid = unit and UnitGUID(unit)
-      last.isSelf = unit and UnitIsUnit(unit, "player") or false
-    else
-      last.guid = unit and UnitGUID(unit) or (state and state.guid)
-      last.isSelf = state and state.unit and UnitIsUnit(state.unit, "player") or false
-    end
-    last.buff, last.spellID, last.time = buff, state and state.spellID, GetTime()
+    last.guid, last.buff, last.spellID, last.time = state and state.guid, buff, state and state.spellID, GetTime()
+    last.isSelf = state and state.unit and UnitIsUnit(state.unit, "player")
     if state and state.saying then pendingSay = nil end
   end)
   local state = { button = button, buff = buff, texture = texture, bg = bg,
@@ -587,7 +525,8 @@ local function UpdateSpellButtons(targets)
 
   if #active == 0 or (#active < 2 and ForeverBuffs_DB.showRotating ~= false) then
     for _, state in ipairs(spellButtons) do
-      SetButtonActions(state.button, nil, nil)
+      state.button:SetAttribute("type", nil)
+      state.button:SetAttribute("macrotext", nil)
       state.button:Hide()
     end
     return
@@ -615,7 +554,8 @@ local function UpdateSpellButtons(targets)
     state.guid = state.target and UnitGUID(state.target)
     state.saying = target ~= nil and pendingSay ~= nil
     if target then
-      SetButtonActions(button, CastMacro(target.unit, buff, target.spellID), CombatCastMacro(buff, target.spellID))
+      button:SetAttribute("type", "macro")
+      button:SetAttribute("macrotext", CastMacro(target.unit, buff, target.spellID))
       button:SetAlpha(1)
       button:Enable()
       state.label:SetText(UnitName(target.unit) or "?")
@@ -624,11 +564,10 @@ local function UpdateSpellButtons(targets)
       state.bg:SetColorTexture(0, 0, 0, 0)
       state.SetGlow(ForeverBuffs_DB.flash ~= false)
     else
-      -- Keep a safe combat action prepared even when no one currently needs
-      -- this buff. The normal out-of-combat action remains empty.
-      SetButtonActions(button, nil, CombatCastMacro(buff, spellID))
+      button:SetAttribute("type", nil)
+      button:SetAttribute("macrotext", nil)
       button:SetAlpha(0.45)
-      button:Enable()
+      button:Disable()
       state.label:SetText("Nobody to buff")
       state.label:SetTextColor(0.55, 0.55, 0.55)
       state.moreText:SetText("")
@@ -642,7 +581,8 @@ local function UpdateSpellButtons(targets)
     local activeBuff = false
     for _, item in ipairs(active) do if item.buff == state.buff then activeBuff = true; break end end
     if not activeBuff then
-      SetButtonActions(state.button, nil, nil)
+      state.button:SetAttribute("type", nil)
+      state.button:SetAttribute("macrotext", nil)
       state.SetGlow(false)
       state.button:Hide()
     end
@@ -652,19 +592,8 @@ end
 btn:HookScript("PreClick", function(self, mouse, down)
   -- the button only acts on one of down/up, matching this CVar
   if down ~= GetCVarBool("ActionButtonUseKeyDown") then return end
-  local unit = cur.unit
-  if InCombatLockdown() then
-    if UnitExists("mouseover") and UnitIsFriend("player", "mouseover") then unit = "mouseover"
-    elseif UnitExists("target") and UnitIsFriend("player", "target") then unit = "target" end
-  end
-  if InCombatLockdown() then
-    last.guid = unit and UnitGUID(unit)
-    last.isSelf = unit and UnitIsUnit(unit, "player") or false
-  else
-    last.guid = unit and UnitGUID(unit) or cur.guid
-    last.isSelf = cur.isSelf
-  end
-  last.buff, last.spellID, last.time = cur.buff, cur.spellID, GetTime()
+  last.guid, last.buff, last.spellID, last.time = cur.guid, cur.buff, cur.spellID, GetTime()
+  last.isSelf = cur.isSelf
   if cur.saying then pendingSay = nil end
   if DEBUG then
     local mt = self:GetAttribute("macrotext")
@@ -682,23 +611,10 @@ holder:SetScript("OnUpdate", function(_, dt)
   t = 0
 
   if InCombatLockdown() then
-    -- Secure state drivers have switched to the prepared combat action.
-    -- Do not rewrite protected button attributes while lockdown is active.
     SetGlow(false)
     moreText:SetText("")
-    if btn:GetAttribute("wildCombatMacro") then
-      label:SetText("Mouseover or target to buff")
-      bg:SetColorTexture(0, 0, 0, 0)
-    else
-      label:SetText("No learned combat buff")
-      bg:SetColorTexture(0.25, 0.08, 0.08, 0.55)
-    end
-    for _, state in ipairs(spellButtons) do
-      if state.button:GetAttribute("wildCombatMacro") then
-        state.label:SetText("Mouseover or target to buff")
-        state.moreText:SetText("")
-      end
-    end
+    label:SetText("In combat")
+    bg:SetColorTexture(0.5, 0, 0, 0.6)
     return
   end
 
@@ -707,7 +623,6 @@ holder:SetScript("OnUpdate", function(_, dt)
   if not ok then unit, buff, spellID, count, byBuff = nil, nil, nil, 0, {} end
   UpdateSpellButtons(byBuff)
   ApplyBinding()
-  cur.unit = unit
   cur.guid, cur.buff, cur.spellID, cur.saying = unit and UnitGUID(unit), buff, spellID, nil
   cur.isSelf = unit and UnitIsUnit(unit, "player")
   SetGlow(unit ~= nil and ForeverBuffs_DB.flash ~= false)
@@ -740,14 +655,14 @@ holder:SetScript("OnUpdate", function(_, dt)
       cur.saying = true
     end
 
-    SetButtonActions(btn, text, CombatCastMacro(buff, spellID))
+    btn:SetAttribute("type", "macro")
+    btn:SetAttribute("macrotext", text)
     icon:SetTexture(SpellIcon(spellID))
     label:SetText(UnitName(unit) or "?")
     moreText:SetText(count > 1 and ("+" .. (count - 1)) or "")
     bg:SetColorTexture(0, 0, 0, 0)
   else
-    local combatBuff, combatSpellID = FindCombatBuff()
-    SetButtonActions(btn, nil, CombatCastMacro(combatBuff, combatSpellID))
+    btn:SetAttribute("type", nil)
     moreText:SetText("")
     label:SetText("|cff888888Nobody to buff|r")
     bg:SetColorTexture(0, 0, 0, 0.65)
