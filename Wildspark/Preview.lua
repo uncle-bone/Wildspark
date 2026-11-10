@@ -51,7 +51,9 @@ local window                  -- la fenêtre, créée à sa première ouverture
 local view, plate             -- la vue où se dessine l'objet ; le cadre qui y tient lieu de nameplate
 local scene, actor            -- la scène 3D et son modèle ; nil sur un client qui n'en a pas
 local name, caption, notice, hint  -- textes : catégorie, état montré, absence de modèle, mode d'emploi
-local category = ns.CATEGORY_ORDER[1]
+-- Wildspark.lua supplies CATEGORY_ORDER before this file in the TOC. Keep a safe
+-- category if the core file failed to initialize, so the preview itself stays loadable.
+local category = ns.CATEGORY_ORDER and ns.CATEGORY_ORDER[1] or "ore"
 local fitted = true           -- le modèle chargé a été cadré
 
 -- La caméra tourne autour du point qu'elle vise, à une distance que règle la molette
