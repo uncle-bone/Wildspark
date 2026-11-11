@@ -27,14 +27,6 @@ WildSpark is a modular WoW Forever utility suite for gathering highlights, quest
 
 - Fix the WildFire tent button artwork so it is clipped and framed within its circular button.
 
-## What's new in 2.0.0
-
-- Update the gathering base with Lueur 1.7 ignore behavior: unnamed objects can be ignored, and removing an ignore takes a second request within 10 seconds.
-- Update WildLayer to AutoLayer 1.9.14 behavior, including filtering failed invites only for recent layer requests.
-- Prevent WildAuctions startup errors when saved faction history, search favorites, or account data is missing.
-- Anchor actual Blizzard group-loot frames instead of the managed container. The Wild Loot Rolls tab now has a draggable preview, saved placement, scale, and roll-spacing controls.
-- Preserve the Blizzard Auction House layout fix, the 24-hour WildAuctions post default, WildFire artwork, and the saved layer-hop preference.
-
 ## Features
 
 - Highlight nearby herbs, ore, quest objects, chests, and fishing bobbers with configurable glow effects, colors, labels, and visibility rules.
