@@ -10,7 +10,7 @@ repo = Path.cwd().resolve()
 baseline = repo / "baseline" / "WildSpark-1.5.9.zip"
 output_dir = repo / "dist"
 output_dir.mkdir(exist_ok=True)
-output_zip = output_dir / "WildSpark-1.5.11.zip"
+output_zip = output_dir / "WildSpark-1.5.12.zip"
 if not baseline.is_file():
     raise SystemExit(f"Missing baseline package: {baseline}")
 
@@ -100,14 +100,14 @@ def rewrite_text(name: str, data: bytes) -> bytes:
     text = re.sub("auxForever", "WildAuctions", text, flags=re.I)
 
     if name == "WildSpark/WildSpark.toc":
-        text = re.sub(r"(?m)^## Version:.*$", "## Version: 1.5.11", text)
+        text = re.sub(r"(?m)^## Version:.*$", "## Version: 1.5.12", text)
         if not re.search(r"(?m)^## Author:", text):
             text = text.replace("## Title: WildSpark", "## Title: WildSpark\n## Author: Uncle Bone", 1)
 
     if name.endswith("/WildAuctions.toc"):
         text = re.sub(r"(?m)^## Author:.*$", "## Author: Uncle Bone", text)
         text = re.sub(r"(?m)^## Title:.*$", "## Title: WildAuctions", text)
-        text = re.sub(r"(?m)^## Version:.*$", "## Version: 1.5.11", text)
+        text = re.sub(r"(?m)^## Version:.*$", "## Version: 1.5.12", text)
         text = re.sub(r"(?m)^## Notes:.*$", "## Notes: Made by Uncle Bone", text)
     if name == "WildSpark/Modules/WildAuctions/aux-addon.lua":
         text = text.replace(
@@ -120,6 +120,18 @@ def rewrite_text(name: str, data: bytes) -> bytes:
         if start < 0 or end < 0:
             raise SystemExit("Could not find the Blizzard Auction House frame-management block.")
         text = text[:start] + frame_section + text[end:]
+        # The native-frame helpers live on module M, not as loose globals.
+        # The Blizzard bootstrap has already loaded Blizzard_AuctionHouseUI for this event.
+        show_start = text.find("function AUCTION_HOUSE_SHOW()")
+        show_end = text.find("\\nend", show_start)
+        if show_start < 0 or show_end < 0:
+            raise SystemExit("Could not locate AUCTION_HOUSE_SHOW handler.")
+        show = text[show_start:show_end]
+        show = show.replace("compat_load_auction_house_ui()", "-- Blizzard_AuctionHouseUI is loaded by Blizzard's bootstrap.")
+        show = show.replace("hook_blizzard_frame()", "M.hook_blizzard_frame()")
+        show = show.replace("hook_panel_layout()", "M.hook_panel_layout()")
+        show = show.replace("set_blizzard_frame_shown(false)", "M.set_blizzard_frame_shown(false)")
+        text = text[:show_start] + show + text[show_end:]
     if name == "WildSpark/Modules/WildAuctions/frame.lua":
         text = text.replace(
             "logo:SetText(color.text.enabled'aux' .. color.accent.background'Forever')",
@@ -141,7 +153,7 @@ def rewrite_text(name: str, data: bytes) -> bytes:
             'L.WILDAUCTIONS_NOTE = "Auction house tools by Uncle Bone. Select the Auction House button to open WildAuctions."',
             text)
     if name == "WildSpark/README.txt":
-        text = re.sub(r"(?m)^WildSpark \d+\.\d+\.\d+.*$", "WildSpark 1.5.11", text, count=1)
+        text = re.sub(r"(?m)^WildSpark \d+\.\d+\.\d+.*$", "WildSpark 1.5.12", text, count=1)
         if "Credits" in text:
             text = text[:text.rfind("Credits")] + (
                 "Credits\nMade by Uncle Bone.\n"
@@ -149,7 +161,7 @@ def rewrite_text(name: str, data: bytes) -> bytes:
         text = text.replace(
             "The Blizzard auction-house window is opened at normal scale to avoid broken child-control layout.",
             "WildAuctions keeps Blizzard's native auction-house frame at normal scale to prevent displaced controls.")
-        text += "\n1.5.11: Fixes the Blizzard Auction House window layout, brands the auction module WildAuctions, and credits Uncle Bone in the module UI.\n"
+        text += "\n1.5.12: Fixes the Blizzard Auction House window layout, brands the auction module WildAuctions, and credits Uncle Bone in the module UI.\n"
 
     return text.encode("utf-8")
 
@@ -177,8 +189,8 @@ with zipfile.ZipFile(output_zip, "r") as z:
     if missing:
         raise SystemExit("Missing expected packaged files: " + ", ".join(missing))
     toc = z.read("WildSpark/WildSpark.toc").decode("utf-8")
-    if "## Version: 1.5.11" not in toc:
-        raise SystemExit("Packaged TOC version is not 1.5.11")
+    if "## Version: 1.5.12" not in toc:
+        raise SystemExit("Packaged TOC version is not 1.5.12")
     ah = z.read("WildSpark/Modules/WildAuctions/aux-addon.lua").decode("utf-8")
     if ".01" in ah or "HIDDEN_SCALE" in ah:
         raise SystemExit("The old tiny-scale AH workaround remains in the package")
@@ -199,9 +211,9 @@ try:
     readme = repo / "README.md"
     text = readme.read_text(encoding="utf-8")
     text = text.replace("/releases/download/v1.5.9/WildSpark-1.5.9.zip",
-                        "/releases/download/v1.5.11/WildSpark-1.5.11.zip")
-    text = text.replace("Current stable release: 1.5.9", "Current stable release: 1.5.11")
-    text = text.replace("The 1.5.9 ZIP", "The 1.5.11 ZIP")
+                        "/releases/download/v1.5.12/WildSpark-1.5.12.zip")
+    text = text.replace("Current stable release: 1.5.9", "Current stable release: 1.5.12")
+    text = text.replace("The 1.5.9 ZIP", "The 1.5.12 ZIP")
     text = text.replace("Version 1.5.6 adds", "Version 1.5.6 adds")
     text = text.replace("## Features\n", "## Features\n\n- Fix the Blizzard Auction House window layout when switching from WildAuctions to Blizzard UI; credits show Uncle Bone.\n", 1)
     readme.write_text(text, encoding="utf-8")
@@ -209,13 +221,13 @@ try:
     subprocess.run(["git", "config", "user.name", "github-actions[bot]"], check=True)
     subprocess.run(["git", "config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"], check=True)
     subprocess.run(["git", "add", "Wildspark", "README.md"], cwd=repo, check=True)
-    subprocess.run(["git", "commit", "-m", "Sync WildSpark 1.5.11 source with AH layout fix"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-m", "Sync WildSpark 1.5.12 source with AH layout fix"], cwd=repo, check=True)
     subprocess.run(["git", "push", "origin", "main"], cwd=repo, check=True)
     notes = """Fixes the broken Blizzard Auction House layout when switching from WildAuctions to Blizzard UI. The native AH frame stays at scale 1 while hidden, so its child controls do not get displaced. The WildAuctions UI and module credit now show WildAuctions and Made by Uncle Bone. WildLayer detection remains included; the observed GUID value is an ID, not an official numbered layer."""
     subprocess.run([
-        "gh", "release", "create", "v1.5.11", str(output_zip),
+        "gh", "release", "create", "v1.5.12", str(output_zip),
         "--repo", subprocess.check_output(["git", "remote", "get-url", "origin"], cwd=repo, text=True).strip().replace("https://github.com/", "").replace(".git", ""),
-        "--title", "WildSpark 1.5.11 — Auction House layout fix",
+        "--title", "WildSpark 1.5.12 — Auction House layout fix",
         "--notes", notes,
         "--target", "main",
         "--latest",
