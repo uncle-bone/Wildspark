@@ -259,13 +259,13 @@ end
 do
     local blizzard_visible = false
 
-    function M.fix_blizzard_frame_position()
+    function fix_blizzard_frame_position()
         if not AuctionHouseFrame then return end
         AuctionHouseFrame:SetScale(1)
         AuctionHouseFrame:SetClampedToScreen(true)
     end
 
-    function M.resize_blizzard_tabs()
+    function resize_blizzard_tabs()
         if not AuctionHouseFrame then return end
         local auctions_frame = AuctionHouseFrame.AuctionsFrame
         local empty_tabs = {}
@@ -277,23 +277,23 @@ do
         end
     end
 
-    function M.blizzard_frame_shown()
+    function blizzard_frame_shown()
         return blizzard_visible
     end
 
-    function M.settle_side_panel()
+    function settle_side_panel()
         -- Keep Blizzard's normal adjacent-panel layout around its full-size auction house frame.
     end
 
-    function M.hook_panel_layout() end
+    function hook_panel_layout() end
 
-    function M.set_blizzard_frame_shown(shown)
+    function set_blizzard_frame_shown(shown)
         if not AuctionHouseFrame then return end
         blizzard_visible = shown
         AuctionHouseFrame:SetScale(1)
         if shown then
-            M.fix_blizzard_frame_position()
-            M.resize_blizzard_tabs()
+            fix_blizzard_frame_position()
+            resize_blizzard_tabs()
             AuctionHouseFrame:SetClampedToScreen(true)
             AuctionHouseFrame:SetAlpha(1)
             AuctionHouseFrame:EnableMouse(true)
@@ -306,11 +306,11 @@ do
     end
 
     local hooked
-    function M.hook_blizzard_frame()
+    function hook_blizzard_frame()
         if hooked or not AuctionHouseFrame then return end
         hooked = true
         AuctionHouseFrame:HookScript('OnShow', function(self)
-            M.set_blizzard_frame_shown(false)
+            set_blizzard_frame_shown(false)
             self:UnregisterEvent('AUCTION_HOUSE_POST_WARNING')
             self:UnregisterEvent('AUCTION_HOUSE_POST_ERROR')
         end)
@@ -321,17 +321,17 @@ do
     end
 
     function event.AUCTION_HOUSE_LOADED()
-        M.hook_blizzard_frame()
-        M.hook_panel_layout()
+        hook_blizzard_frame()
+        hook_panel_layout()
     end
 end
 
 function AUCTION_HOUSE_SHOW()
     -- Blizzard_AuctionHouseUI is loaded by Blizzard's bootstrap.
-    M.hook_blizzard_frame()
-    M.hook_panel_layout()
+    hook_blizzard_frame()
+    hook_panel_layout()
     if AuctionHouseFrame and AuctionHouseFrame:IsShown() then
-        M.set_blizzard_frame_shown(false)
+        set_blizzard_frame_shown(false)
     end
     frame:Show()
     set_tab(1)

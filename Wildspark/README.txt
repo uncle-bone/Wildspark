@@ -1,4 +1,4 @@
-WildSpark 1.5.13
+WildSpark 1.5.14
 1.5.9: Adds a Forever GUID-based local layer identifier observer to WildLayer and shows the latest observed ID below the minimap. The display marks raw GUID IDs as unverified, keeps NovaWorldBuffs integration optional, and avoids Forever's restricted IsAddOnLoaded query. NovaWorldBuffs 3.49 disables its own layer detector on Forever, so WildLayer can still show an observed ID after targeting or mousing over an NPC; it does not claim that ID is an official layer number.
 
 WildSpark 1.5.8
@@ -163,4 +163,4 @@ Credits
 Made by Uncle Bone.
 Bundled components retain their original copyright and license notices in their included license files.
 
-1.5.13: Fixes the Blizzard Auction House window layout, brands the auction module WildAuctions, and credits Uncle Bone in the module UI.
+1.5.14: Fixes the Blizzard Auction House window layout, brands the auction module WildAuctions, and credits Uncle Bone in the module UI.

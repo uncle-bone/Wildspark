@@ -28,7 +28,7 @@ local FALLBACK_ICON = "Interface\\Cooldown\\star4"
 local WIDTH, HEIGHT = 728, 496
 local EDGE = 12               -- marge entre le cadre de la fenêtre et ses panneaux
 local TOP, FOOT = 62, 42      -- ce que la fenêtre garde au-dessus des panneaux (son portrait) et dessous (ses boutons)
-local TAB_RAIL_WIDTH = 80     -- réserve le bord droit aux onglets pour qu'ils restent dans la fenêtre
+local TAB_RAIL_WIDTH = 88     -- réserve le bord droit aux onglets pour qu'ils restent dans la fenêtre
 local GAP = 6                 -- espace entre deux panneaux
 local PAD = 16                -- marge intérieure d'un panneau
 local LIST = 236              -- largeur du panneau des objets
@@ -728,7 +728,7 @@ local function CreateMenu()
 	list[#list + 1] = { "settings", ICONS .. SETTINGS_ICON, "SETTINGS" }
 	if _G.LeashHelper then list[#list + 1] = { "leash", ICONS .. "Ability_Hunter_BeastTaming", "LEASH_SETTINGS" } end
 	if _G.WildBuffs then list[#list + 1] = { "buffs", ICONS .. "Spell_Holy_GreaterHeal", "BUFFS_TAB" } end
-	if ns.kit then list[#list + 1] = { "camping", MEDIA .. "CampingKit\\tent_closed_48", "CAMPING_TAB" } end
+	if ns.kit then list[#list + 1] = { "camping", MEDIA .. "WildFireIcon", "CAMPING_TAB" } end
 	if _G.WildAuctions then list[#list + 1] = { "auctions", ICONS .. "INV_Misc_Coin_01", "WILDAUCTIONS_TAB" } end
 	if ns.WildGroups then list[#list + 1] = { "groups", ICONS .. "INV_SideTab_GroupFinder_c60", "WILDGROUPS_TAB" } end
 	if ns.WildLayer then list[#list + 1] = { "layers", MEDIA .. "WildLayerIcon", "WILDLAYER_TAB" } end
@@ -736,7 +736,7 @@ local function CreateMenu()
 	local previous
 	for _, tab in ipairs(list) do
 		local name, text = tab[1], tab[3]
-		local button = Skin.SideTab(frame, previous, tab[2], function() Open(name) end)
+		local button = Skin.SideTab(frame, previous, tab[2], function() Open(name) end)\n\t\tlocal tab_height = button.GetHeight and button:GetHeight() or 32\n\t\tbutton:SetScale(math.min(1, tab_slot / math.max(1, tab_height)))\n\t\tbutton:ClearAllPoints()\n\t\tbutton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -3, -tab_top - (tab_index - 1) * tab_slot)
 		captions[#captions + 1] = function() button.tooltipText = L[text] end
 		button.tooltipText = L[text]
 		refreshers[#refreshers + 1] = function() button:SetChecked(openPage == name) end
