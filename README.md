@@ -1,14 +1,15 @@
 # WildSpark
 
-> **[Download WildSpark 2.1.2 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.1.2/WildSpark-2.1.2.zip)**
+> **[Download WildSpark 2.1.3 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.1.3/WildSpark-2.1.3.zip)**
 
-**Current stable release: 2.1.2 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
+**Current stable release: 2.1.3 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
 
 WildSpark is a modular WoW Forever utility suite for gathering highlights, quest-drop tooltips, buffs, creature leash tracking, WildFire camping, auctions, group finding, and layer hopping. Its major modules have dedicated settings tabs, and can be enabled or disabled independently.
 
-## What's new in 2.1.2
+## What's new in 2.1.3
 
-- Fix the shared WildFire circular mask's alpha channel so item and spell icons are clipped to the round slots.
+- Fix WildDrops initialization when the addon folder name uses different capitalization, preventing drop-rate tooltips from being silently disabled on some installs.
+- Keep the 2.1.2 WildFire circular-mask alpha fix.
 
 ## Features
 

@@ -1,3 +1,6 @@
+WildSpark 2.1.3
+- Fix WildDrops saved-settings initialization when addon folder capitalization differs, which could suppress all drop-rate tooltips on affected installs.
+
 WildSpark 2.1.2
 - Fix WildFire's shared circular icon mask by moving its grayscale circle into the alpha channel. The old mask was fully opaque, so WoW drew square item and spell icons inside the circular slots.
 
