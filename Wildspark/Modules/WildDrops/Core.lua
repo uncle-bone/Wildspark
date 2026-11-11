@@ -437,7 +437,8 @@ eventFrame:RegisterEvent("ADDON_LOADED")
 eventFrame:RegisterEvent("PLAYER_LOGIN")
 eventFrame:SetScript("OnEvent", function(self, event, ...)
     if event == "ADDON_LOADED" then
-        if ... ~= ADDON_NAME then return end
+        local loadedName = ...
+        if type(loadedName) ~= "string" or strlower(loadedName) ~= strlower(ADDON_NAME) then return end
         WildDropsDB = WildDropsDB or {}
         ns.db = WildDropsDB
         for key, value in pairs(ns.defaults) do
