@@ -4,7 +4,7 @@
 
 **Current stable release: 2.0.1 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
 
-WildSpark brings gathering highlights, buffs, leash helpers, camping tools, auction tools, group finding, and layer hopping together in one addon. Major modules have their own tab and can be disabled separately.
+WildSpark is a modular WoW Forever utility suite for gathering highlights, buffs, creature leash tracking, WildFire camping, auctions, group finding, and layer hopping. Its major modules have dedicated settings tabs, and can be enabled or disabled independently.
 
 ## What's new in 2.0.1
 
