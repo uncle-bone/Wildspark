@@ -7,7 +7,7 @@
 ## Notes-esES: Hace brillar los filones, las hierbas, los objetos de misi�n y los cofres cuando te acercas, con varios efectos de luz a elegir, y muestra hierbas y filones en el minimapa con su propio icono (usa el soft targeting de Blizzard).
 ## Notes-esMX: Hace brillar los filones, las hierbas, los objetos de misi�n y los cofres cuando te acercas, con varios efectos de luz a elegir, y muestra hierbas y filones en el minimapa con su propio icono (usa el soft targeting de Blizzard).
 ## Notes-ruRU: ???????????? ?????? ????, ?????, ????????? ??????? ? ??????? ??? ??????????? ? ???, ? ??????? ???????? ????????, ? ?????????? ????? ? ???? ?? ????????? ?? ???????????? ???????? (?????????? soft targeting ?? Blizzard).
-## Version: 2.0.2
+## Version: 2.1.0
 ## X-WildLayer-Version: 1.9.14
 ## X-WildLayer-Display-Name: WildLayer
 ## IconTexture: Interface\AddOns\WildSpark\Media\icon.tga
@@ -15,7 +15,7 @@
 ## AddonCompartmentFunc: Wildspark_WildGroups_OnAddonCompartmentClick
 ## AddonCompartmentFuncOnEnter: Wildspark_WildGroups_OnAddonCompartmentEnter
 ## AddonCompartmentFuncOnLeave: Wildspark_WildGroups_OnAddonCompartmentLeave
-## SavedVariables: WildsparkDB, LeashHelperDB, ForeverBuffs_DB, CampingKitDB, KitDockDB, WildAuctionsDB, aux, LFGForeverDB, AutoLayerDB, WildLootRollDB
+## SavedVariables: WildsparkDB, LeashHelperDB, ForeverBuffs_DB, CampingKitDB, KitDockDB, WildAuctionsDB, aux, LFGForeverDB, AutoLayerDB, WildLootRollDB, WildDropsDB
 ## SavedVariablesPerCharacter: WildsparkCharDB, ForeverBuffs_CharDB, CampingKitCharDB, LFGForeverCharDB
 ## AllowLoadGameType: mainline
 
@@ -124,3 +124,9 @@ Modules\WildLayer\Modules\Detection.lua
 Modules\WildLayer\Modules\Hopping.lua
 Modules\WildLayerAdapter.lua
 LootRollMover.lua
+
+Modules\WildDrops\Data.lua
+Modules\WildDrops\ManualData.lua
+Modules\WildDrops\Core.lua
+Modules\WildDrops\Tooltip.lua
+Modules\WildDrops\WildDropsModule.lua

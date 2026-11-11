@@ -10,6 +10,7 @@ on:
       - "Wildspark/WildSpark.toc"
       - "Wildspark/CHANGELOG.txt"
       - "Wildspark/Media/WildFire/tent_*.tga"
+      - "Wildspark/Modules/WildDrops/**"
 
 permissions:
   contents: write
@@ -38,6 +39,7 @@ jobs:
           test -f Wildspark/Modules/WildAuctions/LICENSE.txt
           test -f Wildspark/Modules/WildGroups/LICENSE
           test -f Wildspark/Modules/WildLayer/LICENSE.txt
+          test -f Wildspark/Modules/WildDrops/NOTICE.md
           test -f Wildspark/CampingKitEmbedded/LICENSE
           test -f Wildspark/CampingKitEmbedded/ARTWORK_NOTICE.txt
           test -f Wildspark/Media/WildFireIcon-LICENSE.txt

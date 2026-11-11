@@ -1,10 +1,15 @@
 # WildSpark
 
-> **[Download WildSpark 2.0.2 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.0.2/WildSpark-2.0.2.zip)**
+> **[Download WildSpark 2.1.0 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.1.0/WildSpark-2.1.0.zip)**
 
-**Current stable release: 2.0.2 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
+**Current stable release: 2.1.0 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
 
-WildSpark is a modular WoW Forever utility suite for gathering highlights, buffs, creature leash tracking, WildFire camping, auctions, group finding, and layer hopping. Its major modules have dedicated settings tabs, and can be enabled or disabled independently.
+WildSpark is a modular WoW Forever utility suite for gathering highlights, quest-drop tooltips, buffs, creature leash tracking, WildFire camping, auctions, group finding, and layer hopping. Its major modules have dedicated settings tabs, and can be enabled or disabled independently.
+
+## What's new in 2.1.0
+
+- Add WildDrops: creature tooltips show quest-starting items, recorded drop percentages, approximate kills, and the associated quest.
+- Rare drops are shown by default. Quest eligibility filters are retained. The search browser and other Questionable Drops features are not included.
 
 ## What's new in 2.0.2
 
@@ -32,7 +37,8 @@ WildSpark is a modular WoW Forever utility suite for gathering highlights, buffs
 - Use **WildFire** for camping objects, camp effects, food and Well Fed timers, camp tracking, sharing, and map pins.
 - Use **WildAuctions** for auction-house tools, including selecting bag items while the auction house is open. It does not post auctions automatically.
 - Use **WildGroups** from its own tab in Blizzard's Looking For Group pane.
-- Use **WildLayer** from its own WildSpark tab or minimap button to request layer hops. Automatic invites for players requesting your layer are off by default.
+- Use **WildLayer** from its own WildSpark tab or minimap button to request layer hops.
+- Use **WildDrops** to see quest-starting items and their recorded drop chances when mousing over creatures. Automatic invites for players requesting your layer are off by default.
 - Adjust Blizzard group-loot position, scale, and spacing from WildSpark's Wild Loot Rolls tab.
 - Open settings with `/wildspark` or `/ws`.
 
@@ -48,4 +54,4 @@ Download the ZIP, extract it, and place the included `WildSpark` folder in the F
 
 ## Third-party notices
 
-WildSpark retains the license and attribution files for its embedded components in their respective folders. The original Camping Kit artwork is excluded; WildFire uses replacement artwork with its own license notice.
+WildSpark retains the license and attribution files for its embedded components in their respective folders. The original Camping Kit artwork is excluded; WildFire uses replacement artwork with its own license notice. WildDrops is included and modified with permission from the original Questionable Drops author; its bundled database credits QuestieDB Forever and Wowhead in the source files.
