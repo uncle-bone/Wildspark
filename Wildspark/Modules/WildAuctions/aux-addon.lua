@@ -1,3 +1,4 @@
+local addon_name = ...
 select(2, ...).WildAuctions 'aux'
 _G.WildAuctions = _G.WildAuctions or {}
 _G.WildAuctions.M = M
@@ -30,7 +31,9 @@ do
     end
 	event_frame:SetScript('OnEvent', function(_, event, arg1, ...)
 		if event == 'ADDON_LOADED' then
-            if arg1 == 'WildSpark' then
+            -- The saved-variable/addon folder is named "Wildspark" in some installs,
+            -- while the display title is "WildSpark". ADDON_LOADED reports the folder name.
+            if type(arg1) == 'string' and string.lower(arg1) == string.lower(addon_name or 'WildSpark') then
                 for _, f in ipairs(handlers) do f(arg1, ...) end
             elseif arg1 == 'Blizzard_AuctionHouseUI' then
                 for _, f in ipairs(handlers3) do f(arg1, ...) end
