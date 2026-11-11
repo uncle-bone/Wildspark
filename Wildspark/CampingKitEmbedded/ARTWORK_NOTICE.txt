@@ -1,0 +1,3 @@
+WildSpark replaces all original CampingKit media artwork with new assets.
+
+The original tent, kit, control, ring, glow, mask, and divider artwork described in CampingKitEmbedded/LICENSE is not included in this package. Code and bundled libraries retain their original notices. Replacement emoji art is from Microsoft Fluent Emoji under MIT; its full notice is in Media/WildFireIcon-LICENSE.txt. The remaining masks and UI effects are clean replacement textures generated for WildSpark.

@@ -1,6 +1,10 @@
-Fluent Emoji Camping flat icon
+Fluent Emoji flat icons included in WildSpark: Camping, Backpack, Clipboard, and Left Speech Bubble.
 Copyright (c) Microsoft Corporation
-Source: https://github.com/microsoft/fluentui-emoji/tree/main/assets/Camping/Flat
+Sources:
+https://github.com/microsoft/fluentui-emoji/tree/main/assets/Camping/Flat
+https://github.com/microsoft/fluentui-emoji/tree/main/assets/Backpack/Flat
+https://github.com/microsoft/fluentui-emoji/tree/main/assets/Clipboard/Flat
+https://github.com/microsoft/fluentui-emoji/tree/main/assets/Left%20speech%20bubble/Flat
 
 MIT License
 

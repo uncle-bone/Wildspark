@@ -58,10 +58,10 @@ _G.KitDock = D
 ns.Dock = D
 D.version = VERSION
 D.kits = D.kits or {}
-D.media = D.media or ("Interface\\AddOns\\" .. addonName .. "\\Media\\CampingKit\\")
+D.media = D.media or ("Interface\\AddOns\\" .. addonName .. "\\Media\\WildFire\\")
 -- Art new in this version (the Kits chest) comes from the kit that carries
 -- this copy, since an older kit loaded first may not ship it.
-local OWN_MEDIA = "Interface\\AddOns\\" .. addonName .. "\\Media\\CampingKit\\"
+local OWN_MEDIA = "Interface\\AddOns\\" .. addonName .. "\\Media\\WildFire\\"
 
 local ORDER = { "fak", "ck", "fk" }
 local SNAP = 105 -- how close (UI units) a kit must come to merge (preview and drop)
@@ -3147,7 +3147,7 @@ function D.SetupMinimap()
     if h and h > 0 then px = 27 * mmButton:GetEffectiveScale() * h / 768 end
     local size = 128
     for _, sz in ipairs({ 32, 48, 64, 96, 128 }) do if px <= sz then size = sz break end end
-    mmButton.icon:SetTexture(OWN_MEDIA .. "kits_chest_" .. size, nil, nil, "LINEAR")
+    mmButton.icon:SetTexture(OWN_MEDIA .. "wildfire_pack_" .. size, nil, nil, "LINEAR")
     mmButton:SetShown(DB().minimap ~= false)
     PlaceMinimap()
     if menu and menu:IsShown() then FillMenu() end

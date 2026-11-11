@@ -228,4 +228,4 @@ ns.CAMP_TENT_ITEM = 279978   -- its icon is the tent button
 -- Spells whose (localized) names mark an item as food or drink: Food, Drink.
 ns.FOOD_SPELLS = { 433, 430 }
 
-ns.MEDIA = "Interface\\AddOns\\" .. addonName .. "\\Media\\CampingKit\\"
+ns.MEDIA = "Interface\\AddOns\\" .. addonName .. "\\Media\\WildFire\\"

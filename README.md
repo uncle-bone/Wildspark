@@ -1,15 +1,17 @@
 # WildSpark
 
-> **[Download WildSpark 1.5.15 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v1.5.15/WildSpark-1.5.15.zip)**
+> **[Download WildSpark 1.5.16 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v1.5.16/WildSpark-1.5.16.zip)**
 
-**Current stable release: 1.5.15 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
+**Current stable release: 1.5.16 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
 
 WildSpark brings nearby resource highlighting, buffs, leash helpers, camping, auction tools, group finding, and layer hopping together under one addon. Each major module has its own settings tab and can be disabled separately.
 
 ## Features
 
-- Fix WildAuctions’ Blizzard Auction House hook errors, keep its native frame at normal scale, fit the settings window on short screens, and keep every module tab inside the panel.
-- Give WildFire a distinct Fluent Emoji Camping tab icon; its Microsoft MIT license notice is included in the addon.
+- Fix WildAuctions’ Blizzard Auction House nil calls and keep its native window at normal scale.
+- Fit the settings panel and all module tabs inside the screen.
+- Replace every original CampingKit artwork file with Microsoft Fluent Emoji icons and new smooth WildSpark effects.
+- Save 24 hours as the WildAuctions posting default, including migrating the previous 8-hour default.
 
 - Fix the Blizzard Auction House window layout when switching from WildAuctions to Blizzard UI; credits show Uncle Bone.
 
