@@ -178,6 +178,47 @@ local function Refresh()
 	if statusText then statusText:SetText("Click an item to load it into Blizzard Sell form. Nothing is posted.") end
 end
 
+local function NormalizeAuctionHouseFrame()
+	local ah = AuctionHouseFrame
+	if not ah then return end
+	local scale = type(ah.GetScale) == "function" and ah:GetScale() or nil
+	if type(scale) == "number" and scale < 0.1 and type(ah.SetScale) == "function" then
+		ah:SetScale(1)
+	end
+	if type(ah.SetClampedToScreen) == "function" then ah:SetClampedToScreen(true) end
+	local auctions = ah.AuctionsFrame
+	local groups = { ah.Tabs, type(auctions) == "table" and auctions.Tabs }
+	for _, tabs in ipairs(groups) do
+		if type(tabs) == "table" then
+			for _, tab in ipairs(tabs) do
+				if tab and tab.IsShown and tab:IsShown() and tab.GetScript then
+					local onShow = tab:GetScript("OnShow")
+					if type(onShow) == "function" then pcall(onShow, tab) end
+				end
+			end
+		end
+	end
+end
+
+local function HookAuctionHouseLayout()
+	local ah = AuctionHouseFrame
+	if not ah or ah.wildAuctionsLayoutHooked or type(ah.HookScript) ~= "function" then return end
+	ah.wildAuctionsLayoutHooked = true
+	ah:HookScript("OnShow", function(self)
+		local scale = type(self.GetScale) == "function" and self:GetScale() or nil
+		if type(scale) == "number" and scale < 0.1 and type(self.SetScale) == "function" then
+			self:SetScale(1)
+		end
+		if type(self.SetClampedToScreen) == "function" then self:SetClampedToScreen(true) end
+		if C_Timer and C_Timer.After then
+			C_Timer.After(0, NormalizeAuctionHouseFrame)
+		else
+			NormalizeAuctionHouseFrame()
+		end
+	end)
+	NormalizeAuctionHouseFrame()
+end
+
 local function CreatePanel()
 	if panel or not AuctionHouseFrame then return end
 	panel = CreateFrame("Frame", "WildAuctionsPanel", UIParent, "BackdropTemplate")
@@ -241,6 +282,7 @@ end
 
 local function TryAttach()
 	if not AuctionHouseFrame then return false end
+	HookAuctionHouseLayout()
 	CreatePanel()
 	if type(AuctionHouseFrame.SetDisplayMode) == "function" and not AuctionHouseFrame.wildAuctionsHooked then
 		local ok = pcall(hooksecurefunc, AuctionHouseFrame, "SetDisplayMode", function()
