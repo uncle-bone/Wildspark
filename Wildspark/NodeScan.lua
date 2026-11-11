@@ -1855,7 +1855,7 @@ local function OnTooltip(tooltip, data)
 				if needs and not (said and said[needs]) then
 					said = said or {}
 					said[needs] = true
-					pcall(tooltip.AddLine, tooltip, needs, ns.DifficultyColor("impossible"))
+					pcall(tooltip.AddLine, tooltip, needs, ns.DifficultyColor(ns.NodeDifficulty(node) or "difficult"))
 				end
 			end
 		end
@@ -1878,6 +1878,11 @@ end
 -- lance ou arrête le balayage, qui repart de zéro
 function ns.UpdateNodes()
 	if not ns.db then return end
+	-- The client can refuse the simulated cursor used to discover and draw our
+	-- custom minimap markers. Its native minimap pins still have usable tooltip
+	-- data, though, so keep the profession requirement tooltip hook independent
+	-- of the custom marker scan's compatibility gate.
+	if ns.db.enabled and (Wanted("herb") or Wanted("ore")) then HookTooltip() end
 	local on = ns.db.enabled and (Wanted("herb") or Wanted("ore")) and not Failure()
 	scan, wait, slow = nil, 0, 1
 	turn.map, turn.kind, turn.want = nil, nil, nil
@@ -1886,7 +1891,6 @@ function ns.UpdateNodes()
 			holder = CreateFrame("Frame", nil, Minimap)
 			holder:SetAllPoints(Minimap)
 		end
-		HookTooltip()
 		-- sans alternance, plus rien ne justifie de garder les nœuds d'un pistage éteint
 		if not ns.GetOption("nodeSwitch") then
 			for index = #markers, 1, -1 do

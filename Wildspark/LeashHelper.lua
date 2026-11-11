@@ -1551,7 +1551,7 @@ function LH.StartTest()
 end
 
 local function Print(msg)
-	print("|cff0cd29dWildspark Leash|r: " .. msg)
+	print("|cff0cd29dWildSpark Leash|r: " .. msg)
 end
 
 local function Probe(unit)

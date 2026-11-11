@@ -1,0 +1,125 @@
+## Interface: 11509, 16001
+## Title: WildSpark
+## Author: Uncle Bone
+## Notes: Makes ore veins, herbs, quest objects and chests glow as you approach them, with a choice of light effects, and shows herbs and veins on the minimap as their own icons (uses Blizzard's soft targeting).
+## Notes-frFR: Fait briller les filons, les plantes, les objets de qu�te et les coffres � ton approche, avec plusieurs effets de lumi�re au choix, et montre plantes et filons sur la minimap par leur ic�ne (via le soft targeting de Blizzard).
+## Notes-deDE: L�sst Erzadern, Kr�uter, Questobjekte und Truhen aufleuchten, wenn du dich ihnen n�herst, mit mehreren Lichteffekten zur Auswahl, und zeigt Kr�uter und Erze auf der Minikarte mit ihrem eigenen Symbol (nutzt Blizzards Soft-Targeting).
+## Notes-esES: Hace brillar los filones, las hierbas, los objetos de misi�n y los cofres cuando te acercas, con varios efectos de luz a elegir, y muestra hierbas y filones en el minimapa con su propio icono (usa el soft targeting de Blizzard).
+## Notes-esMX: Hace brillar los filones, las hierbas, los objetos de misi�n y los cofres cuando te acercas, con varios efectos de luz a elegir, y muestra hierbas y filones en el minimapa con su propio icono (usa el soft targeting de Blizzard).
+## Notes-ruRU: ???????????? ?????? ????, ?????, ????????? ??????? ? ??????? ??? ??????????? ? ???, ? ??????? ???????? ????????, ? ?????????? ????? ? ???? ?? ????????? ?? ???????????? ???????? (?????????? soft targeting ?? Blizzard).
+## Version: 1.5.10
+## X-WildLayer-Version: 1.9.13
+## X-WildLayer-Display-Name: WildLayer
+## IconTexture: Interface\AddOns\WildSpark\Media\icon.tga
+## X-WildGroups-Version: 1.3.0
+## AddonCompartmentFunc: Wildspark_WildGroups_OnAddonCompartmentClick
+## AddonCompartmentFuncOnEnter: Wildspark_WildGroups_OnAddonCompartmentEnter
+## AddonCompartmentFuncOnLeave: Wildspark_WildGroups_OnAddonCompartmentLeave
+## SavedVariables: WildsparkDB, LeashHelperDB, ForeverBuffs_DB, CampingKitDB, KitDockDB, WildAuctionsDB, aux, LFGForeverDB, AutoLayerDB
+## SavedVariablesPerCharacter: WildsparkCharDB, ForeverBuffs_CharDB, CampingKitCharDB, LFGForeverCharDB
+## AllowLoadGameType: mainline
+
+Locales\Locales.lua
+Locales\enUS.lua
+Locales\frFR.lua
+Locales\deDE.lua
+Locales\esES.lua
+Locales\ruRU.lua
+Effects.lua
+MinimapPing.lua
+WildSpark.lua
+LeashHelper.lua
+LeashOptions.lua
+Buffs.lua
+CampingKitEmbedded\Data.lua
+CampingKitEmbedded\Libs\KitDock\KitDock.lua
+CampingKitEmbedded\Libs\KitCore\KitCore.lua
+CampingKitEmbedded\Camping.lua
+CampingKitEmbedded\Camp.lua
+CampingKitEmbedded\CampNet.lua
+CampingKitEmbedded\CampOthers.lua
+CampingKitEmbedded\CampMap.lua
+CampingKitEmbedded\CampMap.xml
+Nodes.lua
+NodeScan.lua
+Skin.lua
+Menu.lua
+Preview.lua
+Modules\WildAuctions\libs\package.lua
+Modules\WildAuctions\compat.lua
+Modules\WildAuctions\aux-addon.lua
+Modules\WildAuctions\util.lua
+Modules\WildAuctions\control.lua
+Modules\WildAuctions\color.lua
+Modules\WildAuctions\gui\core.lua
+Modules\WildAuctions\frame.lua
+Modules\WildAuctions\util\persistence.lua
+Modules\WildAuctions\util\sort.lua
+Modules\WildAuctions\util\money.lua
+Modules\WildAuctions\core\cache.lua
+Modules\WildAuctions\util\info.lua
+Modules\WildAuctions\core\history.lua
+Modules\WildAuctions\core\api.lua
+Modules\WildAuctions\core\disenchant.lua
+Modules\WildAuctions\util\filter.lua
+Modules\WildAuctions\util\completion.lua
+Modules\WildAuctions\core\slash.lua
+Modules\WildAuctions\core\scan.lua
+Modules\WildAuctions\util\scan.lua
+Modules\WildAuctions\core\tooltip.lua
+Modules\WildAuctions\core\shortcut.lua
+Modules\WildAuctions\gui\listing.lua
+Modules\WildAuctions\gui\auction_listing.lua
+Modules\WildAuctions\gui\item_listing.lua
+Modules\WildAuctions\gui\buy_bar.lua
+Modules\WildAuctions\tabs\search\core.lua
+Modules\WildAuctions\tabs\search\results.lua
+Modules\WildAuctions\tabs\search\saved.lua
+Modules\WildAuctions\tabs\search\filter.lua
+Modules\WildAuctions\tabs\search\frame.lua
+Modules\WildAuctions\tabs\search\quick.lua
+Modules\WildAuctions\tabs\search\builder.lua
+Modules\WildAuctions\tabs\search\recipe.lua
+Modules\WildAuctions\tabs\search\crate.lua
+Modules\WildAuctions\tabs\sniper\core.lua
+Modules\WildAuctions\tabs\sniper\frame.lua
+Modules\WildAuctions\tabs\post\core.lua
+Modules\WildAuctions\tabs\post\frame.lua
+Modules\WildAuctions\tabs\auctions\core.lua
+Modules\WildAuctions\tabs\auctions\frame.lua
+Modules\WildAuctions\tabs\bids\core.lua
+Modules\WildAuctions\tabs\bids\frame.lua
+Modules\WildAuctions\gamepad.lua
+Modules\WildAuctionsModule.lua
+
+Modules\WildGroups\core\locale.lua
+Modules\WildGroups\core\db.lua
+Modules\WildGroups\core\main.lua
+Modules\WildGroups\core\relations.lua
+Modules\WildGroups\core\talents.lua
+Modules\WildGroups\core\settings.lua
+Modules\WildGroups\core\settings.xml
+Modules\WildGroups\core\listpanel.lua
+Modules\WildGroups\core\whisperlog.lua
+Modules\WildGroups\core\filterpanel_shared.lua
+Modules\WildGroups\core\filterpanel_miscellaneous.lua
+Modules\WildGroups\core\filterpanel_groupclasses.lua
+Modules\WildGroups\core\filterpanel.lua
+Modules\WildGroups\core\window.lua
+Modules\WildGroups\core\blizzardtab.lua
+Modules\WildGroups\core\minimap.lua
+Modules\WildGroups\core\slash.lua
+Modules\WildGroupsAdapter.lua
+
+Modules\WildLayer\Modules\Compat.lua
+Modules\WildLayer\embeds.xml
+Modules\WildLayer\Modules\Libs\AutoLayerUtil.lua
+Modules\WildLayer\AutoLayer.lua
+Modules\WildLayer\Modules\Options\AutoLayerOptions.lua
+Modules\WildLayer\Modules\Options\AutoLayerOptionsDefaults.lua
+Modules\WildLayer\Modules\Migration.lua
+Modules\WildLayer\Modules\Configuration.lua
+Modules\WildLayer\Modules\Layering.lua
+Modules\WildLayer\Modules\Detection.lua
+Modules\WildLayer\Modules\Hopping.lua
+Modules\WildLayerAdapter.lua

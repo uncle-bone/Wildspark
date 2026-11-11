@@ -1,0 +1,42 @@
+WildSpark 1.5.9
+- WildLayer observes the zoneUID in nearby creature/vehicle GUIDs on Forever and displays the last observed raw ID below the minimap.
+- The label distinguishes NovaWorldBuffs' numbered layer value from an unverified local GUID identifier.
+- Removes the restricted IsAddOnLoaded NovaWorldBuffs check and keeps hop requests available when NWB has no layer list.
+
+WildSpark 1.5.8
+- Add a dedicated WildLayer minimap icon that opens the hopper on left-click; show it by default and add a visibility control.
+- Keep all WildSpark tabs inside the settings window and reserve room for the tab rail.
+
+WildSpark 1.5.7
+- Integrate AutoLayer 1.9.13 as WildLayer within the single WildSpark addon folder.
+- Add the WildLayer module tab, enable control, automatic-invite toggle, layer hopper, and advanced settings button.
+- Default automatic invites off while leaving manual layer-hop requests available.
+- Delay layer-channel joins and wait for the game world channels, matching WildSpark Camping Kit safeguards.
+- Preserve AutoLayerDB and existing WildSpark SavedVariables.
+
+WildSpark 1.5.6
+- Add separate on/off options for the minimap pulse and ping sound.
+- Add a visual strength slider and adjustable ping sound volume.
+- Make the pulse larger and brighter with two staggered expanding rings.
+- Bundle short local ping sounds at adjustable 10% volume steps; game sound settings are not changed.
+
+WildSpark 1.5.5
+- Move the minimap pulse implementation into a dedicated Lua file to avoid the main chunk's 200-local limit.
+- Register /ws as a second slash command for opening the WildSpark settings window.
+
+WildSpark 1.5.4
+- Add a configurable brief minimap pulse when the soft-target tracker recognizes a new chest, herb, ore, quest object, fishing bobber, or other enabled category.
+- Draw the pulse locally without calling the protected Minimap:PingLocation API or sending a group ping.
+
+WildSpark 1.5.3
+- Show required Herbalism and Mining skill lines on recognized native minimap node tooltips at any current skill level; keep those tooltips active even when Forever blocks WildSpark's custom pin scan.
+
+WildSpark 1.5.1
+- Replace the incorrect WildGroups row-enhancer placeholder with the actual LFGForever 1.3.0 source from Artefius.
+- Load WildGroups inside the single WildSpark addon and add a functional module enable switch, open button, minimap visibility gating, /wildgroups command, and launcher tab on Blizzard's Looking For Group pane.
+- Add the matching group-finder icon to WildSpark's WildGroups settings tab and preserve LFGForever saved-variable names.
+- Preserve the upstream GPLv3 license and source attribution.
+
+WildSpark 1.5.0
+- Previous WildGroups attempt used the wrong addon source and did not provide its own Looking For Group pane tab; replaced in 1.5.1.
+

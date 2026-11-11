@@ -1,12 +1,14 @@
 # WildSpark
 
-> **[Download WildSpark 1.5.9 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v1.5.9/WildSpark-1.5.9.zip)**
+> **[Download WildSpark 1.5.9 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v1.5.10/WildSpark-1.5.10.zip)**
 
-**Current stable release: 1.5.9 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
+**Current stable release: 1.5.10 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
 
 WildSpark brings nearby resource highlighting, buffs, leash helpers, camping, auction tools, group finding, and layer hopping together under one addon. Each major module has its own settings tab and can be disabled separately.
 
 ## Features
+
+- Fix the Blizzard Auction House window layout when switching from WildAuctions to Blizzard UI; credits show Uncle Bone.
 
 - Highlight nearby herbs, ore, quest objects, chests, and fishing bobbers with configurable glow effects, colors, labels, and visibility rules.
 - Show gathering icons on the minimap, learn node labels and profession skill requirements, and optionally alternate herb and ore tracking.
@@ -33,4 +35,4 @@ Download the ZIP above, extract it, and place the included `WildSpark` folder in
 
 ## Verification
 
-The 1.5.9 ZIP contains the WildLayer detector, minimap label, WildLayer tab and minimap button. The observed GUID identifier still needs validation in the WoW Forever client; it is not presented as an official layer number.
+The 1.5.10 ZIP contains the WildLayer detector, minimap label, WildLayer tab and minimap button. The observed GUID identifier still needs validation in the WoW Forever client; it is not presented as an official layer number.

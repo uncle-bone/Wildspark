@@ -5,19 +5,19 @@
 		<Layers>
 			<Layer level="BACKGROUND">
 				<!-- Glows while the camp is looking for something you can place. -->
-				<Texture parentKey="Glow" file="Interface\AddOns\Wildspark\Media\CampingKit\glow_ring" alphaMode="ADD" hidden="true">
+				<Texture parentKey="Glow" file="Interface\AddOns\WildSpark\Media\CampingKit\glow_ring" alphaMode="ADD" hidden="true">
 					<Size x="40" y="40"/>
 					<Anchors><Anchor point="CENTER"/></Anchors>
 				</Texture>
 			</Layer>
 			<Layer level="OVERLAY">
-				<Texture parentKey="Icon" file="Interface\AddOns\Wildspark\Media\CampingKit\tent_closed_32">
+				<Texture parentKey="Icon" file="Interface\AddOns\WildSpark\Media\CampingKit\tent_closed_32">
 					<Anchors><Anchor point="TOPLEFT"/><Anchor point="BOTTOMRIGHT"/></Anchors>
 				</Texture>
 			</Layer>
 			<Layer level="OVERLAY" textureSubLevel="1">
 				<!-- Instead of the tent while the camp's exact spot isn't known. -->
-				<Texture parentKey="Area" file="Interface\AddOns\Wildspark\Media\CampingKit\ring_dashed_64" hidden="true">
+				<Texture parentKey="Area" file="Interface\AddOns\WildSpark\Media\CampingKit\ring_dashed_64" hidden="true">
 					<Size x="34" y="34"/>
 					<Anchors><Anchor point="CENTER"/></Anchors>
 					<Color r="1" g="0.7" b="0.25"/>

@@ -28,6 +28,7 @@ local FALLBACK_ICON = "Interface\\Cooldown\\star4"
 local WIDTH, HEIGHT = 728, 496
 local EDGE = 12               -- marge entre le cadre de la fenêtre et ses panneaux
 local TOP, FOOT = 62, 42      -- ce que la fenêtre garde au-dessus des panneaux (son portrait) et dessous (ses boutons)
+local TAB_RAIL_WIDTH = 80     -- réserve le bord droit aux onglets pour qu'ils restent dans la fenêtre
 local GAP = 6                 -- espace entre deux panneaux
 local PAD = 16                -- marge intérieure d'un panneau
 local LIST = 236              -- largeur du panneau des objets
@@ -47,10 +48,10 @@ local CATEGORY_ICONS = {
 }
 local SETTINGS_ICON = "Trade_Engineering"
 local NODES_ICON = "INV_Misc_Map_01"
-local NODES_HEIGHT = 216      -- hauteur des deux panneaux de la page de la minimap
+local NODES_HEIGHT = 320      -- hauteur des deux panneaux de la page de la minimap
 
 -- Titre de chaque page sous la barre de titre ; celle des objets compose le sien (LookTitle)
-local PAGE_TITLES = { nodes = "NODES_PAGE", settings = "SETTINGS", leash = "LEASH_SETTINGS", buffs = "BUFFS_TAB", camping = "CAMPING_TAB" }
+local PAGE_TITLES = { nodes = "NODES_PAGE", settings = "SETTINGS", leash = "LEASH_SETTINGS", buffs = "BUFFS_TAB", camping = "CAMPING_TAB", auctions = "WILDAUCTIONS_TAB", groups = "WILDGROUPS_TAB", layers = "WILDLAYER_TAB" }
 
 -- Choix d'un réglage : { valeur, nom du texte } ; ou { valeur, nil, libellé } quand le libellé
 -- ne se traduit pas
@@ -698,7 +699,7 @@ end
 local function CreateMenu()
 	local frame = Skin.Window("WildsparkMenu", WIDTH, HEIGHT)
 	menu = frame
-	frame.title:SetText("Wildspark")
+	frame.title:SetText("WildSpark")
 	frame:SetScript("OnDragStop", function(self)
 		self:StopMovingOrSizing()
 		local point, _, relativePoint, x, y = self:GetPoint(1)
@@ -728,6 +729,9 @@ local function CreateMenu()
 	if _G.LeashHelper then list[#list + 1] = { "leash", ICONS .. "Ability_Hunter_BeastTaming", "LEASH_SETTINGS" } end
 	if _G.WildBuffs then list[#list + 1] = { "buffs", ICONS .. "Spell_Holy_GreaterHeal", "BUFFS_TAB" } end
 	if ns.kit then list[#list + 1] = { "camping", MEDIA .. "CampingKit\\tent_closed_48", "CAMPING_TAB" } end
+	if _G.WildAuctions then list[#list + 1] = { "auctions", ICONS .. "INV_Misc_Coin_01", "WILDAUCTIONS_TAB" } end
+	if ns.WildGroups then list[#list + 1] = { "groups", ICONS .. "INV_SideTab_GroupFinder_c60", "WILDGROUPS_TAB" } end
+	if ns.WildLayer then list[#list + 1] = { "layers", MEDIA .. "WildLayerIcon", "WILDLAYER_TAB" } end
 	frame.tabs = {}
 	local previous
 	for _, tab in ipairs(list) do
@@ -742,7 +746,7 @@ local function CreateMenu()
 	local height = HEIGHT - TOP - FOOT
 	for _, tab in ipairs(list) do
 		local page = CreateFrame("Frame", nil, frame)
-		page:SetSize(WIDTH - 2 * EDGE, height)
+		page:SetSize(WIDTH - 2 * EDGE - TAB_RAIL_WIDTH, height)
 		page:SetPoint("TOPLEFT", EDGE, -TOP)
 		pages[tab[1]] = page
 	end
@@ -870,7 +874,7 @@ local function CreateMenu()
 		end
 	end
 
-	-- Wildfire Kit is embedded as its own module and keeps its full native settings.
+	-- WildFire is embedded as its own module and keeps its full native settings.
 	page = pages.camping
 	if page and ns.kit then
 		local kit = ns.kit
@@ -901,6 +905,57 @@ local function CreateMenu()
 		options:SetPoint("LEFT", openKit, "RIGHT", 8, 0)
 	end
 
+	page = pages.auctions
+	if page and _G.WildAuctions and _G.WildAuctions.IsEnabled and _G.WildAuctions.SetEnabled and _G.WildAuctions.Open then
+		column = NewCard(page, 0, 0, page:GetWidth(), height, "WILDAUCTIONS_TAB")
+		local note = column.parent:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+		note:SetPoint("TOPLEFT", column.x, column.y)
+		note:SetWidth(column.width)
+		note:SetJustifyH("LEFT")
+		note:SetWordWrap(true)
+		note:SetText(L.WILDAUCTIONS_NOTE)
+		column.y = column.y - 58
+		AddCheckbox(column, "WILDAUCTIONS_ENABLED", function() return _G.WildAuctions.IsEnabled() end, function(v) _G.WildAuctions.SetEnabled(v) end)
+		local open = AddButton(column.parent, "WILDAUCTIONS_OPEN", function() _G.WildAuctions.Open() end, 190)
+		open:SetPoint("TOPLEFT", column.x, column.y - 4)
+	end
+
+	page = pages.groups
+	if page and ns.WildGroups then
+		local groups = ns.WildGroups
+		column = NewCard(page, 0, 0, page:GetWidth(), height, "WILDGROUPS_TAB")
+		local note = column.parent:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+		note:SetPoint("TOPLEFT", column.x, column.y)
+		note:SetWidth(column.width)
+		note:SetJustifyH("LEFT")
+		note:SetWordWrap(true)
+		note:SetText(L.WILDGROUPS_NOTE)
+		column.y = column.y - 58
+		AddCheckbox(column, "WILDGROUPS_ENABLED", function() return groups.IsEnabled() end, function(value) groups.SetEnabled(value) end)
+		local open = AddButton(column.parent, "WILDGROUPS_OPEN", function() groups.Open() end, 190)
+		open:SetPoint("TOPLEFT", column.x, column.y - 4)
+	end
+
+	page = pages.layers
+	if page and ns.WildLayer then
+		local layers = ns.WildLayer
+		column = NewCard(page, 0, 0, page:GetWidth(), height, "WILDLAYER_TAB")
+		local note = column.parent:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+		note:SetPoint("TOPLEFT", column.x, column.y)
+		note:SetWidth(column.width)
+		note:SetJustifyH("LEFT")
+		note:SetWordWrap(true)
+		note:SetText(L.WILDLAYER_NOTE)
+		column.y = column.y - 58
+		AddCheckbox(column, "WILDLAYER_ENABLED", function() return layers.IsEnabled() end, function(v) layers.SetEnabled(v) end)
+		AddCheckbox(column, "WILDLAYER_AUTO_INVITES", function() return layers.GetAutoInvites() end, function(v) layers.SetAutoInvites(v) end)
+		AddCheckbox(column, "WILDLAYER_MINIMAP_BUTTON", function() return layers.GetMinimapButton() end, function(v) layers.SetMinimapButton(v) end)
+		local open = AddButton(column.parent, "WILDLAYER_OPEN", function() layers.Open() end, 190)
+		open:SetPoint("TOPLEFT", column.x, column.y - 4)
+		local advanced = AddButton(column.parent, "WILDLAYER_SETTINGS", function() layers.OpenSettings() end, 190)
+		advanced:SetPoint("LEFT", open, "RIGHT", 8, 0)
+	end
+
 	-- Page de la minimap : à gauche les icônes des filons et des plantes ; à droite l'alternance des
 	-- deux pistages, pour qui a les deux métiers. Rien n'y explique les couleurs des anneaux : une
 	-- légende y était, que le joueur a fait retirer.
@@ -913,6 +968,12 @@ local function CreateMenu()
 			AddOption(column, "NODE_ORE", "nodeOre"),
 			AddSlider(column, "NODE_SIZE", "nodeSize"),
 		}
+		-- Works independently of the custom pin scan: this is a short pulse when
+		-- the soft-target tracker recognizes a new world object.
+		AddOption(column, "MINIMAP_PING", "minimapPing")
+		AddSlider(column, "MINIMAP_PING_VISUAL_SCALE", "minimapPingVisualScale", "FORMAT_PERCENT")
+		AddOption(column, "MINIMAP_PING_SOUND", "minimapPingSound")
+		AddSlider(column, "MINIMAP_PING_VOLUME", "minimapPingVolume", "FORMAT_PERCENT")
 		-- sur un client qui ne sait pas lire les points de la minimap : pourquoi tout est grisé
 		local reason = column.parent:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
 		reason:SetPoint("TOPLEFT", column.x, column.y - 4)
@@ -1056,7 +1117,7 @@ end
 
 local function ShowMinimapTooltip(self)
 	GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-	GameTooltip_SetTitle(GameTooltip, "Wildspark")
+	GameTooltip_SetTitle(GameTooltip, "WildSpark")
 	GameTooltip_AddNormalLine(GameTooltip, ns.db.enabled and L.TIP_ENABLED or L.TIP_DISABLED)
 	GameTooltip_AddInstructionLine(GameTooltip, L.TIP_LEFT_CLICK)
 	GameTooltip_AddInstructionLine(GameTooltip, L.TIP_RIGHT_CLICK)
@@ -1125,7 +1186,7 @@ local function RegisterOptionsPage()
 	page:Hide()
 	local title = page:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
 	title:SetPoint("TOPLEFT", 16, -16)
-	title:SetText("Wildspark")
+	title:SetText("WildSpark")
 	local note = page:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
 	note:SetPoint("TOPLEFT", 16, -44)
 	Caption(note, "OPTIONS_NOTE")
@@ -1167,7 +1228,7 @@ local function RegisterOptionsPage()
 		if SettingsPanel and HideUIPanel then pcall(HideUIPanel, SettingsPanel) end
 		if ns.kit and ns.kit.OpenSettings then ns.kit:OpenSettings() end
 	end)
-	local ok, category = pcall(Settings.RegisterCanvasLayoutCategory, page, "Wildspark")
+	local ok, category = pcall(Settings.RegisterCanvasLayoutCategory, page, "WildSpark")
 	if ok and category then pcall(Settings.RegisterAddOnCategory, category) end
 end
 

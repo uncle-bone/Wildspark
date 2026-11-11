@@ -341,7 +341,7 @@ end
 -- Ce que le jeu écrirait d'un objet que le joueur ne peut pas utiliser (« Requiert Herboristerie
 -- (70) »), pour un nœud au-dessus de sa compétence ; nil pour tout autre
 function ns.NodeRequirement(node)
-	if ns.NodeDifficulty(node) ~= "impossible" then return nil end
+	if not node or not node.skill then return nil end
 	local skill = Skill(node.kind)
 	if not skill.name or type(ITEM_MIN_SKILL) ~= "string" then return nil end
 	local ok, text = pcall(string.format, ITEM_MIN_SKILL, skill.name, node.skill)

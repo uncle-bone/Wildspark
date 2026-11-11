@@ -1,10 +1,42 @@
-WildSpark 1.4.7
+WildSpark 1.5.10
+1.5.9: Adds a Forever GUID-based local layer identifier observer to WildLayer and shows the latest observed ID below the minimap. The display marks raw GUID IDs as unverified, keeps NovaWorldBuffs integration optional, and avoids Forever's restricted IsAddOnLoaded query. NovaWorldBuffs 3.49 disables its own layer detector on Forever, so WildLayer can still show an observed ID after targeting or mousing over an NPC; it does not claim that ID is an official layer number.
 
-1.4.7: Fixes WildAuctions bag clicks by validating either supported ItemLocation constructor form and confirming that the returned location points to the exact clicked bag slot before passing it to Blizzard's Sell form. Bag-to-sell selection uses a validated ItemLocation flow for the Forever client. No auctions are posted automatically.
+WildSpark 1.5.8
+1.5.8: Adds WildLayer's own minimap button and icon, plus keeps WildSpark panel tabs within the visible panel edge.
+
+WildSpark 1.5.7
+1.5.7: Integrates the WTFPL-licensed AutoLayer 1.9.13 as WildLayer, with a WildSpark panel tab, layer request tools, automatic invite toggle (off by default), and delayed safe channel joining. AutoLayerDB remains supported.
+
+WildSpark 1.5.6
+1.5.6: Adds separate minimap ping visual and sound toggles, visual strength and sound volume controls. The ping is a brighter, larger two-ring local pulse. Sound volume uses bundled 10% audio levels and does not change game sound settings.
+
+WildSpark 1.5.5
+1.5.5: Moves minimap pulse logic into its own Lua file to stay below the client chunk local limit, and adds the /ws shortcut for the WildSpark settings window.
+
+WildSpark 1.5.4
+1.5.4: Adds an optional one-shot minimap pulse for each newly recognized tracked object. The pulse is a local visual effect and does not call the protected native ping API.
+
+WildSpark 1.5.3
+1.5.3: Shows Herbalism and Mining requirements on recognized minimap node tooltips at every skill level, including when the newer Forever client blocks WildSpark custom pin scanning.
+
+WildSpark 1.5.2
+1.5.2: Enables WildAuctions by default on new installations while preserving an existing explicit module disable setting.
+
+WildSpark 1.5.1
+1.5.1: Replaces the nonfunctional LFG row enhancer with the full LFGForever 1.3.0 module. Adds a real launcher tab to Blizzard's Looking For Group pane, a WildGroups open button, a working enable switch, and a matching group-finder icon in WildSpark settings.
+
+WildSpark 1.4.9
+1.4.9: Fixes WildAuctions settings callbacks used when opening the menu.
+
+1.4.8: Embeds the full WildAuctions auction house module as WildAuctions inside WildSpark.
+
+WildSpark 1.4.8
+
+1.4.7: Fixes WildAuctions bag clicks by validating either supported ItemLocation constructor form and confirming that the returned location points to the exact clicked bag slot before passing it to Blizzard's Sell form. The bag-panel selection approach is informed by the open-source WildAuctions Forever addon (Tyler Hampton; MIT-licensed Forever adaptation), especially WildAuctions/util/info.lua. No auctions are posted automatically.
 
 1.4.5: WildAuctions now follows AuctionMaster's Sell-panel item selection flow: it uses the ItemLocation method constructor, fills the available post quantity, and refreshes Blizzard's post state after selection. It remains a Sell-tab bag selector only, with no AH scanning, price display, or automatic posting. Removed AH scanning, scan buttons, price cache display, and custom AH price tooltips. The bag list includes unbound BoE gear even when Forever IsSellItemValid rejects it; bound items remain excluded. Clicking an item loads it into Blizzard Sell form and never posts an auction.
 
-1.4.3: Adds independent WildBuffs button controls (rotating, individual, both, or neither) and module enable switches for WildBuffs, WildAuctions, and Wildfire Kit. Module switches preserve saved settings and caches.
+1.4.3: Adds independent WildBuffs button controls (rotating, individual, both, or neither) and module enable switches for WildBuffs, WildAuctions, and WildFire. Module switches preserve saved settings and caches.
 
 1.4.2: Adds a WildBuffs setting to hide individual spell buttons and keep only the rotating all-buffs button visible. Selecting it keeps the rotating button enabled.
 
@@ -15,7 +47,7 @@ regression. The addon stops futile node sweeps and explains that native tracking
 dots remain available while custom herb/ore replacement icons cannot be placed.
 
 1.3.4: Keeps only the main WildSpark minimap button visible by default.
-WildBuffs and Wildfire Kit's separate minimap buttons start hidden; existing
+WildBuffs and WildFire's separate minimap buttons start hidden; existing
 saved visibility choices are preserved and can still be changed in settings.
 1.3.3: Defers World Map camp-pin removal and acquisition to the next frame,
 outside Blizzard's secure map-data-provider refresh callback. This addresses
@@ -43,15 +75,16 @@ Included features
   combat-event tracking, preview, debug panel, and full settings.
 - WildBuffs integrated as its own tab, with class-specific spell choices,
   keybind, settings, stats, and stacked full-size spell buttons.
-- Wildfire Kit, based on Camping Kit v1.8, integrated as its own tab, including
+- WildFire, based on Camping Kit v1.8, integrated as its own tab, including
   the tent, profession objects, camp benefit and Well Fed timers, camp tracking,
   sharing, and map pins.
 
 WildAuctions
+- Full WildAuctions Forever auction house source integrated as the WildAuctions module, loaded from WildSpark’s single addon folder and TOC. Its MIT license and upstream attribution are included.
 Open the Auction House Sell tab to see unbound items in your bags. Click an
 item to load it into Blizzard Sell form. WildAuctions does not scan listings,
 show AH price tooltips, or post auctions. Bound items are omitted. The list refreshes when bags change; use Refresh if it is stale.
-WildAuctions is maintained by Uncle Bone.
+Bag-to-sell selection is informed by WildAuctions: https://github.com/TylerHampton/aux-forever (MIT-licensed Forever adaptation).
 
 WildBuffs never changes friendly nameplate CVars. Finding nearby strangers by
 nameplate depends on friendly player nameplates already being enabled by the
@@ -74,17 +107,17 @@ choices, refresh timing, button size, stats, and keybind.
 The rotating all-buffs button picks the next nearby player who needs any enabled
 buff. The rotating button and individual spell buttons have separate toggles: use
 both, either one alone, or turn both off. The same WildBuffs tab includes an
-independent module enable switch. WildAuctions and Wildfire Kit have enable
+independent module enable switch. WildAuctions and WildFire have enable
 switches in their own module tabs; disabling them preserves their saved data. Each spell button shows its icon, the next player's
 name, a pulsing glow, and +N for additional nearby players who need that same
 spell. Clicking a spell button buffs the named player. Shift-drag a visible
 button to move the group. The default and reset position is screen center.
 WildBuffs casts only when you press a button or its keybind.
 
-Wildfire Kit
-Open /wildspark and select the Wildfire Kit tab to show or hide the tent, manage
+WildFire
+Open /wildspark and select the WildFire tab to show or hide the tent, manage
 its minimap button (hidden by default), open or close the tent, and reach
-Wildfire Kit's full settings. Its camp pins on the map remain enabled.
+WildFire's full settings. Its camp pins on the map remain enabled.
 The tent contains camping objects, profession tools, food and drink slots, camp
 benefit timers, and nearby camp details. Disable the standalone Camping Kit
 addon when using this integrated copy, so the game does not create two tents.
@@ -110,8 +143,8 @@ Commands
 /wildspark leash       Open the integrated leash timer settings
 /wildspark leash test  Show a sample mob timer
 /wildspark buffs       Open WildBuffs settings
-/wildfirekit           Open or close Wildfire Kit settings
-/wildfire              Open or close Wildfire Kit settings
+/wildfirekit           Open or close WildFire settings
+/wildfire              Open or close WildFire settings
 /wildbuffs             Open WildBuffs settings
 /wb                   Alias for /wildbuffs
 /leash                 Open the leash timer settings
@@ -127,14 +160,7 @@ does not expose the server's exact leash distance or reset state. Disable the
 separate LeashHelperForever addon while using Wildspark's integrated timer.
 
 Credits
-Lueur by Armytille, version 1.4.0, MIT License.
-Wildspark changes by Uncle Bone.
-LeashHelperForever by Foofi, version 1.0.12, MIT License; source and license are
-preserved in LEASHHELPER_LICENSE.txt.
-WildBuffs integration based on Jim's user-supplied 0.8 source. Its friendly
-nameplate CVar changes were removed. Internal saved-variable keys are retained,
-but saved data from the separate addon's file may not import automatically.
-Camping Kit by Doug Mansell, version 1.8, rebranded here as Wildfire Kit;
-license and upstream notices are
-preserved in CampingKitEmbedded/LICENSE and CampingKitEmbedded/Libs.
+Made by Uncle Bone.
+Bundled components retain their original copyright and license notices in their included license files.
 
+1.5.10: Fixes the Blizzard Auction House window layout, brands the auction module WildAuctions, and credits Uncle Bone in the module UI.

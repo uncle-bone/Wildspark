@@ -51,6 +51,10 @@ local DEFAULTS = {
 	ignored     = {},     -- nom d'objet repli� -> son nom : objets que le joueur ne veut jamais voir briller
 	containers  = {},     -- num�ro d'objet -> true : objets du d�cor que le joueur a d�j� fouill�s, rang�s depuis parmi les coffres
 	minimap     = { hide = false, angle = 205 }, -- bouton de la minimap : masqu� ou non, position (degr�s)
+	minimapPing = true,
+	minimapPingVisualScale = 130,
+	minimapPingSound = true,
+	minimapPingVolume = 70,
 	nodeHerbs   = true,   -- sur la minimap, l'ic�ne de chaque plante que le pistage du jeu y montre (NodeScan.lua)
 	nodeOre     = true,   -- et celle de chaque filon
 	nodeSize    = 12,     -- c�t� de ces ic�nes (unit�s de la minimap)
@@ -84,6 +88,8 @@ local LIMITS = {
 	bodyScale = { 40, 300 },
 	bodyShift = { -100, 100 },
 	nodeSize  = { 8, 24 },
+	minimapPingVisualScale = { 50, 200 },
+	minimapPingVolume = { 0, 100 },
 	nodeSwitchYards = { 10, 50 },
 }
 
@@ -487,7 +493,7 @@ local function RebuildQuestTexts()
 	end
 end
 
--- Renvoie un mot marquant de `source` qui commence aussi un mot de `target`
+-- Renvoie un mot marquant de `source` qui commence aussi un mot de 	arget`
 local function SharedWord(source, target)
 	target = " " .. target:gsub("%p", " ")
 	for word in source:gmatch("[^%s%p]+") do
@@ -1455,6 +1461,7 @@ local function Decide()
 		Release()
 		return Shut(unit, plate)
 	end
+	if ns.PingMinimap then ns.PingMinimap(unit, name, category, db.minimapPing, db.colors[category] or db.colors.other, db.minimapPingVisualScale, db.minimapPingSound, db.minimapPingVolume) end
 	SetGate(true)
 	if not plate then
 		-- la nameplate vient d'être demandée au jeu : la wildspark s'y posera à son arrivée.
@@ -1602,6 +1609,11 @@ function handlers.ADDON_LOADED(name)
 	if name ~= ADDON_NAME then return end
 	WildsparkDB = WildsparkDB or {}
 	db = WildsparkDB
+	db.modules = type(db.modules) == "table" and db.modules or {}
+	if db.modules.wildAuctions == nil then db.modules.wildAuctions = true end
+	if type(db.modules.wildLayer) ~= "table" then db.modules.wildLayer = {} end
+	if db.modules.wildLayer.enabled == nil then db.modules.wildLayer.enabled = true end
+	if db.modules.wildLayer.autoInvites == nil then db.modules.wildLayer.autoInvites = false end
 	if db.schema ~= SCHEMA then
 		local from = db.schema or 1
 		if from < 2 then db.size = nil end -- le halo a changé de nature : l'ancienne taille n'a plus le même sens
@@ -1712,6 +1724,11 @@ function handlers.ADDON_LOADED(name)
 	BuildCursorLookup()
 	events:UnregisterEvent("ADDON_LOADED")
 	ns.db = db
+	if ns.WildGroups and ns.WildGroups.IsEnabled and EventRegistry then
+		EventRegistry:TriggerEvent("WildSpark.ModuleSettingsChanged")
+		if ns.WildGroups.InitializeSavedVariables then ns.WildGroups.InitializeSavedVariables() end
+		if ns.WildLayer and ns.WildLayer.InitializeSavedVariables then ns.WildLayer.InitializeSavedVariables() end
+	end
 	if ns.SetupInterface then ns.SetupInterface() end -- Menu.lua : bouton de la minimap
 end
 
@@ -1795,6 +1812,9 @@ end
 handlers.LOOT_OPENED = handlers.LOOT_READY
 
 events:SetScript("OnEvent", function(_, event, ...)
+	if event == "ADDON_LOADED" and ... == ADDON_NAME and ns.WildGroups and ns.WildGroups.InitializeSavedVariables then
+		ns.WildGroups.InitializeSavedVariables()
+	end
 	local handler = handlers[event]
 	if handler and not leaving and (db or event == "ADDON_LOADED") then handler(...) end
 end)
@@ -2526,6 +2546,7 @@ end
 COMMANDS.help = ShowHelp
 
 SLASH_WILDSPARK1 = "/wildspark"
+SLASH_WILDSPARK2 = "/ws"
 SlashCmdList.WILDSPARK = function(input)
 	local cmd, arg = Fold(input or ""):match("^%s*(%S*)%s*(.-)%s*$")
 	local command = COMMANDS[ALIASES[cmd] or cmd]

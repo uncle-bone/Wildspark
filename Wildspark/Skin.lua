@@ -110,9 +110,9 @@ function Skin.SideTab(window, previous, icon, onClick)
 			if mouseButton == "LeftButton" and inside then onClick() end
 		end)
 		if previous then
-			tab:SetPoint("TOPLEFT", previous, "BOTTOMLEFT", 0, -2)
+			tab:SetPoint("TOPRIGHT", previous, "BOTTOMRIGHT", 0, -2)
 		else
-			tab:SetPoint("TOPLEFT", window, "TOPRIGHT", 0, -60)
+			tab:SetPoint("TOPRIGHT", window, "TOPRIGHT", -3, -60)
 		end
 		return tab
 	end
@@ -143,9 +143,9 @@ function Skin.SideTab(window, previous, icon, onClick)
 	end)
 	tab:SetScript("OnLeave", function() GameTooltip:Hide() end)
 	if previous then
-		tab:SetPoint("TOPLEFT", previous, "BOTTOMLEFT", 0, -17)
+		tab:SetPoint("TOPRIGHT", previous, "BOTTOMRIGHT", 0, -12)
 	else
-		tab:SetPoint("TOPLEFT", window, "TOPRIGHT", 0, -66)
+		tab:SetPoint("TOPRIGHT", window, "TOPRIGHT", -3, -66)
 	end
 	return tab
 end
