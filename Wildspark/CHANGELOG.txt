@@ -1,3 +1,6 @@
+WildSpark 2.0.2
+- Bake circular transparency into every open and closed WildFire tent icon size so square image corners cannot show around the circular kit button.
+
 WildSpark 2.0.1
 - Fix the WildFire tent button so its artwork is circularly masked and framed by the matching kit ring, consistent with the surrounding circular slots.
 
