@@ -100,7 +100,7 @@ function event.AUX_LOADED()
         action_shortcuts = false,
         post_full_scan = nil,
         post_bid = nil,
-        post_duration = post.DURATION_24,
+        post_duration = post.DURATION_8,
         post_undercut = false,
         full_search = false,
         sniper_percent = 60,

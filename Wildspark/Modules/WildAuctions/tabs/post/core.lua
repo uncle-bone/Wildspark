@@ -120,18 +120,18 @@ end
 
 function aux.event.PLAYER_LOGIN()
 	data = aux.faction_data.post
-	if not aux.account_data.wildspark_1516_duration_migrated then
-		if aux.account_data.post_duration == post.DURATION_8 then
-			aux.account_data.post_duration = post.DURATION_24
+	if not aux.account_data.wildspark_1517_duration_migrated then
+		if aux.account_data.post_duration == M.DURATION_8 then
+			aux.account_data.post_duration = M.DURATION_24
 		end
 		for item_key, saved_record in pairs(data) do
 			local saved = persistence.read(settings_schema, saved_record)
-			if saved and saved.duration == post.DURATION_8 then
-				saved.duration = post.DURATION_24
+			if saved and saved.duration == M.DURATION_8 then
+				saved.duration = M.DURATION_24
 				data[item_key] = persistence.write(settings_schema, saved)
 			end
 		end
-		aux.account_data.wildspark_1516_duration_migrated = true
+		aux.account_data.wildspark_1517_duration_migrated = true
 	end
 end
 
