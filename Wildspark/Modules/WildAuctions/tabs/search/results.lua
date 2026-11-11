@@ -1016,9 +1016,13 @@ do
     end
 
     function on_update()
+        -- Saved search state is initialized from ADDON_LOADED; stay quiet if that
+        -- initialization is unavailable instead of raising this error every frame.
+        local search = current_search()
+        if not search or not search.table then return end
         update_live()
         update_results_summary()
-        local selection = current_search().table:GetSelection()
+        local selection = search.table:GetSelection()
         if selection and selection.record ~= checked then
             find_auction(selection.record)
         elseif not selection and checked then
