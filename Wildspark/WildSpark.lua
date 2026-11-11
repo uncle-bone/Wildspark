@@ -14,7 +14,7 @@ local SOFT = "softinteract"
 local MEDIA = "Interface\\AddOns\\" .. ADDON_NAME .. "\\Media\\"
 local CURSORS = "Interface\\Cursor\\"
 local FALLBACK_TEXTURE = "Interface\\Cooldown\\star4"
-local SCHEMA = 9 -- version des r�glages sauvegard�s
+local SCHEMA = 10 -- saved settings schema
 
 -- R�glages communs � tous les personnages du compte (WildsparkDB)
 local DEFAULTS = {
@@ -48,7 +48,8 @@ local DEFAULTS = {
 	debug       = false,
 	language    = "auto",   -- langue des textes : "auto" (celle du client) ou le code d'une langue du dossier Locales
 	questObjects = {},    -- nom d'objet -> titre de sa qu�te, appris de son infobulle
-	ignored     = {},     -- nom d'objet repli� -> son nom : objets que le joueur ne veut jamais voir briller
+	ignored     = {},
+	ignoredGUIDs = {},     -- nom d'objet repli� -> son nom : objets que le joueur ne veut jamais voir briller
 	containers  = {},     -- num�ro d'objet -> true : objets du d�cor que le joueur a d�j� fouill�s, rang�s depuis parmi les coffres
 	minimap     = { hide = false, angle = 205 }, -- bouton de la minimap : masqu� ou non, position (degr�s)
 	minimapPing = true,
@@ -1436,7 +1437,8 @@ local function Decide()
 		return Shut(unit, plate)
 	end
 	-- ni les objets que le joueur a écartés par leur nom
-	if name and db.ignored[NameKey(name)] then
+	local objectGUID = SafeCall(UnitGUID, unit)
+	if (name and db.ignored[NameKey(name)]) or (type(objectGUID) == "string" and db.ignoredGUIDs["guid:" .. objectGUID]) then
 		Report(L.DEBUG_SKIPPED:format(label))
 		Release()
 		return Shut(unit, plate)
@@ -1972,37 +1974,66 @@ local function ShowZone(shown)
 end
 
 -- Nom de l'objet du d�cor vis� en ce moment, mis en lumi�re ou non
-local function TargetName()
+local function TargetObject()
 	local unit = ResolveTarget()
-	if unit and SafeCall(UnitIsGameObject, unit) == true then return SafeCall(UnitName, unit) end
+	if not unit or SafeCall(UnitIsGameObject, unit) ~= true then return nil end
+	return unit, SafeCall(UnitName, unit), SafeCall(UnitGUID, unit)
 end
 
--- �carte un objet par son nom, ou cesse de l'�carter. Renvoie true s'il est d�sormais �cart�,
--- false s'il ne l'est plus, nil si ce n'est pas un nom.
-local function ToggleIgnored(name)
-	local key = type(name) == "string" and NameKey(name) or ""
-	if key == "" then return nil end
-	db.ignored[key] = not db.ignored[key] and name or nil
+-- An ignored object stays ignored until a second unignore request arrives within 10 seconds.
+local pendingUnignore = {}
+local function ToggleIgnored(name, guid)
+	local store, key, display
+	if type(name) == "string" and NameKey(name) ~= "" then
+		store, key, display = db.ignored, NameKey(name), name
+	elseif type(guid) == "string" and guid ~= "" then
+		store, key, display = db.ignoredGUIDs, "guid:" .. guid, "Unnamed object"
+	else
+		return nil
+	end
+	if store[key] then
+		local now = time()
+		if pendingUnignore[key] and pendingUnignore[key] + 10 >= now then
+			store[key] = nil
+			pendingUnignore[key] = nil
+			lastReport = nil
+			Evaluate()
+			Notify()
+			return false, display
+		end
+		pendingUnignore[key] = now
+		return nil, display
+	end
+	store[key] = display
+	pendingUnignore[key] = nil
 	lastReport = nil
 	Evaluate()
 	Notify()
-	return db.ignored[key] ~= nil
+	return true, display
 end
 
--- �carte l'objet vis�, ou cesse de l'�carter, en l'annon�ant
-local function IgnoreTarget()
-	local name = TargetName()
-	if not name then
-		Print(L.MSG_IGNORE_NO_TARGET)
+local function PrintIgnoreResult(ignored, display)
+	if ignored == nil then
+		Print((L.MSG_IGNORED):format(display) .. " (repeat /wildspark ignore within 10 seconds to stop ignoring it)")
 	else
-		Print((ToggleIgnored(name) and L.MSG_IGNORED or L.MSG_UNIGNORED):format(name))
+		Print(((ignored and L.MSG_IGNORED) or L.MSG_UNIGNORED):format(display))
 	end
 end
 
--- Noms des objets �cart�s, par ordre alphab�tique
+local function IgnoreTarget()
+	local unit, name, guid = TargetObject()
+	if not unit then
+		Print(L.MSG_IGNORE_NO_TARGET)
+		return
+	end
+	local ignored, display = ToggleIgnored(name, guid)
+	PrintIgnoreResult(ignored, display or "Unnamed object")
+end
+
 local function IgnoredNames()
 	local names = {}
 	for _, name in pairs(db.ignored) do names[#names + 1] = name end
+	for _, name in pairs(db.ignoredGUIDs) do names[#names + 1] = name end
 	table.sort(names)
 	return names
 end
@@ -2010,7 +2041,7 @@ end
 -- L'activation, la langue, le bouton de la minimap, ce que Wildspark a appris des infobulles et des
 -- objets approch�s et les objets �cart�s ne sont pas des r�glages de la wildspark : la remise � z�ro
 -- n'y touche pas
-local KEPT_ON_RESET = { enabled = true, language = true, minimap = true, questObjects = true, ignored = true, nodeNames = true,
+local KEPT_ON_RESET = { enabled = true, language = true, minimap = true, questObjects = true, ignored = true, ignoredGUIDs = true, nodeNames = true,
 	containers = true }
 
 local function ResetTo(defaults, store)
@@ -2335,15 +2366,15 @@ function COMMANDS.ignore(arg)
 		Print(#names > 0 and L.MSG_IGNORE_LIST:format(table.concat(names, ", ")) or L.MSG_IGNORE_EMPTY)
 	elseif arg == "clear" then
 		for key in pairs(db.ignored) do db.ignored[key] = nil end
+		for key in pairs(db.ignoredGUIDs) do db.ignoredGUIDs[key] = nil end
+		for key in pairs(pendingUnignore) do pendingUnignore[key] = nil end
 		lastReport = nil
 		Evaluate()
 		Notify()
 		Print(L.MSG_IGNORE_EMPTY)
 	else
-		local known = db.ignored[NameKey(arg)]
-		local ignored = ToggleIgnored(arg)
-		if ignored == nil then return false end
-		Print((ignored and L.MSG_IGNORED or L.MSG_UNIGNORED):format(known or arg))
+		local ignored, display = ToggleIgnored(arg)
+		PrintIgnoreResult(ignored, display or arg)
 	end
 end
 

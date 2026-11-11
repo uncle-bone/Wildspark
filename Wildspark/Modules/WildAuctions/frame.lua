@@ -275,7 +275,9 @@ do
     btn:SetText('Full scan')
     -- Forever: a full scan uses C_AuctionHouse.ReplicateItems, which the server allows once every 15 minutes
     local function seconds_until_scan()
-        return max(0, account_data.replicate_time + scan.REPLICATE_COOLDOWN - time())
+        if type(account_data) ~= 'table' then return 2147483647 end
+        local last_scan = tonumber(account_data.replicate_time) or 0
+        return max(0, last_scan + scan.REPLICATE_COOLDOWN - time())
     end
     -- WildAuctions: checked twice a second and restyled only when ready changes (it was every frame)
     local ready, next_check

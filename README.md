@@ -4,6 +4,10 @@
 
 **Current stable release: 1.5.18 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
 
+## Next major build status
+
+The main branch is being prepared as WildSpark 2.0.0. The development build includes Lueur 1.7.0 ignore behavior, AutoLayer 1.9.14's targeted failed-invite message filter, and defensive WildAuctions SavedVariables recovery. The current stable ZIP remains 1.5.18 until the 2.0.0 package is ready.
+
 WildSpark brings nearby resource highlighting, buffs, leash helpers, camping, auction tools, group finding, and layer hopping together under one addon. Each major module has its own settings tab and can be disabled separately.
 
 ## Features

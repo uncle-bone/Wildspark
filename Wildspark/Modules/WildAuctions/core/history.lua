@@ -36,9 +36,12 @@ local value_cache = {}
 local price_keys_since
 
 function aux.event.PLAYER_LOGIN()
-	data = aux.faction_data.history
-	aux.faction_data.price_keys_since = aux.faction_data.price_keys_since or today()
-	price_keys_since = aux.faction_data.price_keys_since
+	local faction_data = type(aux.faction_data) == 'table' and aux.faction_data or {}
+	aux.faction_data = faction_data
+	if type(faction_data.history) ~= 'table' then faction_data.history = {} end
+	data = faction_data.history
+	faction_data.price_keys_since = faction_data.price_keys_since or today()
+	price_keys_since = faction_data.price_keys_since
 end
 
 -- the price history is read once the saved variables load (PLAYER_LOGIN); before that every price is unknown

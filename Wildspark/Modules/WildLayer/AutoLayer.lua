@@ -11,7 +11,7 @@ addonTable.flavor = isBurningCrusade and "bcc" or "classic"
 local compat = addonTable.compat
 local util = addonTable.util
 
-local ADDON_VERSION_FALLBACK = "1.9.13"
+local ADDON_VERSION_FALLBACK = "1.9.14"
 local addonVersion = GetAddOnMetadata(addonName, "X-WildLayer-Version") or ADDON_VERSION_FALLBACK
 addonTable.version = addonVersion
 
@@ -544,8 +544,24 @@ end
 --For hiding group system messages
 local systemGroupFilterActive = false
 
+local function matchesNotFoundForLayerRequest(msg)
+	if type(msg) ~= "string" then return false end
+	local templates = {}
+	if type(ERR_BAD_PLAYER_NAME_S) == "string" then templates[#templates + 1] = ERR_BAD_PLAYER_NAME_S end
+	if type(ERR_CHAT_PLAYER_NOT_FOUND_S) == "string" then templates[#templates + 1] = ERR_CHAT_PLAYER_NOT_FOUND_S end
+	for _, template in ipairs(templates) do
+		local before, after = template:match("^(.-)%%s(.*)$")
+		if before and msg:sub(1, #before) == before and (#after == 0 or msg:sub(-#after) == after) then
+			local requestedName = msg:sub(#before + 1, #msg - #after)
+			if WildLayer:IsRecentLayerRequest(requestedName) then return true end
+		end
+	end
+	return false
+end
+
 local function systemFilter(_, _, msg, author, ...)
-	local filtered = WildLayer:GetEnabled() and matchesAnySystemMessage(msg)
+	local filtered = WildLayer:GetEnabled()
+		and (matchesAnySystemMessage(msg) or matchesNotFoundForLayerRequest(msg))
 	return filtered, msg, author, ...
 end
 

@@ -20,29 +20,33 @@ M.event = setmetatable({}, {__metatable=false, __newindex=function(_, k, v) aux_
 
 do
 	local handlers, handlers2, handlers3 = {}, {}, {}
-	function aux_events.AUX_LOADED(f)
-		tinsert(handlers, f)
+	local initialized = false
+	function aux_events.AUX_LOADED(f) tinsert(handlers, f) end
+	function aux_events.PLAYER_LOGIN(f) tinsert(handlers2, f) end
+	function aux_events.AUCTION_HOUSE_LOADED(f) tinsert(handlers3, f) end
+	local function initialize()
+		if initialized then return end
+		for _, f in ipairs(handlers) do f(addon_name) end
+		initialized = true
 	end
-	function aux_events.PLAYER_LOGIN(f)
-		tinsert(handlers2, f)
-    end
-    function aux_events.AUCTION_HOUSE_LOADED(f)
-        tinsert(handlers3, f)
-    end
 	event_frame:SetScript('OnEvent', function(_, event, arg1, ...)
 		if event == 'ADDON_LOADED' then
-            -- The saved-variable/addon folder is named "Wildspark" in some installs,
-            -- while the display title is "WildSpark". ADDON_LOADED reports the folder name.
-            if type(arg1) == 'string' and string.lower(arg1) == string.lower(addon_name or 'WildSpark') then
-                for _, f in ipairs(handlers) do f(arg1, ...) end
-            elseif arg1 == 'Blizzard_AuctionHouseUI' then
-                for _, f in ipairs(handlers3) do f(arg1, ...) end
-            end
+			if type(arg1) == 'string' and string.lower(arg1) == string.lower(addon_name or 'WildSpark') then
+				initialize()
+			elseif arg1 == 'Blizzard_AuctionHouseUI' then
+				for _, f in ipairs(handlers3) do f(arg1, ...) end
+			end
 		elseif event == 'PLAYER_LOGIN' then
+			initialize()
 			for _, f in ipairs(handlers2) do f(arg1, ...) end
-            sort(account_data.auctionable_items, function(a, b) return strlen(a) < strlen(b) or (strlen(a) == strlen(b) and a < b) end)
-            print('WildAuctions loaded. Made by Uncle Bone. Use /aux for help.')
-            print(full_scan_reminder(account_data.replicate_time, time()))
+			if type(account_data) == 'table' then
+				account_data.auctionable_items = type(account_data.auctionable_items) == 'table' and account_data.auctionable_items or {}
+				sort(account_data.auctionable_items, function(a, b) return strlen(a) < strlen(b) or (strlen(a) == strlen(b) and a < b) end)
+				print('WildAuctions loaded. Made by Uncle Bone. Use /aux for help.')
+				print(full_scan_reminder(account_data.replicate_time, time()))
+			else
+				print('<WildAuctions> Saved data could not be initialized; reload the UI to retry.')
+			end
 		else
 			_M[event](arg1, ...)
 		end
