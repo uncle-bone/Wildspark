@@ -15,7 +15,7 @@
 ## AddonCompartmentFunc: Wildspark_WildGroups_OnAddonCompartmentClick
 ## AddonCompartmentFuncOnEnter: Wildspark_WildGroups_OnAddonCompartmentEnter
 ## AddonCompartmentFuncOnLeave: Wildspark_WildGroups_OnAddonCompartmentLeave
-## SavedVariables: WildsparkDB, LeashHelperDB, ForeverBuffs_DB, CampingKitDB, KitDockDB, WildAuctionsDB, aux, LFGForeverDB, AutoLayerDB
+## SavedVariables: WildsparkDB, LeashHelperDB, ForeverBuffs_DB, CampingKitDB, KitDockDB, WildAuctionsDB, aux, LFGForeverDB, AutoLayerDB, WildLootRollDB
 ## SavedVariablesPerCharacter: WildsparkCharDB, ForeverBuffs_CharDB, CampingKitCharDB, LFGForeverCharDB
 ## AllowLoadGameType: mainline
 

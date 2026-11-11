@@ -51,7 +51,7 @@ local NODES_ICON = "INV_Misc_Map_01"
 local NODES_HEIGHT = 320      -- hauteur des deux panneaux de la page de la minimap
 
 -- Titre de chaque page sous la barre de titre ; celle des objets compose le sien (LookTitle)
-local PAGE_TITLES = { nodes = "NODES_PAGE", settings = "SETTINGS", leash = "LEASH_SETTINGS", buffs = "BUFFS_TAB", camping = "CAMPING_TAB", auctions = "WILDAUCTIONS_TAB", groups = "WILDGROUPS_TAB", layers = "WILDLAYER_TAB" }
+local PAGE_TITLES = { nodes = "NODES_PAGE", settings = "SETTINGS", leash = "LEASH_SETTINGS", buffs = "BUFFS_TAB", camping = "CAMPING_TAB", auctions = "WILDAUCTIONS_TAB", groups = "WILDGROUPS_TAB", layers = "WILDLAYER_TAB", lootrolls = "WILDLOOTROLLS_TAB" }
 
 -- Choix d'un réglage : { valeur, nom du texte } ; ou { valeur, nil, libellé } quand le libellé
 -- ne se traduit pas
@@ -732,6 +732,7 @@ local function CreateMenu()
 	if _G.WildAuctions then list[#list + 1] = { "auctions", ICONS .. "INV_Misc_Coin_01", "WILDAUCTIONS_TAB" } end
 	if ns.WildGroups then list[#list + 1] = { "groups", ICONS .. "INV_SideTab_GroupFinder_c60", "WILDGROUPS_TAB" } end
 	if ns.WildLayer then list[#list + 1] = { "layers", MEDIA .. "WildLayerIcon", "WILDLAYER_TAB" } end
+	if ns.WildLootRolls then list[#list + 1] = { "lootrolls", ICONS .. "INV_Misc_Dice_02", "WILDLOOTROLLS_TAB" } end
 	frame.tabs = {}
 	local previous
 	local tab_top, tab_bottom = 56, 12
@@ -962,6 +963,26 @@ local function CreateMenu()
 		open:SetPoint("TOPLEFT", column.x, column.y - 4)
 		local advanced = AddButton(column.parent, "WILDLAYER_SETTINGS", function() layers.OpenSettings() end, 190)
 		advanced:SetPoint("LEFT", open, "RIGHT", 8, 0)
+	end
+
+	page = pages.lootrolls
+	if page and ns.WildLootRolls then
+		local rolls = ns.WildLootRolls
+		column = NewCard(page, 0, 0, page:GetWidth(), height, "WILDLOOTROLLS_TAB")
+		local note = column.parent:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+		note:SetPoint("TOPLEFT", column.x, column.y)
+		note:SetWidth(column.width)
+		note:SetJustifyH("LEFT")
+		note:SetWordWrap(true)
+		note:SetText(L.WILDLOOTROLLS_NOTE)
+		column.y = column.y - 58
+		AddCheckbox(column, "WILDLOOTROLLS_ENABLED", rolls.IsEnabled, rolls.SetEnabled)
+		local place = AddButton(column.parent, "WILDLOOTROLLS_PLACE", rolls.TogglePlacement, 210)
+		place:SetPoint("TOPLEFT", column.x, column.y - 4)
+		local smaller = AddButton(column.parent, "WILDLOOTROLLS_SMALLER", function() rolls.AdjustScale(-0.1) end, 100)
+		smaller:SetPoint("TOPLEFT", place, "BOTTOMLEFT", 0, -8)
+		local larger = AddButton(column.parent, "WILDLOOTROLLS_LARGER", function() rolls.AdjustScale(0.1) end, 100)
+		larger:SetPoint("LEFT", smaller, "RIGHT", 8, 0)
 	end
 
 	-- Page de la minimap : à gauche les icônes des filons et des plantes ; à droite l'alternance des

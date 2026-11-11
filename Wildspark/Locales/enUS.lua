@@ -454,6 +454,15 @@ L.WILDGROUPS_ENABLED = "Enable WildGroups"
 L.WILDGROUPS_OPEN = "Open WildGroups"
 
 L.WILDLAYER_TAB = "WildLayer"
+
+
+L.WILDLOOTROLLS_TAB = "Wild Loot Rolls"
+L.WILDLOOTROLLS_NOTE = "Move Blizzard's group loot roll frames to a saved screen position and adjust their size. The native roll buttons and Blizzard appearance remain in use. Enable placement mode, drag the gold handle, then click the handle to lock the position."
+L.WILDLOOTROLLS_ENABLED = "Enable Wild Loot Rolls"
+L.WILDLOOTROLLS_ENABLED_TIP = "Use the saved position and scale for Blizzard group loot rolls."
+L.WILDLOOTROLLS_PLACE = "Unlock / lock position"
+L.WILDLOOTROLLS_SMALLER = "Smaller"
+L.WILDLOOTROLLS_LARGER = "Larger"
 L.WILDLAYER_NOTE = "Layer hopping tools integrated into WildSpark. Send your own layer requests. Enable automatic invites only if you want WildLayer to invite players who request a hop."
 L.WILDLAYER_ENABLED = "Enable WildLayer"
 L.WILDLAYER_AUTO_INVITES = "Automatically invite people to my group"
