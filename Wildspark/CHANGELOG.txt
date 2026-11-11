@@ -1,3 +1,9 @@
+WildSpark 2.0.0
+- Add Lueur 1.7 ignore behavior for unnamed objects, with confirmation before removing an existing ignore.
+- Update WildLayer's AutoLayer behavior to 1.9.14 and filter failed-invite messages only for recent layer requesters.
+- Guard WildAuctions saved faction history, search favorites, and account settings against missing or malformed data.
+- Reposition Blizzard group-loot frames after native layout updates and provide a draggable preview, scale control, and spacing control.
+
 WildSpark 1.5.9
 - WildLayer observes the zoneUID in nearby creature/vehicle GUIDs on Forever and displays the last observed raw ID below the minimap.
 - The label distinguishes NovaWorldBuffs' numbered layer value from an unverified local GUID identifier.

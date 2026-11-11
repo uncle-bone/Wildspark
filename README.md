@@ -1,52 +1,43 @@
 # WildSpark
 
-> **[Download WildSpark 1.5.18 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v1.5.18/WildSpark-1.5.18.zip)**
+> **[Download WildSpark 2.0.0 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.0.0/WildSpark-2.0.0.zip)**
 
-**Current stable release: 1.5.18 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
+**Current stable release: 2.0.0 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
 
-## Next major build status
+WildSpark brings gathering highlights, buffs, leash helpers, camping tools, auction tools, group finding, and layer hopping together in one addon. Major modules have their own tab and can be disabled separately.
 
-The main branch is being prepared as WildSpark 2.0.0. The development build includes Lueur 1.7.0 ignore behavior, AutoLayer 1.9.14's targeted failed-invite message filter, and defensive WildAuctions SavedVariables recovery. The current stable ZIP remains 1.5.18 until the 2.0.0 package is ready.
+## What's new in 2.0.0
 
-WildSpark brings nearby resource highlighting, buffs, leash helpers, camping, auction tools, group finding, and layer hopping together under one addon. Each major module has its own settings tab and can be disabled separately.
+- Update the gathering base with Lueur 1.7 ignore behavior: unnamed objects can be ignored, and removing an ignore takes a second request within 10 seconds.
+- Update WildLayer to AutoLayer 1.9.14 behavior, including filtering failed invites only for recent layer requests.
+- Prevent WildAuctions startup errors when saved faction history, search favorites, or account data is missing.
+- Anchor actual Blizzard group-loot frames instead of the managed container. The Wild Loot Rolls tab now has a draggable preview, saved placement, scale, and roll-spacing controls.
+- Preserve the Blizzard Auction House layout fix, the 24-hour WildAuctions post default, WildFire artwork, and the saved layer-hop preference.
 
 ## Features
 
-- Fix WildAuctions duration migration to use module-scoped constants, preventing the PLAYER_LOGIN nil error.
-
-- Fix WildAuctions’ Blizzard Auction House nil calls and keep its native window at normal scale.
-- Fit the settings panel and all module tabs inside the screen.
-- Replace every original CampingKit artwork file with Microsoft Fluent Emoji icons and new smooth WildSpark effects.
-- Save 24 hours as the WildAuctions posting default, including migrating the previous 8-hour default.
-
-- Fix the Blizzard Auction House window layout when switching from WildAuctions to Blizzard UI; credits show Uncle Bone.
-
-
-
-
 - Highlight nearby herbs, ore, quest objects, chests, and fishing bobbers with configurable glow effects, colors, labels, and visibility rules.
-- Show gathering icons on the minimap, learn node labels and profession skill requirements, and optionally alternate herb and ore tracking.
-- Use the optional minimap ping when a new target is recognized. Version 1.5.6 adds separate visual and sound toggles, visual strength, sound volume, and a larger two-ring pulse.
-- Use WildBuffs' rotating or individual spell buttons for supported classes. Buff casts happen only on a click or keybind.
+- Show gathering icons on the minimap, learn node names and profession skill requirements, and optionally alternate herb and ore tracking.
+- Use the optional minimap ping when a new target is recognized, with separate visual and sound controls.
+- Use WildBuffs' rotating or individual spell buttons for supported classes. Buffs are cast only on click or keybind.
 - Track creature leashes with timers and combat-event details.
-- Use the integrated **WildFire** for camping objects, camp effects, food and Well Fed timers, camp tracking, sharing, and map pins.
-- Use **WildAuctions** for auction house tools, including selecting bag items from the Auction House interface. It does not post auctions automatically.
+- Use **WildFire** for camping objects, camp effects, food and Well Fed timers, camp tracking, sharing, and map pins.
+- Use **WildAuctions** for auction-house tools, including selecting bag items while the auction house is open. It does not post auctions automatically.
 - Use **WildGroups** from its own tab in Blizzard's Looking For Group pane.
-- Use **WildLayer** from its own WildSpark tab or minimap button to request layer hops. Automatic invites to players requesting your layer are off by default and can be enabled in the WildLayer tab.
-- See WildLayer's observed raw GUID identifier under the minimap after targeting or mousing over a creature, or when a nearby nameplate appears.
-- Get reminders for newly learned spells. WildSpark does not modify action bars automatically.
+- Use **WildLayer** from its own WildSpark tab or minimap button to request layer hops. Automatic invites for players requesting your layer are off by default.
+- Adjust Blizzard group-loot position, scale, and spacing from WildSpark's Wild Loot Rolls tab.
 - Open settings with `/wildspark` or `/ws`.
 
-The main WildSpark minimap button is visible by default. Separate WildBuffs and WildFire buttons are hidden by default. Existing SavedVariables and map-pin combat deferral behavior are preserved.
+The main WildSpark minimap button is visible by default. Separate WildBuffs and WildFire buttons are hidden by default.
 
 ## Layer ID note
 
-On WoW Forever, WildLayer reads the `zoneUID` field from nearby creature or vehicle GUIDs and shows the observed value as an **ID**, not an official numbered layer. Blizzard obfuscates GUID fields used for cross-session comparison, and the displayed ID needs in-game validation. It is not used as a destination number for hop requests. NovaWorldBuffs 3.49 disables its own layer detector on Forever, so WildLayer's own observer supplies this display. If no compatible layer list is available, you can still request any layer.
+On WoW Forever, WildLayer reads the `zoneUID` field from nearby creature or vehicle GUIDs and shows the observed value as an **ID**, not an official numbered layer. The displayed ID is not used as a destination number for hop requests. If no compatible layer list is available, you can still request any layer.
 
 ## Install
 
-Download the ZIP above, extract it, and place the included `WildSpark` folder in the Forever client's `Interface/AddOns` directory. Disable separate WildBuffs, Camping Kit, WildAuctions, or LFGForever addons if you use their integrated WildSpark versions.
+Download the ZIP, extract it, and place the included `WildSpark` folder in the Forever client's `Interface/AddOns` directory. Disable standalone copies of integrated modules such as WildBuffs, Camping Kit, WildAuctions, or LFGForever to avoid running duplicate copies.
 
-## Verification
+## Third-party notices
 
-The 1.5.10 ZIP contains the WildLayer detector, minimap label, WildLayer tab and minimap button. The observed GUID identifier still needs validation in the WoW Forever client; it is not presented as an official layer number.
+WildSpark retains the license and attribution files for its embedded components in their respective folders. The original Camping Kit artwork is excluded; WildFire uses replacement artwork with its own license notice.

@@ -1,35 +1,78 @@
--- WildSpark: move Blizzard group loot rolls, with an in-game placement editor and preview.
--- The preview is visual only; real roll controls always remain Blizzard's frames.
+-- WildSpark: move Blizzard's group loot roll frames and show a real placement preview.
+-- Roll buttons and their behavior remain Blizzard's; only their anchors and scale are changed.
 local ADDON, ns = ...
 local MOD = {}
 local L = ns.L
 ns.WildLootRolls = MOD
 _G.WildLootRolls = MOD
 
-local defaults = { enabled = true, x = 0, y = 160, scale = 1, placement = false }
-local db, container, editor, applying, originalPoint, originalScale
+local DEFAULTS = { enabled = true, x = 0, y = 160, scale = 1, spacing = 100, placement = false }
+local db, editor, anchor, layoutHooked
+local originalFrames = {}
 local unpack = unpack or table.unpack
+local MAX_ROLLS = 4
 
-local function SavePosition()
-	if not editor or not db then return end
-	local x, y = editor:GetCenter()
-	if not x then return end
-	db.x, db.y = x - UIParent:GetWidth() / 2, y - UIParent:GetHeight() / 2
+local function RollFrame(index)
+	return _G["GroupLootFrame" .. index]
+end
+
+local function PlaceAnchor()
+	if not anchor or not db then return end
+	anchor:ClearAllPoints()
+	anchor:SetPoint("CENTER", UIParent, "CENTER", tonumber(db.x) or 0, tonumber(db.y) or 160)
+end
+
+local function CaptureNativeFrame(frame)
+	if originalFrames[frame] then return end
+	local points = {}
+	for index = 1, frame:GetNumPoints() do
+		points[index] = { frame:GetPoint(index) }
+	end
+	originalFrames[frame] = { points = points, scale = frame:GetScale() or 1 }
+end
+
+local function RestoreNativeFrames()
+	for index = 1, MAX_ROLLS do
+		local frame = RollFrame(index)
+		local original = frame and originalFrames[frame]
+		if frame and original then
+			frame:SetScale(original.scale)
+			if #original.points > 0 and type(_G.GroupLootContainer_Update) ~= "function" then
+				frame:ClearAllPoints()
+				for _, point in ipairs(original.points) do frame:SetPoint(unpack(point)) end
+			end
+		end
+	end
+end
+
+local function PositionRollFrames()
+	if not db or not db.enabled or not anchor then return end
+	PlaceAnchor()
+	local spacing = math.max(50, math.min(200, tonumber(db.spacing) or DEFAULTS.spacing))
+	local scale = math.max(0.6, math.min(1.6, tonumber(db.scale) or 1))
+	for index = 1, MAX_ROLLS do
+		local frame = RollFrame(index)
+		if frame and frame:IsShown() then
+			CaptureNativeFrame(frame)
+			frame:ClearAllPoints()
+			frame:SetPoint("TOPLEFT", anchor, "TOPLEFT", 0, -((index - 1) * spacing))
+			frame:SetScale(scale)
+		end
+	end
 end
 
 local function Apply()
-	if not db or not container then return end
-	applying = true
+	if not db then return end
 	if db.enabled then
-		container:SetScale(db.scale or 1)
-		container:ClearAllPoints()
-		container:SetPoint("CENTER", UIParent, "CENTER", db.x or 0, (db.y or 160) - 54)
-	elseif originalPoint then
-		container:ClearAllPoints()
-		container:SetPoint(unpack(originalPoint))
-		container:SetScale(originalScale or 1)
+		PositionRollFrames()
+	else
+		if type(_G.GroupLootContainer_Update) == "function" then
+			_G.GroupLootContainer_Update(_G.GroupLootContainer)
+		else
+			RestoreNativeFrames()
+		end
 	end
-	applying = false
+	if editor then editor:SetScale(tonumber(db.scale) or 1) end
 end
 
 local function PreviewButton(parent, label, width)
@@ -38,6 +81,15 @@ local function PreviewButton(parent, label, width)
 	button:SetText(label)
 	button:Disable()
 	return button
+end
+
+local function SavePosition()
+	if not editor or not db then return end
+	local x, y = editor:GetCenter()
+	if not x then return end
+	db.x = x - UIParent:GetWidth() / 2
+	db.y = y - UIParent:GetHeight() / 2
+	Apply()
 end
 
 local function CreateEditor()
@@ -71,15 +123,13 @@ local function CreateEditor()
 	titleBar:SetScript("OnMouseUp", function()
 		editor:StopMovingOrSizing()
 		SavePosition()
-		Apply()
 	end)
 
-	local done = CreateFrame("Button", nil, editor, "UIPanelButtonTemplate")
-	done:SetSize(64, 20)
-	done:SetPoint("RIGHT", titleBar, "RIGHT", -2, 0)
-	done:SetText(L.WILDLOOTROLLS_DONE or "Done")
-	done:SetScript("OnClick", function()
-		db.placement = false
+	local close = CreateFrame("Button", nil, editor, "UIPanelCloseButton")
+	close:SetPoint("TOPRIGHT", -1, -1)
+	close:SetSize(24, 24)
+	close:SetScript("OnClick", function()
+		if db then db.placement = false end
 		editor:Hide()
 	end)
 
@@ -92,6 +142,8 @@ local function CreateEditor()
 	item:SetText("|cffffd200" .. (L.WILDLOOTROLLS_PREVIEW or "Preview Item") .. "|r")
 	local instruction = editor:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
 	instruction:SetPoint("TOPLEFT", item, "BOTTOMLEFT", 0, -4)
+	instruction:SetWidth(270)
+	instruction:SetJustifyH("LEFT")
 	instruction:SetText(L.WILDLOOTROLLS_INSTRUCTION or "Drag this header to position group loot rolls.")
 	local need = PreviewButton(editor, _G.ROLL_NEED or "Need", 74)
 	local greed = PreviewButton(editor, _G.ROLL_GREED or "Greed", 74)
@@ -99,31 +151,40 @@ local function CreateEditor()
 	need:SetPoint("BOTTOMLEFT", 14, 9)
 	greed:SetPoint("LEFT", need, "RIGHT", 6, 0)
 	pass:SetPoint("LEFT", greed, "RIGHT", 6, 0)
+
+	editor:SetScript("OnHide", function()
+		if db then db.placement = false end
+	end)
 end
 
 local function PositionEditor()
+	if not db then return end
 	CreateEditor()
 	editor:ClearAllPoints()
-	editor:SetPoint("CENTER", UIParent, "CENTER", db.x or 0, db.y or 160)
+	editor:SetPoint("CENTER", UIParent, "CENTER", tonumber(db.x) or 0, tonumber(db.y) or 160)
+	editor:SetScale(tonumber(db.scale) or 1)
 	editor:SetShown(db.placement == true and db.enabled == true)
 end
 
-local function CaptureOriginal()
-	if originalPoint or not container then return end
-	local point, relative, relativePoint, x, y = container:GetPoint(1)
-	if point then originalPoint = { point, relative or UIParent, relativePoint or point, x or 0, y or 0 } end
-	originalScale = container:GetScale() or 1
+local function OnNativeLayout()
+	if db and db.enabled then
+		C_Timer.After(0, PositionRollFrames)
+	end
 end
 
 local function Initialize()
-	if not _G.GroupLootContainer or container then return end
-	container = _G.GroupLootContainer
-	CaptureOriginal()
-	if hooksecurefunc then
-		hooksecurefunc(container, "SetPoint", function()
-			if db and db.enabled and not applying then C_Timer.After(0, Apply) end
-		end)
+	if not db then return end
+	CreateEditor()
+	if not anchor then
+		anchor = CreateFrame("Frame", "WildLootRollsAnchor", UIParent)
+		anchor:SetSize(1, 1)
+		anchor:Hide()
 	end
+	if not layoutHooked and type(_G.GroupLootContainer_Update) == "function" and hooksecurefunc then
+		hooksecurefunc("GroupLootContainer_Update", OnNativeLayout)
+		layoutHooked = true
+	end
+	PlaceAnchor()
 	Apply()
 	PositionEditor()
 end
@@ -131,6 +192,7 @@ end
 function MOD.IsEnabled()
 	return db and db.enabled == true
 end
+
 function MOD.SetEnabled(value)
 	if not db then return end
 	db.enabled = value and true or false
@@ -138,14 +200,23 @@ function MOD.SetEnabled(value)
 	Apply()
 	PositionEditor()
 end
+
 function MOD.TogglePlacement()
 	if not db or not db.enabled then return end
 	db.placement = not db.placement
 	PositionEditor()
 end
+
 function MOD.AdjustScale(delta)
 	if not db then return end
-	db.scale = math.max(0.6, math.min(1.6, math.floor(((db.scale or 1) + delta) * 10 + 0.5) / 10))
+	db.scale = math.max(0.6, math.min(1.6, math.floor(((tonumber(db.scale) or 1) + delta) * 10 + 0.5) / 10))
+	Apply()
+	PositionEditor()
+end
+
+function MOD.AdjustSpacing(delta)
+	if not db then return end
+	db.spacing = math.max(50, math.min(200, (tonumber(db.spacing) or DEFAULTS.spacing) + delta))
 	Apply()
 end
 
@@ -153,15 +224,19 @@ local events = CreateFrame("Frame")
 events:RegisterEvent("ADDON_LOADED")
 events:RegisterEvent("PLAYER_LOGIN")
 events:RegisterEvent("START_LOOT_ROLL")
+events:RegisterEvent("CANCEL_LOOT_ROLL")
 events:SetScript("OnEvent", function(_, event, name)
-	if event == "ADDON_LOADED" and name == ADDON then
-		_G.WildLootRollDB = _G.WildLootRollDB or {}
+	if event == "ADDON_LOADED" and type(name) == "string" and string.lower(name) == string.lower(ADDON) then
+		_G.WildLootRollDB = type(_G.WildLootRollDB) == "table" and _G.WildLootRollDB or {}
 		db = _G.WildLootRollDB
-		for key, value in pairs(defaults) do
+		for key, value in pairs(DEFAULTS) do
 			if db[key] == nil then db[key] = value end
 		end
-	elseif (event == "PLAYER_LOGIN" or event == "START_LOOT_ROLL") and db then
+		if type(db.placement) ~= "boolean" then db.placement = false end
+	elseif event == "PLAYER_LOGIN" then
 		Initialize()
-		PositionEditor()
+	elseif (event == "START_LOOT_ROLL" or event == "CANCEL_LOOT_ROLL") and db then
+		Initialize()
+		C_Timer.After(0.05, PositionRollFrames)
 	end
 end)

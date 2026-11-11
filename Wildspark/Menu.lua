@@ -983,6 +983,10 @@ local function CreateMenu()
 		smaller:SetPoint("TOPLEFT", place, "BOTTOMLEFT", 0, -8)
 		local larger = AddButton(column.parent, "WILDLOOTROLLS_LARGER", function() rolls.AdjustScale(0.1) end, 100)
 		larger:SetPoint("LEFT", smaller, "RIGHT", 8, 0)
+		local tighter = AddButton(column.parent, "WILDLOOTROLLS_SPACING_LESS", function() rolls.AdjustSpacing(-10) end, 100)
+		tighter:SetPoint("TOPLEFT", smaller, "BOTTOMLEFT", 0, -8)
+		local wider = AddButton(column.parent, "WILDLOOTROLLS_SPACING_MORE", function() rolls.AdjustSpacing(10) end, 100)
+		wider:SetPoint("LEFT", tighter, "RIGHT", 8, 0)
 	end
 
 	-- Page de la minimap : à gauche les icônes des filons et des plantes ; à droite l'alternance des
