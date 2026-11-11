@@ -734,9 +734,17 @@ local function CreateMenu()
 	if ns.WildLayer then list[#list + 1] = { "layers", MEDIA .. "WildLayerIcon", "WILDLAYER_TAB" } end
 	frame.tabs = {}
 	local previous
+	local tab_top, tab_bottom = 56, 12
+	local tab_slot = (HEIGHT - tab_top - tab_bottom) / #list
+	local tab_index = 0
 	for _, tab in ipairs(list) do
+		tab_index = tab_index + 1
 		local name, text = tab[1], tab[3]
-		local button = Skin.SideTab(frame, previous, tab[2], function() Open(name) end)\n\t\tlocal tab_height = button.GetHeight and button:GetHeight() or 32\n\t\tbutton:SetScale(math.min(1, tab_slot / math.max(1, tab_height)))\n\t\tbutton:ClearAllPoints()\n\t\tbutton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -3, -tab_top - (tab_index - 1) * tab_slot)
+		local button = Skin.SideTab(frame, previous, tab[2], function() Open(name) end)
+		local tab_height = button.GetHeight and button:GetHeight() or 32
+		button:SetScale(math.min(1, tab_slot / math.max(1, tab_height)))
+		button:ClearAllPoints()
+		button:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -3, -tab_top - (tab_index - 1) * tab_slot)
 		captions[#captions + 1] = function() button.tooltipText = L[text] end
 		button.tooltipText = L[text]
 		refreshers[#refreshers + 1] = function() button:SetChecked(openPage == name) end
@@ -1089,6 +1097,16 @@ end
 
 function ns.ToggleMenu()
 	local frame = menu or CreateMenu()
+	local screen_width, screen_height = UIParent:GetWidth(), UIParent:GetHeight()
+	if screen_width and screen_height and screen_width > 0 and screen_height > 0 then
+		local fit_scale = math.max(0.65, math.min(1, (screen_width - 24) / WIDTH, (screen_height - 24) / HEIGHT))
+		frame:SetScale(fit_scale)
+		if fit_scale < 1 then
+			frame:ClearAllPoints()
+			frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+		end
+	end
+	frame:SetClampedToScreen(true)
 	if not frame:IsShown() then
 		blockClick = 4
 		if keybindButton then keybindButton:EnableKeyboard(false) end
