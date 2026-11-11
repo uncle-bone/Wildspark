@@ -1,4 +1,4 @@
-name: Build and publish WildSpark 2.0.0
+name: Build and publish WildSpark stable release
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: wildspark-v2-release
+  group: wildspark-stable-release
   cancel-in-progress: false
 
 jobs:
@@ -23,8 +23,12 @@ jobs:
           fetch-depth: 0
 
       - name: Verify release metadata and notices
+        id: release
         run: |
-          grep -Fx '## Version: 2.0.0' Wildspark/WildSpark.toc
+          VERSION="$(sed -n 's/^## Version: //p' Wildspark/WildSpark.toc | head -n 1)"
+          test -n "$VERSION"
+          TAG="v$VERSION"
+          grep -Fx "## Version: $VERSION" Wildspark/WildSpark.toc
           test -f Wildspark/LICENSE.txt
           test -f Wildspark/Modules/WildAuctions/LICENSE.txt
           test -f Wildspark/Modules/WildGroups/LICENSE
@@ -32,23 +36,30 @@ jobs:
           test -f Wildspark/CampingKitEmbedded/LICENSE
           test -f Wildspark/CampingKitEmbedded/ARTWORK_NOTICE.txt
           test -f Wildspark/Media/WildFireIcon-LICENSE.txt
+          test -f ".github/releases/$TAG.md"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Package installable addon
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
         run: |
           mkdir -p dist/stage/WildSpark
           cp -a Wildspark/. dist/stage/WildSpark/
           cd dist/stage
-          zip -qr ../WildSpark-2.0.0.zip WildSpark
+          zip -qr "../WildSpark-$VERSION.zip" WildSpark
           cd ../..
-          unzip -Z1 dist/WildSpark-2.0.0.zip | grep -q '^WildSpark/WildSpark.toc$'
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/WildSpark.toc$'
 
       - name: Publish stable GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+          VERSION: ${{ steps.release.outputs.version }}
         run: |
-          gh release create v2.0.0 dist/WildSpark-2.0.0.zip \
+          gh release create "$TAG" "dist/WildSpark-$VERSION.zip" \
             --repo "$GITHUB_REPOSITORY" \
-            --title "WildSpark 2.0.0 — Major update" \
-            --notes-file .github/releases/v2.0.0.md \
+            --title "WildSpark $VERSION — Stable release" \
+            --notes-file ".github/releases/$TAG.md" \
             --target "$GITHUB_SHA" \
             --latest

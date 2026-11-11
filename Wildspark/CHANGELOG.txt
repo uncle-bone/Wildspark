@@ -1,3 +1,6 @@
+WildSpark 2.0.1
+- Fix the WildFire tent button so its artwork is circularly masked and framed by the matching kit ring, consistent with the surrounding circular slots.
+
 WildSpark 2.0.0
 - Add Lueur 1.7 ignore behavior for unnamed objects, with confirmation before removing an existing ignore.
 - Update WildLayer's AutoLayer behavior to 1.9.14 and filter failed-invite messages only for recent layer requesters.

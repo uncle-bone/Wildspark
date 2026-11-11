@@ -1,10 +1,14 @@
 # WildSpark
 
-> **[Download WildSpark 2.0.0 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.0.0/WildSpark-2.0.0.zip)**
+> **[Download WildSpark 2.0.1 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.0.1/WildSpark-2.0.1.zip)**
 
-**Current stable release: 2.0.0 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
+**Current stable release: 2.0.1 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
 
 WildSpark brings gathering highlights, buffs, leash helpers, camping tools, auction tools, group finding, and layer hopping together in one addon. Major modules have their own tab and can be disabled separately.
+
+## What's new in 2.0.1
+
+- Fix the WildFire tent button artwork so it is clipped and framed within its circular button.
 
 ## What's new in 2.0.0
 
