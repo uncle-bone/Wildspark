@@ -327,11 +327,11 @@ do
 end
 
 function AUCTION_HOUSE_SHOW()
-    compat_load_auction_house_ui()
-    hook_blizzard_frame()
-    hook_panel_layout()
+    -- Blizzard_AuctionHouseUI is loaded by Blizzard's bootstrap.
+    M.hook_blizzard_frame()
+    M.hook_panel_layout()
     if AuctionHouseFrame and AuctionHouseFrame:IsShown() then
-        set_blizzard_frame_shown(false)
+        M.set_blizzard_frame_shown(false)
     end
     frame:Show()
     set_tab(1)
