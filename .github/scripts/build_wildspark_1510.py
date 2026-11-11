@@ -13,7 +13,7 @@ repo = Path.cwd().resolve()
 baseline = repo / "baseline" / "WildSpark-1.5.9.zip"
 output_dir = repo / "dist"
 output_dir.mkdir(exist_ok=True)
-output_zip = output_dir / "WildSpark-1.5.14.zip"
+output_zip = output_dir / "WildSpark-1.5.15.zip"
 if not baseline.is_file():
     raise SystemExit(f"Missing baseline package: {baseline}")
 
@@ -136,14 +136,14 @@ def rewrite_text(name: str, data: bytes) -> bytes:
     text = re.sub("auxForever", "WildAuctions", text, flags=re.I)
 
     if name == "WildSpark/WildSpark.toc":
-        text = re.sub(r"(?m)^## Version:.*$", "## Version: 1.5.14", text)
+        text = re.sub(r"(?m)^## Version:.*$", "## Version: 1.5.15", text)
         if not re.search(r"(?m)^## Author:", text):
             text = text.replace("## Title: WildSpark", "## Title: WildSpark\n## Author: Uncle Bone", 1)
 
     if name.endswith("/WildAuctions.toc"):
         text = re.sub(r"(?m)^## Author:.*$", "## Author: Uncle Bone", text)
         text = re.sub(r"(?m)^## Title:.*$", "## Title: WildAuctions", text)
-        text = re.sub(r"(?m)^## Version:.*$", "## Version: 1.5.14", text)
+        text = re.sub(r"(?m)^## Version:.*$", "## Version: 1.5.15", text)
         text = re.sub(r"(?m)^## Notes:.*$", "## Notes: Made by Uncle Bone", text)
     if name == "WildSpark/Modules/WildAuctions/aux-addon.lua":
         text = text.replace(
@@ -170,16 +170,30 @@ def rewrite_text(name: str, data: bytes) -> bytes:
         text = text[:show_start] + show + text[show_end:]
     if name == "WildSpark/Menu.lua":
         text = text.replace('local TAB_RAIL_WIDTH = 80', 'local TAB_RAIL_WIDTH = 88')
-        text = text.replace(
-            'local previous\\n\\tfor _, tab in ipairs(list) do',
-            'local previous\\n\\tlocal tab_top, tab_bottom = 56, 12\\n\\tlocal tab_slot = (HEIGHT - tab_top - tab_bottom) / #list\\n\\tlocal tab_index = 0\\n\\tfor _, tab in ipairs(list) do\\n\\t\\ttab_index = tab_index + 1')
-        text = text.replace(
-            'local button = Skin.SideTab(frame, previous, tab[2], function() Open(name) end)',
-            'local button = Skin.SideTab(frame, previous, tab[2], function() Open(name) end)\\n\\t\\tlocal tab_height = button.GetHeight and button:GetHeight() or 32\\n\\t\\tbutton:SetScale(math.min(1, tab_slot / math.max(1, tab_height)))\\n\\t\\tbutton:ClearAllPoints()\\n\\t\\tbutton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -3, -tab_top - (tab_index - 1) * tab_slot)')
-        text = text.replace(
-            'function ns.ToggleMenu()\\n\\tlocal frame = menu or CreateMenu()',
-            'function ns.ToggleMenu()\\n\\tlocal frame = menu or CreateMenu()\\n\\tlocal screen_width, screen_height = UIParent:GetWidth(), UIParent:GetHeight()\\n\\tif screen_width and screen_height and screen_width > 0 and screen_height > 0 then\\n\\t\\tlocal fit_scale = math.max(0.65, math.min(1, (screen_width - 24) / WIDTH, (screen_height - 24) / HEIGHT))\\n\\t\\tframe:SetScale(fit_scale)\\n\\t\\tif fit_scale < 1 then\\n\\t\\t\\tframe:ClearAllPoints()\\n\\t\\t\\tframe:SetPoint("CENTER", UIParent, "CENTER", 0, 0)\\n\\t\\tend\\n\\tend\\n\\tframe:SetClampedToScreen(true)')
-        text = text.replace('MEDIA .. "CampingKit\\\\tent_closed_48"', 'MEDIA .. "WildFireIcon"')
+        nl = chr(10)
+        tab = chr(9)
+        old_tabs = "local previous" + nl + tab + "for _, tab in ipairs(list) do"
+        new_tabs = "local previous" + nl + tab + "local tab_top, tab_bottom = 56, 12" + nl + tab + "local tab_slot = (HEIGHT - tab_top - tab_bottom) / #list" + nl + tab + "local tab_index = 0" + nl + tab + "for _, tab in ipairs(list) do" + nl + tab * 2 + "tab_index = tab_index + 1"
+        text = text.replace(old_tabs, new_tabs)
+        tab_line = 'local button = Skin.SideTab(frame, previous, tab[2], function() Open(name) end)'
+        tab_fit = tab_line + nl + tab * 2 + "local tab_height = button.GetHeight and button:GetHeight() or 32" + nl + tab * 2 + "button:SetScale(math.min(1, tab_slot / math.max(1, tab_height)))" + nl + tab * 2 + "button:ClearAllPoints()" + nl + tab * 2 + 'button:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -3, -tab_top - (tab_index - 1) * tab_slot)'
+        text = text.replace(tab_line, tab_fit)
+        menu_line = "local frame = menu or CreateMenu()"
+        fit_lines = [
+            tab + "local screen_width, screen_height = UIParent:GetWidth(), UIParent:GetHeight()",
+            tab + "if screen_width and screen_height and screen_width > 0 and screen_height > 0 then",
+            tab * 2 + "local fit_scale = math.max(0.65, math.min(1, (screen_width - 24) / WIDTH, (screen_height - 24) / HEIGHT))",
+            tab * 2 + "frame:SetScale(fit_scale)",
+            tab * 2 + "if fit_scale < 1 then",
+            tab * 3 + "frame:ClearAllPoints()",
+            tab * 3 + 'frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)',
+            tab * 2 + "end",
+            tab + "end",
+            tab + "frame:SetClampedToScreen(true)",
+        ]
+        fit_block = menu_line + nl + nl.join(fit_lines)
+        text = text.replace(menu_line, fit_block)
+        text = text.replace('MEDIA .. "CampingKit' + chr(92) + chr(92) + 'tent_closed_48"', 'MEDIA .. "WildFireIcon"')
     if name == "WildSpark/Modules/WildAuctions/frame.lua":
         text = text.replace(
             "logo:SetText(color.text.enabled'aux' .. color.accent.background'Forever')",
@@ -201,7 +215,7 @@ def rewrite_text(name: str, data: bytes) -> bytes:
             'L.WILDAUCTIONS_NOTE = "Auction house tools by Uncle Bone. Select the Auction House button to open WildAuctions."',
             text)
     if name == "WildSpark/README.txt":
-        text = re.sub(r"(?m)^WildSpark \d+\.\d+\.\d+.*$", "WildSpark 1.5.14", text, count=1)
+        text = re.sub(r"(?m)^WildSpark \d+\.\d+\.\d+.*$", "WildSpark 1.5.15", text, count=1)
         if "Credits" in text:
             text = text[:text.rfind("Credits")] + (
                 "Credits\nMade by Uncle Bone.\n"
@@ -209,7 +223,7 @@ def rewrite_text(name: str, data: bytes) -> bytes:
         text = text.replace(
             "The Blizzard auction-house window is opened at normal scale to avoid broken child-control layout.",
             "WildAuctions keeps Blizzard's native auction-house frame at normal scale to prevent displaced controls.")
-        text += "\n1.5.14: Fixes the Blizzard Auction House window layout, brands the auction module WildAuctions, and credits Uncle Bone in the module UI.\n"
+        text += "\n1.5.15: Fixes the Blizzard Auction House window layout, brands the auction module WildAuctions, and credits Uncle Bone in the module UI.\n"
 
     return text.encode("utf-8")
 
@@ -240,13 +254,13 @@ with zipfile.ZipFile(output_zip, "r") as z:
     if missing:
         raise SystemExit("Missing expected packaged files: " + ", ".join(missing))
     toc = z.read("WildSpark/WildSpark.toc").decode("utf-8")
-    if "## Version: 1.5.14" not in toc:
-        raise SystemExit("Packaged TOC version is not 1.5.14")
+    if "## Version: 1.5.15" not in toc:
+        raise SystemExit("Packaged TOC version is not 1.5.15")
     ah = z.read("WildSpark/Modules/WildAuctions/aux-addon.lua").decode("utf-8")
     if "M.hook_blizzard_frame()" in ah or "M.hook_panel_layout()" in ah:
         raise SystemExit("Blizzard frame helpers must resolve in the WildAuctions module scope")
     menu = z.read("WildSpark/Menu.lua").decode("utf-8")
-    if "WildFireIcon" not in menu or "tab_slot" not in menu:
+    if "WildFireIcon" not in menu or "tab_slot" not in menu or "fit_scale" not in menu:
         raise SystemExit("WildSpark tab layout or WildFire icon patch is missing")
     if ".01" in ah or "HIDDEN_SCALE" in ah:
         raise SystemExit("The old tiny-scale AH workaround remains in the package")
@@ -266,10 +280,10 @@ try:
 
     readme = repo / "README.md"
     text = readme.read_text(encoding="utf-8")
-    text = text.replace("/releases/download/v1.5.9/WildSpark-1.5.9.zip",
-                        "/releases/download/v1.5.14/WildSpark-1.5.14.zip")
-    text = text.replace("Current stable release: 1.5.9", "Current stable release: 1.5.14")
-    text = text.replace("The 1.5.9 ZIP", "The 1.5.14 ZIP")
+    text = re.sub(r"/releases/download/v1\\.5\\.\\d+/WildSpark-1\\.5\\.\\d+\\.zip",
+                   "/releases/download/v1.5.15/WildSpark-1.5.15.zip", text)
+    text = re.sub(r"Current stable release: 1\\.5\\.\\d+", "Current stable release: 1.5.15", text)
+    text = re.sub(r"WildSpark 1\\.5\\.\\d+ — Latest Stable", "WildSpark 1.5.15 — Latest Stable", text)
     text = text.replace("Version 1.5.6 adds", "Version 1.5.6 adds")
     text = text.replace("## Features\n", "## Features\n\n- Fix the Blizzard Auction House window layout when switching from WildAuctions to Blizzard UI; credits show Uncle Bone.\n", 1)
     readme.write_text(text, encoding="utf-8")
@@ -277,13 +291,13 @@ try:
     subprocess.run(["git", "config", "user.name", "github-actions[bot]"], check=True)
     subprocess.run(["git", "config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"], check=True)
     subprocess.run(["git", "add", "Wildspark", "README.md"], cwd=repo, check=True)
-    subprocess.run(["git", "commit", "-m", "Sync WildSpark 1.5.14 source with AH layout fix"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-m", "Sync WildSpark 1.5.15 source with AH and panel fixes"], cwd=repo, check=True)
     subprocess.run(["git", "push", "origin", "main"], cwd=repo, check=True)
-    notes = """Fixes the broken Blizzard Auction House layout when switching from WildAuctions to Blizzard UI. The native AH frame stays at scale 1 while hidden, so its child controls do not get displaced. The WildAuctions UI and module credit now show WildAuctions and Made by Uncle Bone. WildLayer detection remains included; the observed GUID value is an ID, not an official numbered layer."""
+    notes = """Fixes WildAuctions nil helper calls in the Blizzard Auction House hook, keeps the native auction-house frame at scale 1, fits the WildSpark settings window to smaller screens, spaces the module tab rail so all tabs stay inside the panel, and gives WildFire a distinct Fluent Emoji Camping icon. The icon's Microsoft MIT license notice is included."""
     subprocess.run([
-        "gh", "release", "create", "v1.5.14", str(output_zip),
+        "gh", "release", "create", "v1.5.15", str(output_zip),
         "--repo", subprocess.check_output(["git", "remote", "get-url", "origin"], cwd=repo, text=True).strip().replace("https://github.com/", "").replace(".git", ""),
-        "--title", "WildSpark 1.5.14 — Auction House layout fix",
+        "--title", "WildSpark 1.5.15 — Auction House and panel fixes",
         "--notes", notes,
         "--target", "main",
         "--latest",
