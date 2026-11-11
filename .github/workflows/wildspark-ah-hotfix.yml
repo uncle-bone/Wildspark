@@ -1,4 +1,4 @@
-name: Build and publish WildSpark 1.5.13
+name: Build and publish WildSpark 1.5.15
 
 on:
   push:
@@ -30,7 +30,10 @@ jobs:
       - name: Install image conversion dependencies
         run: python -m pip install --quiet cairosvg pillow
 
-      - name: Build and publish WildSpark 1.5.14
+      - name: Install image conversion dependencies
+        run: python -m pip install --quiet cairosvg pillow
+
+      - name: Build and publish WildSpark 1.5.15
         run: python .github/scripts/build_wildspark_1510.py
         env:
           GH_TOKEN: ${{ github.token }}
