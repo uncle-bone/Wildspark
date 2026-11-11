@@ -1,11 +1,12 @@
 -- WildDrops: focused mob-tooltip integration for WildSpark.
 -- The database records percentage chances. Rare-drop rows are enabled by default.
-local _, ns = ...
+local _, addonNS = ...
+local core = addonNS.WildDropsCore
 local module = {}
-ns.WildDrops = module
+addonNS.WildDrops = module
 
 local function settings()
-    return ns.db or _G.WildDropsDB
+    return (core and core.db) or _G.WildDropsDB
 end
 
 function module.IsEnabled()
@@ -17,7 +18,7 @@ function module.SetEnabled(enabled)
     local db = settings()
     if not db then return end
     db.enabled = enabled and true or false
-    if ns.Refresh then ns.Refresh() end
+    if core and core.Refresh then core.Refresh() end
 end
 
 function module.IsTooltipEnabled()
@@ -29,7 +30,7 @@ function module.SetTooltipEnabled(enabled)
     local db = settings()
     if not db then return end
     db.tooltip = enabled and true or false
-    if ns.Refresh then ns.Refresh() end
+    if core and core.Refresh then core.Refresh() end
 end
 
 function module.GetShowRare()
@@ -41,5 +42,5 @@ function module.SetShowRare(enabled)
     local db = settings()
     if not db then return end
     db.showRare = enabled and true or false
-    if ns.Refresh then ns.Refresh() end
+    if core and core.Refresh then core.Refresh() end
 end

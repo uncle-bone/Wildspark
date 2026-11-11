@@ -1,3 +1,6 @@
+WildSpark 2.1.1
+- Fix WildDrops and WildLayer sharing a private addon namespace: WildDrops now keeps its database helpers and defaults in its own subtable, preventing AceDB initialization errors and follow-on nil database errors.
+
 WildSpark 2.1.0
 - Add WildDrops, a tooltip-only quest-starter drop helper with item names, recorded percent drop rates, approximate kills, and quest names.
 - Include the mob, quest, item, and drop-rate database required by the tooltip; show rare recorded drops by default.

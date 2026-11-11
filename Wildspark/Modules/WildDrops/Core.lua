@@ -6,7 +6,9 @@
 -- are modules that share this through the addon namespace (ns) and hook in with
 -- ns.OnLogin, ns.OnRefresh and ns.RegisterEvent.
 
-local ADDON_NAME, ns = ...
+local ADDON_NAME, addonNS = ...
+local ns = addonNS.WildDropsCore or {}
+addonNS.WildDropsCore = ns
 
 ns.PREFIX = "|cffffd100WildDrops:|r "
 ns.RARE_CHANCE = 0.1 -- drops below this percentage are hidden unless showRare is on

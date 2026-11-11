@@ -5,7 +5,9 @@
 -- its quest yet), added from saved Wowhead pages and QuestieDB; the source is noted per
 -- entry. Merged into the generated tables below: whatever Data.lua already has is
 -- skipped, so a regenerated Data.lua never shows a drop twice.
-local _, ns = ...
+local _, addonNS = ...
+local ns = addonNS.WildDropsCore or {}
+addonNS.WildDropsCore = ns
 
 local Items = {
     [211269] = "Primitive Drawing", -- Wowhead 2026-11-10

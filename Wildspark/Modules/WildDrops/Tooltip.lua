@@ -1,6 +1,8 @@
 -- Mob tooltips: item, drop chance and the quest it starts.
 
-local _, ns = ...
+local _, addonNS = ...
+local ns = addonNS.WildDropsCore or {}
+addonNS.WildDropsCore = ns
 
 ns.tooltipHook = "none" -- which hook is in use, shown by /qd target
 
