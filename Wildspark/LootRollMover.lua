@@ -2,6 +2,7 @@
 -- The preview is visual only; real roll controls always remain Blizzard's frames.
 local ADDON, ns = ...
 local MOD = {}
+local L = ns.L
 ns.WildLootRolls = MOD
 _G.WildLootRolls = MOD
 
@@ -63,7 +64,7 @@ local function CreateEditor()
 	titleBar:EnableMouse(true)
 	local title = titleBar:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 	title:SetPoint("LEFT", 7, 0)
-	title:SetText("|cffffd200WildSpark Edit Mode|r  |cffaaaaaa(Preview)|r")
+	title:SetText("|cffffd200" .. (L.WILDLOOTROLLS_EDIT_TITLE or "WildSpark Edit Mode") .. "|r  |cffaaaaaa(Preview)|r")
 	titleBar:SetScript("OnMouseDown", function(_, button)
 		if button == "LeftButton" then editor:StartMoving() end
 	end)
@@ -76,7 +77,7 @@ local function CreateEditor()
 	local done = CreateFrame("Button", nil, editor, "UIPanelButtonTemplate")
 	done:SetSize(64, 20)
 	done:SetPoint("RIGHT", titleBar, "RIGHT", -2, 0)
-	done:SetText("Done")
+	done:SetText(L.WILDLOOTROLLS_DONE or "Done")
 	done:SetScript("OnClick", function()
 		db.placement = false
 		editor:Hide()
@@ -88,13 +89,13 @@ local function CreateEditor()
 	icon:SetTexture("Interface/Icons/INV_Misc_QuestionMark")
 	local item = editor:CreateFontString(nil, "ARTWORK", "GameFontNormal")
 	item:SetPoint("TOPLEFT", icon, "TOPRIGHT", 9, -2)
-	item:SetText("|cffffd200Preview Item|r")
+	item:SetText("|cffffd200" .. (L.WILDLOOTROLLS_PREVIEW or "Preview Item") .. "|r")
 	local instruction = editor:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
 	instruction:SetPoint("TOPLEFT", item, "BOTTOMLEFT", 0, -4)
-	instruction:SetText("Drag this header to position group loot rolls.")
-	local need = PreviewButton(editor, "Need", 74)
-	local greed = PreviewButton(editor, "Greed", 74)
-	local pass = PreviewButton(editor, "Pass", 74)
+	instruction:SetText(L.WILDLOOTROLLS_INSTRUCTION or "Drag this header to position group loot rolls.")
+	local need = PreviewButton(editor, _G.ROLL_NEED or "Need", 74)
+	local greed = PreviewButton(editor, _G.ROLL_GREED or "Greed", 74)
+	local pass = PreviewButton(editor, _G.ROLL_PASS or "Pass", 74)
 	need:SetPoint("BOTTOMLEFT", 14, 9)
 	greed:SetPoint("LEFT", need, "RIGHT", 6, 0)
 	pass:SetPoint("LEFT", greed, "RIGHT", 6, 0)
