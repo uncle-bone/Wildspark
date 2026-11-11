@@ -1,4 +1,4 @@
-name: Build and publish WildSpark 1.5.10
+name: Build and publish WildSpark 1.5.11
 
 on:
   push:
