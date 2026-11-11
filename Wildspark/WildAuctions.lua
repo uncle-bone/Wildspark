@@ -20,7 +20,7 @@ local function BagLocation(bag, slot)
 		local bagOK, actualBag, actualSlot = pcall(location.GetBagAndSlot, location)
 		return hasBagSlot and isBagSlot == true and bagOK and actualBag == bag and actualSlot == slot
 	end
-	-- auxForever (MIT-licensed Forever adaptation) documents the canonical
+	-- WildAuctions (MIT-licensed Forever adaptation) documents the canonical
 	-- ItemLocation:CreateFromBagAndSlot(bag, slot) path. Some Forever builds may
 	-- expose dot-call semantics; accept that only if it returns the exact slot.
 	local ok, location = pcall(itemLocation.CreateFromBagAndSlot, itemLocation, bag, slot)
