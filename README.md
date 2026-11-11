@@ -10,23 +10,6 @@ WildSpark is a modular WoW Forever utility suite for gathering highlights, quest
 
 - Fix the shared WildFire circular mask's alpha channel so item and spell icons are clipped to the round slots.
 
-## What's new in 2.1.1
-
-- Fix WildDrops' private namespace collision that could prevent WildLayer's AceDB defaults from initializing.
-
-## What's new in 2.1.0
-
-- Add WildDrops: creature tooltips show quest-starting items, recorded drop percentages, approximate kills, and the associated quest.
-- Rare drops are shown by default. Quest eligibility filters are retained. The search browser and other Questionable Drops features are not included.
-
-## What's new in 2.0.2
-
-- Bake circular transparency into every tent icon size so the tent artwork stays round even when the runtime mask is unavailable.
-
-## What's new in 2.0.1
-
-- Fix the WildFire tent button artwork so it is clipped and framed within its circular button.
-
 ## Features
 
 - Highlight nearby herbs, ore, quest objects, chests, and fishing bobbers with configurable glow effects, colors, labels, and visibility rules.
