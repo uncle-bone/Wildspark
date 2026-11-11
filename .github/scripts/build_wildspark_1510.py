@@ -13,7 +13,7 @@ repo = Path.cwd().resolve()
 baseline = repo / "baseline" / "WildSpark-1.5.9.zip"
 output_dir = repo / "dist"
 output_dir.mkdir(exist_ok=True)
-output_zip = output_dir / "WildSpark-1.5.16.zip"
+output_zip = output_dir / "WildSpark-1.5.17.zip"
 if not baseline.is_file():
     raise SystemExit(f"Missing baseline package: {baseline}")
 
@@ -258,14 +258,14 @@ def rewrite_text(name: str, data: bytes) -> bytes:
     text = re.sub("auxForever", "WildAuctions", text, flags=re.I)
 
     if name == "WildSpark/WildSpark.toc":
-        text = re.sub(r"(?m)^## Version:.*$", "## Version: 1.5.16", text)
+        text = re.sub(r"(?m)^## Version:.*$", "## Version: 1.5.17", text)
         if not re.search(r"(?m)^## Author:", text):
             text = text.replace("## Title: WildSpark", "## Title: WildSpark\n## Author: Uncle Bone", 1)
 
     if name.endswith("/WildAuctions.toc"):
         text = re.sub(r"(?m)^## Author:.*$", "## Author: Uncle Bone", text)
         text = re.sub(r"(?m)^## Title:.*$", "## Title: WildAuctions", text)
-        text = re.sub(r"(?m)^## Version:.*$", "## Version: 1.5.16", text)
+        text = re.sub(r"(?m)^## Version:.*$", "## Version: 1.5.17", text)
         text = re.sub(r"(?m)^## Notes:.*$", "## Notes: Made by Uncle Bone", text)
     if name == "WildSpark/Modules/WildAuctions/aux-addon.lua":
         text = text.replace(
@@ -300,12 +300,12 @@ def rewrite_text(name: str, data: bytes) -> bytes:
         text = text.replace(old_path, new_path)
         text = text.replace("kits_chest_", "wildfire_pack_")
     if name == "WildSpark/Modules/WildAuctions/aux-addon.lua":
-        text = text.replace("post_duration = post.DURATION_8,", "post_duration = post.DURATION_24,")
+        text = text.replace("post_duration = M.DURATION_8,", "post_duration = M.DURATION_24,")
     if name == "WildSpark/Modules/WildAuctions/tabs/post/core.lua":
         nl = chr(10)
         tab = chr(9)
         old_login = "function aux.event.PLAYER_LOGIN()" + nl + tab + "data = aux.faction_data.post" + nl + "end"
-        new_login = "function aux.event.PLAYER_LOGIN()" + nl + tab + "data = aux.faction_data.post" + nl + tab + "if not aux.account_data.wildspark_1516_duration_migrated then" + nl + tab*2 + "if aux.account_data.post_duration == post.DURATION_8 then" + nl + tab*3 + "aux.account_data.post_duration = post.DURATION_24" + nl + tab*2 + "end" + nl + tab*2 + "for item_key, saved_record in pairs(data) do" + nl + tab*3 + "local saved = persistence.read(settings_schema, saved_record)" + nl + tab*3 + "if saved and saved.duration == post.DURATION_8 then" + nl + tab*4 + "saved.duration = post.DURATION_24" + nl + tab*4 + "data[item_key] = persistence.write(settings_schema, saved)" + nl + tab*3 + "end" + nl + tab*2 + "end" + nl + tab*2 + "aux.account_data.wildspark_1516_duration_migrated = true" + nl + tab + "end" + nl + "end"
+        new_login = "function aux.event.PLAYER_LOGIN()" + nl + tab + "data = aux.faction_data.post" + nl + tab + "if not aux.account_data.wildspark_1517_duration_migrated then" + nl + tab*2 + "if aux.account_data.post_duration == M.DURATION_8 then" + nl + tab*3 + "aux.account_data.post_duration = M.DURATION_24" + nl + tab*2 + "end" + nl + tab*2 + "for item_key, saved_record in pairs(data) do" + nl + tab*3 + "local saved = persistence.read(settings_schema, saved_record)" + nl + tab*3 + "if saved and saved.duration == M.DURATION_8 then" + nl + tab*4 + "saved.duration = M.DURATION_24" + nl + tab*4 + "data[item_key] = persistence.write(settings_schema, saved)" + nl + tab*3 + "end" + nl + tab*2 + "end" + nl + tab*2 + "aux.account_data.wildspark_1517_duration_migrated = true" + nl + tab + "end" + nl + "end"
         text = text.replace(old_login, new_login)
         duration_line = "settings.duration = duration_dropdown:GetIndex()"
         duration_pos = text.find(duration_line)
@@ -361,7 +361,7 @@ def rewrite_text(name: str, data: bytes) -> bytes:
             'L.WILDAUCTIONS_NOTE = "Auction house tools by Uncle Bone. Select the Auction House button to open WildAuctions."',
             text)
     if name == "WildSpark/README.txt":
-        text = re.sub(r"(?m)^WildSpark \d+\.\d+\.\d+.*$", "WildSpark 1.5.16", text, count=1)
+        text = re.sub(r"(?m)^WildSpark \d+\.\d+\.\d+.*$", "WildSpark 1.5.17", text, count=1)
         if "Credits" in text:
             text = text[:text.rfind("Credits")] + (
                 "Credits\nMade by Uncle Bone.\n"
@@ -369,7 +369,7 @@ def rewrite_text(name: str, data: bytes) -> bytes:
         text = text.replace(
             "The Blizzard auction-house window is opened at normal scale to avoid broken child-control layout.",
             "WildAuctions keeps Blizzard's native auction-house frame at normal scale to prevent displaced controls.")
-        text += "\n1.5.16: Replaces all original CampingKit artwork, migrates WildAuctions' posting duration default from 8h to 24h, fixes Auction House nil calls, and fits the settings panel and tabs to the screen.\n"
+        text += "\n1.5.17: Replaces all original CampingKit artwork, migrates WildAuctions' posting duration default from 8h to 24h, fixes Auction House nil calls, and fits the settings panel and tabs to the screen.\n"
 
     return text.encode("utf-8")
 
@@ -418,10 +418,10 @@ with zipfile.ZipFile(output_zip, "r") as z:
     if b"wildfire_pack_" not in dock_source:
         raise SystemExit("WildFire backpack art is not referenced by the kit dock")
     toc = z.read("WildSpark/WildSpark.toc").decode("utf-8")
-    if "## Version: 1.5.16" not in toc:
-        raise SystemExit("Packaged TOC version is not 1.5.16")
+    if "## Version: 1.5.17" not in toc:
+        raise SystemExit("Packaged TOC version is not 1.5.17")
     duration_core = z.read("WildSpark/Modules/WildAuctions/tabs/post/core.lua").decode("utf-8")
-    if "DURATION_24" not in duration_core or "wildspark_1516_duration_migrated" not in duration_core or "aux.account_data.post_duration = settings.duration" not in duration_core:
+    if "DURATION_24" not in duration_core or "wildspark_1517_duration_migrated" not in duration_core or "aux.account_data.post_duration = settings.duration" not in duration_core:
         raise SystemExit("WildAuctions 24-hour duration persistence/migration missing")
     ah = z.read("WildSpark/Modules/WildAuctions/aux-addon.lua").decode("utf-8")
     if "M.hook_blizzard_frame()" in ah or "M.hook_panel_layout()" in ah:
@@ -447,10 +447,26 @@ try:
 
     readme = repo / "README.md"
     text = readme.read_text(encoding="utf-8")
+    text = text.replace("/releases/download/v1.5.16/WildSpark-1.5.16.zip",
+                        "/releases/download/v1.5.17/WildSpark-1.5.17.zip")
+    text = text.replace("WildSpark 1.5.16 — Latest Stable", "WildSpark 1.5.17 — Latest Stable")
+    text = text.replace("Current stable release: 1.5.16", "Current stable release: 1.5.17")
+    duration_note = "- Fix WildAuctions' 24-hour duration migration to use the Post module constants, preventing a PLAYER_LOGIN nil error."
+    if duration_note not in text:
+        text = text.replace("## Features\\n", "## Features\\n\\n" + duration_note + "\\n", 1)
+    repeated_note = "- Fix the Blizzard Auction House window layout when switching from WildAuctions to Blizzard UI; credits show Uncle Bone."
+    kept, found = [], False
+    for line in text.splitlines():
+        if line == repeated_note:
+            if found:
+                continue
+            found = True
+        kept.append(line)
+    text = "\\n".join(kept) + "\\n"
     text = text.replace("/releases/download/v1.5.15/WildSpark-1.5.15.zip",
-                        "/releases/download/v1.5.16/WildSpark-1.5.16.zip")
-    text = text.replace("WildSpark 1.5.15 — Latest Stable", "WildSpark 1.5.16 — Latest Stable")
-    text = text.replace("Current stable release: 1.5.15", "Current stable release: 1.5.16")
+                        "/releases/download/v1.5.17/WildSpark-1.5.17.zip")
+    text = text.replace("WildSpark 1.5.15 — Latest Stable", "WildSpark 1.5.17 — Latest Stable")
+    text = text.replace("Current stable release: 1.5.15", "Current stable release: 1.5.17")
     old_features = "- Fix WildAuctions’ Blizzard Auction House hook errors, keep its native frame at normal scale, fit the settings window on short screens, and keep every module tab inside the panel.\n- Give WildFire a distinct Fluent Emoji Camping tab icon; its Microsoft MIT license notice is included in the addon."
     new_features = "- Fix WildAuctions’ Blizzard Auction House nil calls and keep its native window at normal scale.\n- Fit the settings panel and all module tabs inside the screen.\n- Replace every original CampingKit artwork file with Microsoft Fluent Emoji icons and new smooth WildSpark effects.\n- Save 24 hours as the WildAuctions posting default, including migrating the previous 8-hour default."
     text = text.replace(old_features, new_features)
@@ -461,13 +477,13 @@ try:
     subprocess.run(["git", "config", "user.name", "github-actions[bot]"], check=True)
     subprocess.run(["git", "config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"], check=True)
     subprocess.run(["git", "add", "Wildspark", "README.md"], cwd=repo, check=True)
-    subprocess.run(["git", "commit", "-m", "Sync WildSpark 1.5.16 source with complete artwork, duration, AH, and panel fixes"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-m", "Sync WildSpark 1.5.17 source with complete artwork, duration, AH, and panel fixes"], cwd=repo, check=True)
     subprocess.run(["git", "push", "origin", "main"], cwd=repo, check=True)
-    notes = """Replaces all 37 CampingKit artwork files with Microsoft Fluent Emoji Camping/Backpack/Clipboard/Speech Bubble icons and clean WildSpark interface effects; the original art is excluded and the Microsoft MIT notice is included. WildAuctions now defaults to 24-hour posts, remembers the duration selection globally, and migrates old saved 8-hour defaults. Also fixes the Blizzard Auction House nil helper calls and keeps the settings panel and all module tabs on screen."""
+    notes = """Fixes WildAuctions' PLAYER_LOGIN duration migration to use module-scoped duration constants, eliminating the nil `post` error. Replaces all 37 CampingKit artwork files with Microsoft Fluent Emoji icons and clean effects; original artwork is excluded and the Microsoft MIT notice is included. WildAuctions defaults to 24-hour posts, remembers the selection, and migrates saved 8-hour defaults. Includes Blizzard Auction House and settings-panel fixes."""
     subprocess.run([
-        "gh", "release", "create", "v1.5.16", str(output_zip),
+        "gh", "release", "create", "v1.5.17", str(output_zip),
         "--repo", subprocess.check_output(["git", "remote", "get-url", "origin"], cwd=repo, text=True).strip().replace("https://github.com/", "").replace(".git", ""),
-        "--title", "WildSpark 1.5.16 — Artwork, duration, and UI fixes",
+        "--title", "WildSpark 1.5.17 — Artwork, duration, and UI fixes",
         "--notes", notes,
         "--target", "main",
         "--latest",
