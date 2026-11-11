@@ -10,6 +10,8 @@ WildSpark brings nearby resource highlighting, buffs, leash helpers, camping, au
 
 - Fix the Blizzard Auction House window layout when switching from WildAuctions to Blizzard UI; credits show Uncle Bone.
 
+- Fix the Blizzard Auction House window layout when switching from WildAuctions to Blizzard UI; credits show Uncle Bone.
+
 - Highlight nearby herbs, ore, quest objects, chests, and fishing bobbers with configurable glow effects, colors, labels, and visibility rules.
 - Show gathering icons on the minimap, learn node labels and profession skill requirements, and optionally alternate herb and ore tracking.
 - Use the optional minimap ping when a new target is recognized. Version 1.5.6 adds separate visual and sound toggles, visual strength, sound volume, and a larger two-ring pulse.

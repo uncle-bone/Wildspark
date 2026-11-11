@@ -268,8 +268,9 @@ do
     function M.resize_blizzard_tabs()
         if not AuctionHouseFrame then return end
         local auctions_frame = AuctionHouseFrame.AuctionsFrame
+        local empty_tabs = {}
         for _, tabs in ipairs{AuctionHouseFrame.Tabs, type(auctions_frame) == 'table' and auctions_frame.Tabs} do
-            for _, tab in ipairs(type(tabs) == 'table' and tabs or empty) do
+            for _, tab in ipairs(type(tabs) == 'table' and tabs or empty_tabs) do
                 local on_show = tab.GetScript and tab:GetScript('OnShow')
                 if on_show and tab:IsShown() then pcall(on_show, tab) end
             end
@@ -301,7 +302,7 @@ do
             AuctionHouseFrame:SetAlpha(0)
             AuctionHouseFrame:EnableMouse(false)
         end
-        do (update_blizzard_button or pass)() end
+        if type(M.update_blizzard_button) == 'function' then M.update_blizzard_button() end
     end
 
     local hooked
@@ -315,7 +316,7 @@ do
         end)
         AuctionHouseFrame:HookScript('OnHide', function()
             blizzard_visible = false
-            do (update_blizzard_button or pass)() end
+            if type(M.update_blizzard_button) == 'function' then M.update_blizzard_button() end
         end)
     end
 
