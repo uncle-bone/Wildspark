@@ -2,7 +2,7 @@
 import re
 import io
 import cairosvg
-from PIL import Image, ImageEnhance, ImageFilter
+from PIL import Image, ImageEnhance, ImageFilter, ImageDraw
 import shutil
 import subprocess
 import tempfile
