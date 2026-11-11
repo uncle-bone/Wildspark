@@ -10,6 +10,7 @@ on:
       - "Wildspark/WildSpark.toc"
       - "Wildspark/CHANGELOG.txt"
       - "Wildspark/Media/WildFire/tent_*.tga"
+      - "Wildspark/Media/WildFire/circle_mask.tga"
       - "Wildspark/Modules/WildDrops/**"
 
 permissions:
@@ -43,6 +44,7 @@ jobs:
           test -f Wildspark/CampingKitEmbedded/LICENSE
           test -f Wildspark/CampingKitEmbedded/ARTWORK_NOTICE.txt
           test -f Wildspark/Media/WildFireIcon-LICENSE.txt
+          test -f Wildspark/Media/WildFire/circle_mask.tga
           test -f ".github/releases/$TAG.md"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"

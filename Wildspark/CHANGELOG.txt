@@ -1,3 +1,6 @@
+WildSpark 2.1.2
+- Fix WildFire's shared circular icon mask by moving its grayscale circle into the alpha channel. The old mask was fully opaque, so WoW drew square item and spell icons inside the circular slots.
+
 WildSpark 2.1.1
 - Fix WildDrops and WildLayer sharing a private addon namespace: WildDrops now keeps its database helpers and defaults in its own subtable, preventing AceDB initialization errors and follow-on nil database errors.
 
