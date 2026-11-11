@@ -1,8 +1,8 @@
 # WildSpark
 
-> **[Download WildSpark 1.5.10 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v1.5.10/WildSpark-1.5.10.zip)**
+> **[Download WildSpark 1.5.13 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v1.5.13/WildSpark-1.5.13.zip)**
 
-**Current stable release: 1.5.10 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
+**Current stable release: 1.5.13 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
 
 WildSpark brings nearby resource highlighting, buffs, leash helpers, camping, auction tools, group finding, and layer hopping together under one addon. Each major module has its own settings tab and can be disabled separately.
 
