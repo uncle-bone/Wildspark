@@ -11,6 +11,7 @@ local MIN_RESPAWN_SECONDS = 10
 local MAX_RESPAWN_SECONDS = 7 * 24 * 60 * 60
 local SAMPLE_RETENTION_SECONDS = 90 * 24 * 60 * 60
 local MAX_SAMPLES_PER_NPC = 10
+local MAX_NPC_RECORDS = 500
 
 local pendingDeaths = {} -- [npcID] = { at = time, guid = guid }; session-only to avoid offline gaps
 local platesByUnit = {}  -- [nameplate unit] = { npcID, guid }
@@ -44,6 +45,25 @@ local function AddSample(npcID, seconds, now)
 
     local samples = ns.db.respawnSamples[npcID]
     if type(samples) ~= "table" then
+        local recordCount = 0
+        local oldestID, oldestAt
+        for id, records in pairs(ns.db.respawnSamples) do
+            recordCount = recordCount + 1
+            local newestAt = 0
+            if type(records) == "table" then
+                for _, record in ipairs(records) do
+                    if type(record) == "table" and type(record.at) == "number" and record.at > newestAt then
+                        newestAt = record.at
+                    end
+                end
+            end
+            if not oldestAt or newestAt < oldestAt then
+                oldestID, oldestAt = id, newestAt
+            end
+        end
+        if recordCount >= MAX_NPC_RECORDS and oldestID then
+            ns.db.respawnSamples[oldestID] = nil
+        end
         samples = {}
         ns.db.respawnSamples[npcID] = samples
     end
@@ -89,13 +109,24 @@ local function OnCombatLog()
     if not destGUID or ns.IsSecret(destGUID) then return end
 
     local npcID = ns.GetNpcID(destGUID)
-    if not npcID then return end
+    if not npcID or not ns.db or ns.db.enabled == false or ns.db.respawnEnabled == false then return end
 
     -- When several identical NPCs are already visible, this death cannot be paired
     -- confidently with the next plate. Don't turn it into a respawn observation.
-    if (visibleByNpc[npcID] or 0) > 1 then
+    local visibleCount = visibleByNpc[npcID] or 0
+    if visibleCount > 1 then
         pendingDeaths[npcID] = nil
         return
+    end
+    if visibleCount == 1 then
+        local matchingPlate = false
+        for _, plate in pairs(platesByUnit) do
+            if plate.npcID == npcID and plate.guid == destGUID then
+                matchingPlate = true
+                break
+            end
+        end
+        if not matchingPlate then return end
     end
 
     pendingDeaths[npcID] = { at = time(), guid = destGUID }
@@ -183,5 +214,7 @@ ns.OnLogin(function()
     pcall(ns.RegisterEvent, "COMBAT_LOG_EVENT_UNFILTERED", OnCombatLog)
     pcall(ns.RegisterEvent, "NAME_PLATE_UNIT_ADDED", OnNameplateAdded)
     pcall(ns.RegisterEvent, "NAME_PLATE_UNIT_REMOVED", OnNameplateRemoved)
-    pcall(ns.RegisterEvent, "PLAYER_LEAVING_WORLD", function() wipe(pendingDeaths) end)
+    local clearPending = function() wipe(pendingDeaths) end
+    pcall(ns.RegisterEvent, "PLAYER_LEAVING_WORLD", clearPending)
+    pcall(ns.RegisterEvent, "ZONE_CHANGED_NEW_AREA", clearPending)
 end)
