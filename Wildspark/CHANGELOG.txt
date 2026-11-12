@@ -1,3 +1,6 @@
+WildSpark 2.1.9
+- Normalize WildBuffs' bundled icon path to the WildSpark folder's casing for consistent loading across platforms.
+
 WildSpark 2.1.8
 - Fix missing WildFire world-map pin artwork by pointing the camp tent, area ring, and glow to the bundled WildFire textures.
 

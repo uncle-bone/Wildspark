@@ -1,12 +1,12 @@
 # WildSpark
 
-> **[Download WildSpark 2.1.8 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.1.8/WildSpark-2.1.8.zip)**
+> **[Download WildSpark 2.1.9 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.1.9/WildSpark-2.1.9.zip)**
 
-**Current stable release: 2.1.8 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
+**Current stable release: 2.1.9 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
 
 WildSpark is a modular WoW Forever utility suite for gathering highlights, quest-drop tooltips, buffs, creature leash tracking, WildFire camping, auctions, group finding, and layer hopping. Its major modules have dedicated settings tabs, and can be enabled or disabled independently.
 
-## What's new in 2.1.8
+## What's new in 2.1.9
 
 - Repair saved settings once after upgrading so WildSpark's master enable switch starts on again. Individual modules keep their saved enable states.
 
