@@ -10,7 +10,7 @@ local ADDON_NAME, addonNS = ...
 local ns = addonNS.WildDropsCore or {}
 addonNS.WildDropsCore = ns
 
-ns.PREFIX = "|cffffd100WildDrops:|r "
+"ns.PREFIX = "|cffffd100WildInfo:|r "
 ns.RARE_CHANCE = 0.1 -- drops below this percentage are hidden unless showRare is on
 local QUEST_ICON = "Interface\\GossipFrame\\AvailableQuestIcon"
 
@@ -18,6 +18,7 @@ ns.defaults = {
     enabled = true,
     tooltip = true,
     showRare = true, -- include low-probability drops by default
+    respawnEnabled = true, -- show locally observed NPC respawn estimates when available
 }
 
 -- ns.db is the saved settings table, available from ADDON_LOADED on.
