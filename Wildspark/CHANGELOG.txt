@@ -1,3 +1,6 @@
+WildSpark 2.1.8
+- Fix missing WildFire world-map pin artwork by pointing the camp tent, area ring, and glow to the bundled WildFire textures.
+
 WildSpark 2.1.7
 - Retry WildFire's world map provider when Blizzard's map UI loads after login, and refresh camp pins whenever the world map opens.
 
