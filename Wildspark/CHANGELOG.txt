@@ -1,3 +1,6 @@
+WildSpark 2.2.1
+- Register WildInfo respawn events during addon load, before PLAYER_LOGIN lockdown, preventing ADDON_ACTION_FORBIDDEN on Frame:RegisterEvent.
+
 WildSpark 2.2.0
 - Rename the WildDrops settings module to WildInfo while retaining existing saved settings.
 - Add optional local NPC respawn estimates to creature tooltips; estimates are learned from observed deaths and later nameplate appearances and are labeled approximate.
