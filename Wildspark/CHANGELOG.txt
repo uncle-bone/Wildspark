@@ -1,3 +1,6 @@
+WildSpark 2.1.10
+- Keep the auction-house session open when switching from WildAuctions to Blizzard UI, so Blizzard's auction-house window remains visible.
+
 WildSpark 2.1.9
 - Normalize WildBuffs' bundled icon path to the WildSpark folder's casing for consistent loading across platforms.
 
