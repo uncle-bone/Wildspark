@@ -1,6 +1,6 @@
 # WildSpark
 
-> **[Download WildSpark 2.2.0 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.1.9/WildSpark-2.2.0.zip)**
+> **[Download WildSpark 2.2.0 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.0/WildSpark-2.2.0.zip)**
 
 **Current stable release: 2.2.0 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
 
@@ -24,7 +24,7 @@ WildSpark is a modular WoW Forever utility suite for gathering highlights, quest
 - Use **WildAuctions** for auction-house tools, including selecting bag items while the auction house is open. It does not post auctions automatically.
 - Use **WildGroups** from its own tab in Blizzard's Looking For Group pane.
 - Use **WildLayer** from its own WildSpark tab or minimap button to request layer hops. Automatic invites for people requesting your layer are off by default.
-- Use **WildDrops** to see quest-starting items and their recorded drop chances when mousing over creatures.
+- Use **WildInfo** to see quest-starting item drop chances and locally learned NPC respawn estimates when mousing over creatures.
 - Adjust Blizzard group-loot position, scale, and spacing from WildSpark's Wild Loot Rolls tab.
 - Open settings with `/wildspark` or `/ws`.
 
@@ -40,4 +40,4 @@ Download the ZIP, extract it, and place the included `WildSpark` folder in the F
 
 ## Third-party notices
 
-WildSpark retains the license and attribution files for its embedded components in their respective folders. The original Camping Kit artwork is excluded; WildFire uses replacement artwork with its own license notice. WildDrops is included and modified with permission from the original Questionable Drops author; its bundled database credits QuestieDB Forever and Wowhead in the source files.
+WildSpark retains the license and attribution files for its embedded components in their respective folders. The original Camping Kit artwork is excluded; WildFire uses replacement artwork with its own license notice. WildInfo (formerly WildDrops) is included and modified with permission from the original Questionable Drops author; its bundled database credits QuestieDB Forever and Wowhead in the source files.
