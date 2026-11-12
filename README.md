@@ -1,10 +1,14 @@
 # WildSpark
 
-> **[Download WildSpark 2.2.6 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.6/WildSpark-2.2.6.zip)**
+> **[Download WildSpark 2.2.7 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.5/WildSpark-2.2.5.zip)**
 
-**Current stable release: 2.2.6 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
+**Current stable release: 2.2.7 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
 
 WildSpark is a modular WoW Forever utility suite for gathering highlights, quest-drop tooltips, buffs, creature leash tracking, WildFire camping, auctions, group finding, and layer hopping. Its major modules have dedicated settings tabs, and can be enabled or disabled independently.
+
+## What's new in 2.2.7
+
+- Share confirmed WildInfo respawn observations with other WildSpark clients through Camping Kit's hidden addon-message channel. Shared observations are saved, included in estimates, identified in tooltips, and refresh open tooltips.
 
 ## What's new in 2.2.6
 
@@ -35,8 +39,6 @@ WildSpark is a modular WoW Forever utility suite for gathering highlights, quest
 
 ## Features
 
-- Fix WildAuctions duration migration to use module-scoped constants, preventing the PLAYER_LOGIN nil error.
-
 - Highlight nearby herbs, ore, quest objects, chests, and fishing bobbers with configurable glow effects, colors, labels, and visibility rules.
 - Show gathering icons on the minimap, learn node names and profession skill requirements, and optionally alternate herb and ore tracking.
 - Use the optional minimap ping when a new target is recognized, with separate visual and sound controls.
@@ -46,7 +48,7 @@ WildSpark is a modular WoW Forever utility suite for gathering highlights, quest
 - Use **WildAuctions** for auction-house tools, including selecting bag items while the auction house is open. It does not post auctions automatically.
 - Use **WildGroups** from its own tab in Blizzard's Looking For Group pane.
 - Use **WildLayer** from its own WildSpark tab or minimap button to request layer hops. Automatic invites for people requesting your layer are off by default.
-- Use **WildInfo** to see quest-starting item drop chances and locally learned NPC respawn estimates when mousing over creatures.
+- Use **WildInfo** to see quest-starting item drop chances and locally or peer-learned NPC respawn estimates when mousing over creatures. Timer sharing uses the hidden Camping Kit addon channel, not visible world-chat messages.
 - Adjust Blizzard group-loot position, scale, and spacing from WildSpark's Wild Loot Rolls tab.
 - Open settings with `/wildspark` or `/ws`.
 

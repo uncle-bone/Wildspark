@@ -1,3 +1,84 @@
+WildSpark 2.2.7
+- Share confirmed WildInfo respawn samples over Camping Kit's hidden addon channel; merge peer samples into estimates and refresh open tooltips.
+
+WildSpark 2.2.6
+- Wrap WildInfo respawn lines inside the tooltip and shorten the initial learning message.
+
+WildSpark 2.2.5
+- Rename WildAuctions' slash command from /aux to /wa and update help text, settings hints, and documentation.
+
+WildSpark 2.2.4
+- Fix local WildInfo respawn learning for repeated identical NPCs by keeping multiple pending deaths and pairing later appearances instead of discarding ambiguous kills.
+- Observe confirmed deaths from existing unit-health/flag events where available and show a collection status before the first timer is learned.
+- Remove the RareScanner rare-only reference table; local observations are used for NPCs encountered in game.
+
+WildSpark 2.2.3
+- Bundle the 75-entry RareScanner NPC respawn reference table and show matching fixed, ranged, or event-triggered entries in WildInfo tooltips.
+- Label imported timers as reference data not verified for WoW Forever; keep local observation estimates as fallback.
+
+WildSpark 2.2.2
+- Fix WildInfo ADDON_ACTION_FORBIDDEN: route NPC death, nameplate, and zone events through WildSpark's existing LeashHelper event feed instead of registering additional events.
+
+WildSpark 2.2.1
+- Register WildInfo respawn events during addon load, before PLAYER_LOGIN lockdown, preventing ADDON_ACTION_FORBIDDEN on Frame:RegisterEvent.
+
+WildSpark 2.2.0
+- Rename the WildDrops settings module to WildInfo while retaining existing saved settings.
+- Add optional local NPC respawn estimates to creature tooltips; estimates are learned from observed deaths and later nameplate appearances and are labeled approximate.
+
+WildSpark 2.1.10
+- Keep the auction-house session open when switching from WildAuctions to Blizzard UI, so Blizzard's auction-house window remains visible.
+
+WildSpark 2.1.9
+- Normalize WildBuffs' bundled icon path to the WildSpark folder's casing for consistent loading across platforms.
+
+WildSpark 2.1.8
+- Fix missing WildFire world-map pin artwork by pointing the camp tent, area ring, and glow to the bundled WildFire textures.
+
+WildSpark 2.1.7
+- Retry WildFire's world map provider when Blizzard's map UI loads after login, and refresh camp pins whenever the world map opens.
+
+WildSpark 2.1.6
+- Repair the saved master enable state once after upgrading so WildSpark starts enabled again; module-specific enable choices are preserved.
+
+WildSpark 2.1.5
+- Fix the WildAuctions auction-house open error by routing its event and window buttons through a local opener.
+- Keep the WildAuctions enable switch and Blizzard UI window toggle fixes from 2.1.4.
+
+WildSpark 2.1.4
+- Make WildAuctions' Enable switch suppress its automatic auction-house window and prevent its Open button from silently re-enabling the module.
+- Make the WildAuctions Blizzard UI control switch cleanly between windows, and add a WildAuctions button to Blizzard's auction-house window.
+- Restore Blizzard's auction-house window immediately when WildAuctions is disabled while the auction house is open.
+- Close the WildGroups window when its Enable switch is turned off.
+- Include the WildDrops capitalization fix from 2.1.3.
+
+WildSpark 2.1.3
+- Fix WildDrops saved-settings initialization when addon folder capitalization differs, which could suppress all drop-rate tooltips on affected installs.
+
+WildSpark 2.1.2
+- Fix WildFire's shared circular icon mask by moving its grayscale circle into the alpha channel. The old mask was fully opaque, so WoW drew square item and spell icons inside the circular slots.
+
+WildSpark 2.1.1
+- Fix WildDrops and WildLayer sharing a private addon namespace: WildDrops now keeps its database helpers and defaults in its own subtable, preventing AceDB initialization errors and follow-on nil database errors.
+
+WildSpark 2.1.0
+- Add WildDrops, a tooltip-only quest-starter drop helper with item names, recorded percent drop rates, approximate kills, and quest names.
+- Include the mob, quest, item, and drop-rate database required by the tooltip; show rare recorded drops by default.
+- Add WildDrops settings tab and controls; use WildSpark's own module icon.
+- Omit Questionable Drops' browser, nameplate markers, reminders, report tools, and minimap button.
+
+WildSpark 2.0.2
+- Bake circular transparency into every open and closed WildFire tent icon size so square image corners cannot show around the circular kit button.
+
+WildSpark 2.0.1
+- Fix the WildFire tent button so its artwork is circularly masked and framed by the matching kit ring, consistent with the surrounding circular slots.
+
+WildSpark 2.0.0
+- Add Lueur 1.7 ignore behavior for unnamed objects, with confirmation before removing an existing ignore.
+- Update WildLayer's AutoLayer behavior to 1.9.14 and filter failed-invite messages only for recent layer requesters.
+- Guard WildAuctions saved faction history, search favorites, and account settings against missing or malformed data.
+- Reposition Blizzard group-loot frames after native layout updates and provide a draggable preview, scale control, and spacing control.
+
 WildSpark 1.5.9
 - WildLayer observes the zoneUID in nearby creature/vehicle GUIDs on Forever and displays the last observed raw ID below the minimap.
 - The label distinguishes NovaWorldBuffs' numbered layer value from an unverified local GUID identifier.

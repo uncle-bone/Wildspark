@@ -299,9 +299,18 @@ end
 -- The channel
 ---------------------------------------------------------------------------
 
-local function Enabled()
+local function CampSharingEnabled()
     local kit = ns.kit
     return kit and kit.db and kit.db.campShare ~= false
+end
+
+local function RespawnSharingEnabled()
+    local wildInfo = ns.WildDropsCore
+    return wildInfo and wildInfo.IsRespawnSharingEnabled and wildInfo.IsRespawnSharingEnabled()
+end
+
+local function Enabled()
+    return CampSharingEnabled() or RespawnSharingEnabled()
 end
 
 local channelID
@@ -426,6 +435,17 @@ local function Send(msg)
     if send then pcall(send, PREFIX, msg, "CHANNEL", id) end
 end
 
+-- Share a confirmed NPC respawn observation over the same hidden addon channel as camp data.
+function Net.ShareRespawnSample(npcID, seconds, bucket)
+    if not RespawnSharingEnabled() then return false end
+    npcID, seconds, bucket = tonumber(npcID), tonumber(seconds), tonumber(bucket)
+    if not npcID or npcID < 1 or npcID > 999999999
+        or not seconds or seconds < 10 or seconds > 604800
+        or not bucket or bucket < 1 then return false end
+    Send(("R|1|%d|%d|%d"):format(math.floor(npcID), math.floor(seconds + 0.5), math.floor(bucket)))
+    return true
+end
+
 -- F|version|faction|layer|continent|wx|wy|map|mx|my|tier|full|started|spell,spell,...|want,want,...|wantsAt|exact|samples|violet
 -- wx, wy (and mx, my) are the fire's spot as the sender works it out; exact = they built it.
 local function Encode(f, est)
@@ -483,7 +503,18 @@ end
 local function OnMessage(prefix, msg, _, sender)
     if prefix ~= PREFIX or not Enabled() or IsMe(sender) then return end
     if U.Sealed(msg) or type(msg) ~= "string" then return end
-    local r = Decode(msg, Ambiguate and Ambiguate(sender, "short") or sender)
+    local senderName = Ambiguate and Ambiguate(sender or "", "short") or sender
+    if msg:sub(1, 2) == "R|" then
+        if not RespawnSharingEnabled() then return end
+        local version, npcID, seconds, bucket = msg:match("^R|(%d+)|(%d+)|(%d+)|(%d+)$")
+        local wildInfo = ns.WildDropsCore
+        if version == "1" and wildInfo and wildInfo.ReceiveSharedRespawn then
+            wildInfo.ReceiveSharedRespawn(tonumber(npcID), tonumber(seconds), tonumber(bucket), senderName)
+        end
+        return
+    end
+    if not CampSharingEnabled() then return end
+    local r = Decode(msg, senderName)
     if not r or not r.from then return end
     Merge(r)
     if ns.CampMap then ns.CampMap.Refresh() end
@@ -538,7 +569,7 @@ end
 
 local function SendMine()
     sendQueued = false
-    if not (mine and Enabled() and layer and Settled(mine)) then return end
+    if not (mine and CampSharingEnabled() and layer and Settled(mine)) then return end
     sentAt = GetTime()
     Send(Encode(mine, mine.est[ME]))
 end
@@ -681,7 +712,7 @@ function Net.FireBuilt(tier)
         Net.fires[#Net.fires + 1] = f
         MarkDistinct(f, mine)
         SetCentre(f)
-        if Enabled() and layer and f.layer ~= "?" then Send(Encode(f, f.est[ME])) end
+        if CampSharingEnabled() and layer and f.layer ~= "?" then Send(Encode(f, f.est[ME])) end
         if ns.CampMap then ns.CampMap.Refresh() end
         return false
     end

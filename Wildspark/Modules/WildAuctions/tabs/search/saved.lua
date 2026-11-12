@@ -56,7 +56,11 @@ StaticPopupDialogs.AUX_RENAME_FAVORITE = {
 dragged_search = nil
 
 function aux.event.AUX_LOADED()
-	recent_searches, favorite_searches = aux.realm_data.recent_searches, aux.realm_data.favorite_searches
+	local realm_data = type(aux.realm_data) == 'table' and aux.realm_data or {}
+	aux.realm_data = realm_data
+	if type(realm_data.recent_searches) ~= 'table' then realm_data.recent_searches = {} end
+	if type(realm_data.favorite_searches) ~= 'table' then realm_data.favorite_searches = {} end
+	recent_searches, favorite_searches = realm_data.recent_searches, realm_data.favorite_searches
 end
 
 function update_search_listings()

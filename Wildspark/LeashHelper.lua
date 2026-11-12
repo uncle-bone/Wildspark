@@ -18,6 +18,24 @@ local ADDON_NAME = ...
 local LH = {}
 _G.LeashHelper = LH
 
+-- Other WildSpark features can observe NPC deaths and nameplate lifecycle without
+-- registering a second copy of events that this module already owns.
+local respawnListeners = {}
+function LH.RegisterRespawnListener(listener)
+    if type(listener) == "table" then
+        respawnListeners[#respawnListeners + 1] = listener
+    end
+end
+
+local function NotifyRespawnListeners(method, ...)
+    for _, listener in ipairs(respawnListeners) do
+        local callback = listener[method]
+        if type(callback) == "function" then
+            pcall(callback, ...)
+        end
+    end
+end
+
 -- Embedded in Wildspark by Uncle Bone. Upstream attribution and MIT license are
 -- retained in LEASHHELPER_LICENSE.txt; see the Wildspark README for integration notes.
 local VERSION = "1.0.12-wildspark"
@@ -1459,7 +1477,7 @@ local function TouchGuid(guid, name, reason)
 end
 
 local function HandleCLEU()
-	if not AddonActive() or not CombatLogGetCurrentEventInfo then
+	if not CombatLogGetCurrentEventInfo then
 		return
 	end
 	local ok, _, subevent, _, srcGUID, srcName, srcFlags, _, destGUID, destName, destFlags = pcall(CombatLogGetCurrentEventInfo)
@@ -1474,11 +1492,14 @@ local function HandleCLEU()
 	end
 	if subevent == "UNIT_DIED" or subevent == "UNIT_DESTROYED" or subevent == "PARTY_KILL" then
 		if destGUID then
+			NotifyRespawnListeners("onDeath", destGUID, subevent)
+		end
+		if AddonActive() and destGUID then
 			DropByGuid(destGUID)
 		end
 		return
 	end
-	if not CLEU_HOSTILE[subevent] then
+	if not AddonActive() or not CLEU_HOSTILE[subevent] then
 		return
 	end
 	if destGUID and FlagsGroup(srcFlags) and FlagsNPC(destFlags) then
@@ -1814,6 +1835,7 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1, arg2, arg3, arg4, arg5)
 		return
 	end
 	if event == "ZONE_CHANGED_NEW_AREA" then
+		NotifyRespawnListeners("onZoneChanged")
 		ApplyInstanceState()
 		Tick()
 		return
@@ -1826,10 +1848,23 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1, arg2, arg3, arg4, arg5)
 		Tick()
 		return
 	end
+	local unit = SafeStr(arg1)
+	if event == "UNIT_HEALTH" or event == "UNIT_FLAGS" then
+		if unit and Bool(UnitIsDead, unit) == true then
+			local guid = ReadableGUID(unit)
+			if guid then
+				NotifyRespawnListeners("onDeath", guid, event)
+			end
+		end
+	end
+	if event == "NAME_PLATE_UNIT_ADDED" then
+		NotifyRespawnListeners("onNameplateAdded", unit)
+	elseif event == "NAME_PLATE_UNIT_REMOVED" then
+		NotifyRespawnListeners("onNameplateRemoved", unit, Bool(UnitIsDead, arg1) == true)
+	end
 	if not AddonActive() then
 		return
 	end
-	local unit = SafeStr(arg1)
 	if event == "PLAYER_TARGET_CHANGED" or event == "PLAYER_FOCUS_CHANGED" or event == "UNIT_TARGET"
 		or event == "UNIT_PET" or event == "NAME_PLATE_UNIT_ADDED" or event == "NAME_PLATE_UNIT_REMOVED" then
 		ResetPlateCache()

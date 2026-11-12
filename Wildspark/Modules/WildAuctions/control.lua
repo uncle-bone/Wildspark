@@ -96,7 +96,7 @@ do
         end
     end)
 
-    -- WildAuctions: /aux memory detail
+    -- WildAuctions: /wa memory detail
     function M.thread_count()
         local n = 0
         for _ in pairs(threads) do n = n + 1 end
@@ -124,7 +124,7 @@ do
     end
 end
 
--- WildAuctions: /aux memory detail
+-- WildAuctions: /wa memory detail
 function M.listener_count()
     local n = 0
     for _ in pairs(listeners) do n = n + 1 end
