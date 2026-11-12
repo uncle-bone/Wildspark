@@ -1,14 +1,16 @@
 # WildSpark
 
-> **[Download WildSpark 2.1.10 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.1.9/WildSpark-2.1.10.zip)**
+> **[Download WildSpark 2.2.0 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.1.9/WildSpark-2.2.0.zip)**
 
-**Current stable release: 2.1.10 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
+**Current stable release: 2.2.0 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
 
 WildSpark is a modular WoW Forever utility suite for gathering highlights, quest-drop tooltips, buffs, creature leash tracking, WildFire camping, auctions, group finding, and layer hopping. Its major modules have dedicated settings tabs, and can be enabled or disabled independently.
 
-## What's new in 2.1.10
+## What's new in 2.2.0
 
-- Keep the auction-house session open when switching from WildAuctions to Blizzard UI, so Blizzard's auction-house window remains visible.
+- Rename the quest-drop tooltip module to **WildInfo** while retaining existing settings.
+- Add optional local NPC respawn estimates to creature tooltips. Estimates learn from observed deaths and later nameplate appearances and are approximate.
+- Keep the auction-house session open when switching from WildAuctions to Blizzard UI.
 - Normalize WildBuffs' bundled minimap icon path to match the `WildSpark` addon folder casing.
 
 ## Features
