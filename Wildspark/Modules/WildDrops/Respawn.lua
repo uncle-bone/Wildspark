@@ -98,19 +98,16 @@ local function OnNameplateAdded(unit)
     end
 end
 
-local function OnNameplateRemoved(unit)
-    RemovePlate(unit)
-end
-
-local function OnCombatLog()
+local function RecordNpcDeath(destGUID)
     if not ns.db or ns.db.enabled == false or ns.db.respawnEnabled == false then return end
-    if type(CombatLogGetCurrentEventInfo) ~= "function" then return end
-    local _, subevent, _, _, _, _, _, destGUID = CombatLogGetCurrentEventInfo()
-    if subevent ~= "UNIT_DIED" and subevent ~= "UNIT_DESTROYED" then return end
     if not destGUID or ns.IsSecret(destGUID) then return end
 
     local npcID = ns.GetNpcID(destGUID)
-    if not npcID or not ns.db or ns.db.enabled == false or ns.db.respawnEnabled == false then return end
+    if not npcID then return end
+
+    -- A CLEU death and the nameplate-removal event can report the same kill.
+    local existing = pendingDeaths[npcID]
+    if existing and existing.guid == destGUID then return end
 
     -- When several identical NPCs are already visible, this death cannot be paired
     -- confidently with the next plate. Don't turn it into a respawn observation.
@@ -131,6 +128,20 @@ local function OnCombatLog()
     end
 
     pendingDeaths[npcID] = { at = time(), guid = destGUID }
+end
+
+local function OnNameplateRemoved(unit, isDead)
+    if isDead then
+        local _, guid = GetNpcIDFromUnit(unit)
+        if guid then RecordNpcDeath(guid) end
+    end
+    RemovePlate(unit)
+end
+
+local function OnZoneChanged()
+    wipe(pendingDeaths)
+    wipe(platesByUnit)
+    wipe(visibleByNpc)
 end
 
 local function Duration(seconds)
@@ -189,12 +200,17 @@ function ns.GetRespawnText(npcID)
     return string.format("Respawn estimate: about %s (%d local observation%s)", Duration(estimate), count, count == 1 and "" or "s")
 end
 
--- Register during file load, before PLAYER_LOGIN lockdown. Registering these through
--- the deferred login callback can taint Frame:RegisterEvent on the Forever client.
-ns.RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED", OnCombatLog)
-ns.RegisterEvent("NAME_PLATE_UNIT_ADDED", OnNameplateAdded)
-ns.RegisterEvent("NAME_PLATE_UNIT_REMOVED", OnNameplateRemoved)
-ns.RegisterEvent("ZONE_CHANGED_NEW_AREA", function() wipe(pendingDeaths) end)
+-- Reuse WildSpark's existing event owners instead of registering more frame events.
+-- Forever can reject additional RegisterEvent calls from addon code.
+local leashHelper = _G.LeashHelper
+if leashHelper and leashHelper.RegisterRespawnListener then
+    leashHelper.RegisterRespawnListener({
+        onDeath = RecordNpcDeath,
+        onNameplateAdded = OnNameplateAdded,
+        onNameplateRemoved = OnNameplateRemoved,
+        onZoneChanged = OnZoneChanged,
+    })
+end
 
 ns.OnLogin(function()
     EnsureSamples()
