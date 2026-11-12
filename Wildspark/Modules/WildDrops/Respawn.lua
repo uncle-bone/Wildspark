@@ -83,19 +83,27 @@ local function OnNameplateAdded(unit)
     platesByUnit[unit] = { npcID = npcID, guid = guid }
     visibleByNpc[npcID] = (visibleByNpc[npcID] or 0) + 1
 
-    local death = pendingDeaths[npcID]
-    if not death or death.guid == guid then return end
+    local queue = pendingDeaths[npcID]
+    if type(queue) ~= "table" then return end
 
     local now = time()
-    local elapsed = now - death.at
-    if elapsed >= MIN_RESPAWN_SECONDS and elapsed <= MAX_RESPAWN_SECONDS then
-        -- If another same-ID NPC was already visible when the death happened, we did
-        -- not keep that death as a sample. This reduces false matches for common mobs.
-        AddSample(npcID, elapsed, now)
-        pendingDeaths[npcID] = nil
-    elseif elapsed > MAX_RESPAWN_SECONDS then
-        pendingDeaths[npcID] = nil
+    local bestIndex, bestElapsed
+    for index = #queue, 1, -1 do
+        local death = queue[index]
+        local elapsed = now - death.at
+        if elapsed > MAX_RESPAWN_SECONDS or elapsed < 0 then
+            table.remove(queue, index)
+        elseif elapsed >= MIN_RESPAWN_SECONDS and (not bestElapsed or elapsed < bestElapsed) then
+            -- Pair this appearance with the closest eligible death of this NPC ID.
+            -- Multiple identical mobs can die before any of them respawn.
+            bestIndex, bestElapsed = index, elapsed
+        end
     end
+    if bestIndex then
+        table.remove(queue, bestIndex)
+        AddSample(npcID, bestElapsed, now)
+    end
+    if #queue == 0 then pendingDeaths[npcID] = nil end
 end
 
 local function RecordNpcDeath(destGUID)
@@ -105,29 +113,23 @@ local function RecordNpcDeath(destGUID)
     local npcID = ns.GetNpcID(destGUID)
     if not npcID then return end
 
-    -- A CLEU death and the nameplate-removal event can report the same kill.
-    local existing = pendingDeaths[npcID]
-    if existing and existing.guid == destGUID then return end
-
-    -- When several identical NPCs are already visible, this death cannot be paired
-    -- confidently with the next plate. Don't turn it into a respawn observation.
-    local visibleCount = visibleByNpc[npcID] or 0
-    if visibleCount > 1 then
-        pendingDeaths[npcID] = nil
-        return
+    -- Combat log, UNIT_HEALTH and nameplate removal may report the same kill.
+    -- Keep one queue per NPC ID so groups of identical quest mobs are not discarded.
+    local queue = pendingDeaths[npcID]
+    if type(queue) ~= "table" then
+        queue = {}
+        pendingDeaths[npcID] = queue
     end
-    if visibleCount == 1 then
-        local matchingPlate = false
-        for _, plate in pairs(platesByUnit) do
-            if plate.npcID == npcID and plate.guid == destGUID then
-                matchingPlate = true
-                break
-            end
+    local now = time()
+    for index = #queue, 1, -1 do
+        local death = queue[index]
+        if now - death.at > MAX_RESPAWN_SECONDS or now < death.at then
+            table.remove(queue, index)
+        elseif death.guid == destGUID then
+            return
         end
-        if not matchingPlate then return end
     end
-
-    pendingDeaths[npcID] = { at = time(), guid = destGUID }
+    queue[#queue + 1] = { at = now, guid = destGUID }
 end
 
 local function OnNameplateRemoved(unit, isDead)
@@ -179,38 +181,21 @@ local function GetMedian(samples)
     return (values[middle] + values[middle + 1]) / 2, count
 end
 
-local function GetStaticRespawnText(npcID)
-    local entry = addonNS.WildInfoRespawnDB and addonNS.WildInfoRespawnDB[npcID]
-    if type(entry) ~= "table" then return end
-
-    local caveat = " (RareScanner reference; not Forever-verified)"
-    if entry.event then
-        return "Event-triggered spawn; no timer in source data" .. caveat
-    end
-    if type(entry.exact) == "number" then
-        return "Respawn reference: about " .. Duration(entry.exact) .. caveat
-    end
-    if type(entry.min) == "number" and type(entry.max) == "number" then
-        return "Respawn reference: " .. Duration(entry.min) .. "–" .. Duration(entry.max) .. caveat
-    end
-end
-
 function ns.GetRespawnText(npcID)
     if not ns.db or ns.db.enabled == false or ns.db.respawnEnabled == false then return end
-
-    -- Prefer bundled reference data when this NPC is present; its values are explicitly
-    -- labeled as unverified for Forever. Local observations remain the fallback.
-    local staticText = GetStaticRespawnText(npcID)
-    if staticText then return staticText end
-
     local samplesByNpc = ns.db.respawnSamples
     local samples = type(samplesByNpc) == "table" and samplesByNpc[npcID]
-    if type(samples) ~= "table" then return end
+    if type(samples) ~= "table" then
+        return "Collecting local respawn observations; timer appears after a death and later return"
+    end
 
     local estimate, count = GetMedian(samples)
-    if not estimate then return end
+    if not estimate then
+        return "Collecting local respawn observations; timer appears after a death and later return"
+    end
 
-    local death = pendingDeaths[npcID]
+    local queue = pendingDeaths[npcID]
+    local death = type(queue) == "table" and queue[#queue]
     if death then
         local remaining = estimate - (time() - death.at)
         if remaining > 0 then
