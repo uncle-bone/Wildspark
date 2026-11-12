@@ -1,6 +1,6 @@
 # WildSpark
 
-> **[Download WildSpark 2.2.6 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.5/WildSpark-2.2.5.zip)**
+> **[Download WildSpark 2.2.6 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.6/WildSpark-2.2.6.zip)**
 
 **Current stable release: 2.2.6 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
 
