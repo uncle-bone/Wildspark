@@ -1,3 +1,6 @@
+WildSpark 2.2.8
+- Add a default-on WildBuffs pause for cities and inns. It hides the button and stops target scanning while the player is in a rested area.
+
 WildSpark 2.2.7
 - Share confirmed WildInfo respawn samples over Camping Kit's hidden addon channel; merge peer samples into estimates and refresh open tooltips.
 

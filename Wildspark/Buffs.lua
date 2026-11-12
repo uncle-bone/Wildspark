@@ -332,11 +332,15 @@ holder:SetMovable(true)
 holder:SetClampedToScreen(true)
 
 -- show/hide the button, optionally hiding it in combat (uses a secure driver so it works mid-fight)
--- off inside dungeons/raids unless the player turns that option off
+-- off inside dungeons/raids and rested city/inn areas unless each option is turned off
 local function PausedHere()
-  if not ForeverBuffs_DB or ForeverBuffs_DB.instanceOff == false then return false end
-  local inInst, kind = IsInInstance()
-  return inInst and (kind == "party" or kind == "raid")
+  if not ForeverBuffs_DB then return false end
+  if ForeverBuffs_DB.cityOff ~= false and IsResting and IsResting() then return true end
+  if ForeverBuffs_DB.instanceOff ~= false then
+    local inInst, kind = IsInInstance()
+    if inInst and (kind == "party" or kind == "raid") then return true end
+  end
+  return false
 end
 
 local function UpdateVisibility()
@@ -753,7 +757,7 @@ local function OpenOptions()
 
   local classRows = (CLASS == "PALADIN" and 2) or ((CLASS == "DRUID" or CLASS == "PRIEST" or CLASS == "MAGE") and 1) or 0
   opt = CreateFrame("Frame", "WildBuffsOptions", UIParent, "BasicFrameTemplateWithInset")
-  opt:SetSize(330, 527 + classRows * 66)
+  opt:SetSize(330, 553 + classRows * 66)
   opt:SetPoint("CENTER")
   opt:SetFrameStrata("DIALOG")
   opt:SetMovable(true); opt:EnableMouse(true); opt:SetClampedToScreen(true)
@@ -838,6 +842,13 @@ local function OpenOptions()
     function(v)
       if InCombatLockdown() then print("WildBuffs: not in combat.") return end
       ForeverBuffs_DB.instanceOff = v
+      UpdateVisibility()
+    end)
+  Check("Pause in cities and inns (rested areas)",
+    function() return ForeverBuffs_DB.cityOff ~= false end,
+    function(v)
+      if InCombatLockdown() then print("WildBuffs: not in combat.") return end
+      ForeverBuffs_DB.cityOff = v
       UpdateVisibility()
     end)
   Check("Hide buff button in combat",
@@ -970,7 +981,7 @@ _G.WildBuffs = {
     if InCombatLockdown() then print("WildBuffs: change this setting out of combat."); return end
     ForeverBuffs_DB = ForeverBuffs_DB or {}
     ForeverBuffs_DB[key] = value and true or false
-    if key == "hidden" or key == "instanceOff" or key == "hideInCombat" then UpdateVisibility() end
+    if key == "hidden" or key == "instanceOff" or key == "cityOff" or key == "hideInCombat" then UpdateVisibility() end
     if key == "mmHidden" then
       local button = _G.WildBuffsMinimapButton
       if button then if value then button:Hide() else button:Show() end end
@@ -1047,6 +1058,7 @@ ev:RegisterEvent("UI_ERROR_MESSAGE")
 ev:RegisterEvent("PLAYER_REGEN_ENABLED")
 ev:RegisterEvent("PLAYER_ENTERING_WORLD")
 ev:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+ev:RegisterEvent("PLAYER_UPDATE_RESTING")
 ev:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
 ev:SetScript("OnEvent", function(_, event, a1, a2, a3)
   if event == "PLAYER_LOGIN" then
@@ -1061,6 +1073,7 @@ ev:SetScript("OnEvent", function(_, event, a1, a2, a3)
     if st0.shadowProt == nil then st0.shadowProt = false end
     if st0.aiEveryone == nil then st0.aiEveryone = false end
     if ForeverBuffs_DB.mmHidden == nil then ForeverBuffs_DB.mmHidden = true end
+    if ForeverBuffs_DB.cityOff == nil then ForeverBuffs_DB.cityOff = true end
     PlaceMinimapButton()
     if ForeverBuffs_DB.mmHidden then mm:Hide() else mm:Show() end
     -- recompute time from cast count, so duration changes apply to old casts too
@@ -1078,7 +1091,7 @@ ev:SetScript("OnEvent", function(_, event, a1, a2, a3)
     UpdateVisibility()
     ApplyBinding()
 
-  elseif event == "PLAYER_ENTERING_WORLD" or event == "ZONE_CHANGED_NEW_AREA" then
+  elseif event == "PLAYER_ENTERING_WORLD" or event == "ZONE_CHANGED_NEW_AREA" or event == "PLAYER_UPDATE_RESTING" then
     if ForeverBuffs_DB then UpdateVisibility() end
 
   elseif event == "PLAYER_REGEN_ENABLED" then
