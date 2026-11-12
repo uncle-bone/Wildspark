@@ -57,7 +57,7 @@ end
 
 MIN_SCALE, MAX_SCALE = .7, 1.5
 
--- WildAuctions: window scale, 70% to 150% (the Scale setting and /aux scale)
+-- WildAuctions: window scale, 70% to 150% (the Scale setting and /wa scale)
 function M.clean_scale(scale)
 	return bounded(MIN_SCALE, MAX_SCALE, floor((tonumber(scale) or 1) * 20 + .5) / 20)
 end
@@ -499,9 +499,9 @@ do
     -- left column: Window
     section(popup, LEFT_X, -34, 'WINDOW')
     local opacity_minus, opacity_value, opacity_plus = stepper(row(popup, LEFT_X, -50, 30, 'Background',
-        nil, {'How solid the window is, from 50% to 100%. Text and buttons stay solid.', '/aux opacity'}))
+        nil, {'How solid the window is, from 50% to 100%. Text and buttons stay solid.', '/wa opacity'}))
     local scale_minus, scale_value, scale_plus = stepper(row(popup, LEFT_X, -80, 30, 'Scale',
-        nil, {'The size of the whole window, from 70% to 150%.', '/aux scale'}))
+        nil, {'The size of the whole window, from 70% to 150%.', '/wa scale'}))
     M.scale_buttons = {scale_minus, scale_plus}
     M.scale_value = scale_value
 
@@ -533,7 +533,7 @@ do
     gui.set_size(posting, COLUMN, 100)
     section(posting, 0, 0, 'POSTING')
     local length_row = row(posting, 0, -16, 30, 'Default duration',
-        nil, {'How long new auctions last unless you pick another length on the Post tab.', '/aux post duration'})
+        nil, {'How long new auctions last unless you pick another length on the Post tab.', '/wa post duration'})
     local length_buttons = {}
     do
         -- the hours come from the auction house (util/info.lua, loaded later): written in refresh
@@ -541,11 +541,11 @@ do
         for i = 1, 3 do length_buttons[i] = by_code[i] end
     end
     M.auction_length_buttons = length_buttons
-    -- Bid prices (/aux post bid) was here in build 3 and taken out in build 4: on Forever only gear
+    -- Bid prices (/wa post bid) was here in build 3 and taken out in build 4: on Forever only gear
     -- can have bids, few sellers set one, and gear is one item per auction, so "per stack" means
     -- nothing (Tyler: "does the stack option even make any sense?"). The chat command stays.
 
-    -- right column: the tooltip lines, also /aux tooltip ... (a player on CurseForge asked for the
+    -- right column: the tooltip lines, also /wa tooltip ... (a player on CurseForge asked for the
     -- chat settings in this menu, FB-008). Kept per character, like the chat commands.
     local TOOLTIP_LINES = {
         {'value', 'Value', 'Price from your latest scan', 'The market price from your latest look at the item.'},
@@ -568,7 +568,7 @@ do
     for i, line in ipairs(TOOLTIP_LINES) do
         local key = line[1]
         local height = line[3] and 36 or 30
-        local r = row(popup, RIGHT_X, y, height, line[2], line[3], {line[4], '/aux tooltip'})
+        local r = row(popup, RIGHT_X, y, height, line[2], line[3], {line[4], '/wa tooltip'})
         y = y - height
         local switch = gui.switch(r)
         switch:SetPoint('RIGHT', 0, 0)

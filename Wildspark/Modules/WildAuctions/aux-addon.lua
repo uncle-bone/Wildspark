@@ -47,7 +47,7 @@ do
 			if type(account_data) == 'table' then
 				account_data.auctionable_items = type(account_data.auctionable_items) == 'table' and account_data.auctionable_items or {}
 				sort(account_data.auctionable_items, function(a, b) return strlen(a) < strlen(b) or (strlen(a) == strlen(b) and a < b) end)
-				print('WildAuctions loaded. Made by Uncle Bone. Use /aux for help.')
+				print('WildAuctions loaded. Made by Uncle Bone. Use /wa for help.')
 				print(full_scan_reminder(account_data.replicate_time, time()))
 			else
 				print('<WildAuctions> Saved data could not be initialized; reload the UI to retry.')

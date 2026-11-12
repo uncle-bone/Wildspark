@@ -48,7 +48,7 @@ do
         return searches[search_index]
     end
 
-    -- WildAuctions: /aux memory detail
+    -- WildAuctions: /wa memory detail
     function M.memory_counts()
         local records = 0
         for _, search in ipairs(searches) do

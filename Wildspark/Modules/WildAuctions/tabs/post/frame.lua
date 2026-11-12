@@ -389,7 +389,7 @@ do
         -- the newest listing selling first is not confirmed on Forever (E6 in docs/forever-auction-house.md)
         GameTooltip:AddLine('Matching the lowest price keeps prices from sliding. On the modern auction house the newest listing at a price is said to sell first, so matching may sell as fast as going below it. Not yet confirmed on Forever.', 1, 1, 1, true)
         GameTooltip:AddLine('Undercut goes one step below: 1 copper for trade goods, 1 silver for gear. It stays on until the auction house closes, and starts off each time it opens.', 1, 1, 1, true)
-        GameTooltip:AddLine('/aux undercut for more', .6, .6, .6)
+        GameTooltip:AddLine('/wa undercut for more', .6, .6, .6)
         GameTooltip:Show()
     end)
     help:SetScript('OnLeave', function() GameTooltip:Hide() end)
@@ -645,7 +645,7 @@ function M.layout_parameters(commodity)
 end
 layout_parameters(true)
 
--- the bid column (/aux post bid, Settings): bids and buyouts side by side, or buyouts alone. Applied
+-- the bid column (/wa post bid, Settings): bids and buyouts side by side, or buyouts alone. Applied
 -- at login and again whenever the setting changes (0.6: it used to need a reload).
 function M.apply_bid_layout()
     if aux.account_data.post_bid then

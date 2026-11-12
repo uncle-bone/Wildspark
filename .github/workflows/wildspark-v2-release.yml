@@ -12,6 +12,7 @@ on:
       - "Wildspark/Media/WildFire/tent_*.tga"
       - "Wildspark/Media/WildFire/circle_mask.tga"
       - "Wildspark/Modules/WildDrops/**"
+      - "Wildspark/Modules/WildAuctions/**"
 
 permissions:
   contents: write

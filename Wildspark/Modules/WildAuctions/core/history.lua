@@ -474,7 +474,7 @@ function M.finish_collector(collector, each)
 	collector.items, collector.count, collector.partial = {}, 0, {}
 end
 
--- WildAuctions (0.5): /aux price <item>. What aux keeps for an item, in plain words, so a price that
+-- WildAuctions (0.5): /wa price <item>. What aux keeps for an item, in plain words, so a price that
 -- looks wrong can be checked against what was recorded (Tyler, build 1). money_text formats copper.
 function M.report(item_key, money_text)
 	if not data[item_key] then
@@ -501,7 +501,7 @@ function M.report(item_key, money_text)
 	return lines
 end
 
--- WildAuctions: /aux memory detail
+-- WildAuctions: /wa memory detail
 function M.memory_counts()
 	local cached_n, today_n = 0, 0
 	for _ in pairs(value_cache) do cached_n = cached_n + 1 end

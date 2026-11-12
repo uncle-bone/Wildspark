@@ -1,3 +1,6 @@
+WildSpark 2.2.5
+- Rename WildAuctions' slash command from /aux to /wa and update help text, settings hints, and documentation.
+
 WildSpark 2.2.4
 - Fix local WildInfo respawn learning for repeated identical NPCs by keeping multiple pending deaths and pairing later appearances instead of discarding ambiguous kills.
 - Observe confirmed deaths from existing unit-health/flag events where available and show a collection status before the first timer is learned.
