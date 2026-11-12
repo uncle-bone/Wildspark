@@ -1,3 +1,6 @@
+WildSpark 2.2.2
+- Fix WildInfo ADDON_ACTION_FORBIDDEN: route NPC death, nameplate, and zone events through WildSpark's existing LeashHelper event feed instead of registering additional events.
+
 WildSpark 2.2.1
 - Register WildInfo respawn events during addon load, before PLAYER_LOGIN lockdown, preventing ADDON_ACTION_FORBIDDEN on Frame:RegisterEvent.
 
