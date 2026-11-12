@@ -1,14 +1,14 @@
 # WildSpark
 
-> **[Download WildSpark 2.2.1 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.1/WildSpark-2.2.1.zip)**
+> **[Download WildSpark 2.2.2 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.2/WildSpark-2.2.2.zip)**
 
-**Current stable release: 2.2.1 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
+**Current stable release: 2.2.2 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
 
 WildSpark is a modular WoW Forever utility suite for gathering highlights, quest-drop tooltips, buffs, creature leash tracking, WildFire camping, auctions, group finding, and layer hopping. Its major modules have dedicated settings tabs, and can be enabled or disabled independently.
 
-## What's new in 2.2.1
+## What's new in 2.2.2
 
-- Fix WildInfo respawn event registration during login lockdown.
+- Route WildInfo respawn tracking through WildSpark's existing events, fixing the ADDON_ACTION_FORBIDDEN error.
 - Rename the quest-drop tooltip module to **WildInfo** while retaining existing settings.
 - Add optional local NPC respawn estimates to creature tooltips. Estimates learn from observed deaths and later nameplate appearances and are approximate.
 - Keep the auction-house session open when switching from WildAuctions to Blizzard UI.
