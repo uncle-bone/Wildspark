@@ -34,7 +34,7 @@ local function AddTooltipLines(tooltip, guid)
 
     local respawnText = ns.GetRespawnText and ns.GetRespawnText(npcID)
     if respawnText then
-        tooltip:AddLine("|cff66ccffWildInfo:|r " .. respawnText)
+        tooltip:AddLine("|cff66ccffWildInfo:|r " .. respawnText, nil, nil, nil, true)
         added = true
     end
 

@@ -186,12 +186,12 @@ function ns.GetRespawnText(npcID)
     local samplesByNpc = ns.db.respawnSamples
     local samples = type(samplesByNpc) == "table" and samplesByNpc[npcID]
     if type(samples) ~= "table" then
-        return "Collecting local respawn observations; timer appears after a death and later return"
+        return "Learning respawn time (needs a death and return)"
     end
 
     local estimate, count = GetMedian(samples)
     if not estimate then
-        return "Collecting local respawn observations; timer appears after a death and later return"
+        return "Learning respawn time (needs a death and return)"
     end
 
     local queue = pendingDeaths[npcID]

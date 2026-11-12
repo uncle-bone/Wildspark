@@ -1,1 +1,0 @@
--- Legacy WildAuctions panel intentionally not loaded; the full embedded module is in Modules/WildAuctions.
