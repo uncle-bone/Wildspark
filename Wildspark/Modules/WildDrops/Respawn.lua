@@ -179,8 +179,30 @@ local function GetMedian(samples)
     return (values[middle] + values[middle + 1]) / 2, count
 end
 
+local function GetStaticRespawnText(npcID)
+    local entry = addonNS.WildInfoRespawnDB and addonNS.WildInfoRespawnDB[npcID]
+    if type(entry) ~= "table" then return end
+
+    local caveat = " (RareScanner reference; not Forever-verified)"
+    if entry.event then
+        return "Event-triggered spawn; no timer in source data" .. caveat
+    end
+    if type(entry.exact) == "number" then
+        return "Respawn reference: about " .. Duration(entry.exact) .. caveat
+    end
+    if type(entry.min) == "number" and type(entry.max) == "number" then
+        return "Respawn reference: " .. Duration(entry.min) .. "–" .. Duration(entry.max) .. caveat
+    end
+end
+
 function ns.GetRespawnText(npcID)
     if not ns.db or ns.db.enabled == false or ns.db.respawnEnabled == false then return end
+
+    -- Prefer bundled reference data when this NPC is present; its values are explicitly
+    -- labeled as unverified for Forever. Local observations remain the fallback.
+    local staticText = GetStaticRespawnText(npcID)
+    if staticText then return staticText end
+
     local samplesByNpc = ns.db.respawnSamples
     local samples = type(samplesByNpc) == "table" and samplesByNpc[npcID]
     if type(samples) ~= "table" then return end
