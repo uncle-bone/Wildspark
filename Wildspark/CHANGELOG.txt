@@ -1,3 +1,6 @@
+WildSpark 2.1.7
+- Retry WildFire's world map provider when Blizzard's map UI loads after login, and refresh camp pins whenever the world map opens.
+
 WildSpark 2.1.6
 - Repair the saved master enable state once after upgrading so WildSpark starts enabled again; module-specific enable choices are preserved.
 
