@@ -98,26 +98,66 @@ local function CleanupOldLayerChannels()
 	end
 end
 
--- Fix layer channels that displaced default Blizzard channels (General, Trade, etc.)
--- WoW's chat cache can rejoin layer channels before defaults on next login,
--- causing /1 to land in a layer channel instead of General.
-local MAX_DEFAULT_CHANNEL_SLOT = 5
-local function FixMisplacedChannels()
-	local channelsLeft = false
+-- Keep WildLayer's public coordination channels after every channel already
+-- joined by the player. Waiting for the first world channel isn't sufficient:
+-- General may appear before Trade, Global, or the player's other channels.
+local reorderingLayerChannels = false
+local channelOrderFixScheduled = false
 
+local function LastJoinedChannel()
+	local last = 0
+	local maxChannels = Constants and Constants.ChatFrameConstants
+		and Constants.ChatFrameConstants.MaxChatChannels or 20
+	for i = 1, maxChannels do
+		local _, name = GetChannelName(i)
+		if type(name) == "string" and name ~= "" then last = i end
+	end
+	return last
+end
+
+local function FixMisplacedChannels()
+	if reorderingLayerChannels then return end
+	local swap = C_ChatInfo and C_ChatInfo.SwapChatChannelsByChannelIndex
+	if not swap then
+		-- Older clients without the reorder API can only recover the default slots
+		-- by leaving and rejoining the layer channels after the defaults settle.
+		local channelsLeft = false
+		for _, channelName in ipairs(LAYER_CHANNELS) do
+			local slot = GetChannelName(channelName)
+			if slot and slot > 0 and slot <= 5 then
+				pcall(LeaveChannelByName, channelName)
+				channelsLeft = true
+			end
+		end
+		if channelsLeft and C_Timer then C_Timer.After(30, JoinLayerChannel) end
+		return
+	end
+
+	local last = LastJoinedChannel()
+	if last == 0 then return end
+	reorderingLayerChannels = true
 	for _, channelName in ipairs(LAYER_CHANNELS) do
-		local slot = GetChannelName(channelName)
-		if slot > 0 and slot <= MAX_DEFAULT_CHANNEL_SLOT then
-			WildLayer:DebugPrint("FixMisplacedChannels: Layer channel '" .. channelName .. "' in slot " .. slot .. " - leaving to free default slot")
-			LeaveChannelByName(channelName)
-			channelsLeft = true
+		local slot, attempts = GetChannelName(channelName), 0
+		while slot and slot > 0 and slot < last and attempts < last do
+			local ok = pcall(swap, slot, slot + 1)
+			if not ok then break end
+			local moved = GetChannelName(channelName)
+			if not moved or moved <= slot then break end
+			slot = moved
+			attempts = attempts + 1
 		end
 	end
+	reorderingLayerChannels = false
+end
 
-	if channelsLeft then
-		WildLayer:DebugPrint("FixMisplacedChannels: Scheduling rejoin in 30 seconds for default channels to establish")
-		C_Timer.After(30, JoinLayerChannel)
+local function ScheduleChannelOrderFix()
+	if reorderingLayerChannels or channelOrderFixScheduled then return end
+	channelOrderFixScheduled = true
+	local function run()
+		channelOrderFixScheduled = false
+		FixMisplacedChannels()
 	end
+	if C_Timer then C_Timer.After(0.4, run) else run() end
 end
 
 --- @return boolean is_logging_out Whether the current player is logging out
@@ -944,6 +984,9 @@ WildLayer:RegisterEvent("CHAT_MSG_SYSTEM", "ProcessSystemMessages")
 WildLayer:RegisterEvent("GROUP_ROSTER_UPDATE", "ProcessRosterUpdate")
 WildLayer:RegisterEvent("ZONE_CHANGED_NEW_AREA", "ProcessZoneChange")
 WildLayer:RegisterEvent("GROUP_JOINED", "ProcessGroupJoined")
+WildLayer:RegisterEvent("CHANNEL_UI_UPDATE", function()
+	ScheduleChannelOrderFix()
+end)
 
 local JOIN_ATTEMPT_INTERVAL = 10
 local lastJoinAttempt = 0
@@ -975,6 +1018,7 @@ local function JoinLayerChannelsNow()
 	end
 
 	C_Timer.After(1, function()
+		FixMisplacedChannels()
 		for _, channelName in ipairs(LAYER_CHANNELS) do
 			local channel_num = GetChannelName(channelName)
 			if channel_num == 0 and not failedChannels[channelName] then

@@ -1,3 +1,6 @@
+WildSpark 2.2.9
+- Keep WildLayer's public coordination channels after all existing channels, restoring built-in and custom channel ordering when channels join or change.
+
 WildSpark 2.2.8
 - Add a default-on WildBuffs pause for cities and inns. It hides the button and stops target scanning while the player is in a rested area.
 

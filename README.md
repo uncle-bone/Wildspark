@@ -1,10 +1,14 @@
 # WildSpark
 
-> **[Download WildSpark 2.2.8 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.8/WildSpark-2.2.8.zip)**
+> **[Download WildSpark 2.2.9 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.9/WildSpark-2.2.9.zip)**
 
-**Current stable release: 2.2.8 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
+**Current stable release: 2.2.9 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
 
 WildSpark is a modular WoW Forever utility suite for gathering highlights, quest-drop tooltips, buffs, creature leash tracking, WildFire camping, auctions, group finding, and layer hopping. Its major modules have dedicated settings tabs, and can be enabled or disabled independently.
+
+## What's new in 2.2.9
+
+- Keep WildLayer's hidden coordination channels after the channels you already use, so they no longer take slots ahead of General, Trade, or Global.
 
 ## What's new in 2.2.8
 
