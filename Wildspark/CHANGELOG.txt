@@ -1,3 +1,8 @@
+WildSpark 2.2.4
+- Fix local WildInfo respawn learning for repeated identical NPCs by keeping multiple pending deaths and pairing later appearances instead of discarding ambiguous kills.
+- Observe confirmed deaths from existing unit-health/flag events where available and show a collection status before the first timer is learned.
+- Remove the RareScanner rare-only reference table; local observations are used for NPCs encountered in game.
+
 WildSpark 2.2.3
 - Bundle the 75-entry RareScanner NPC respawn reference table and show matching fixed, ranged, or event-triggered entries in WildInfo tooltips.
 - Label imported timers as reference data not verified for WoW Forever; keep local observation estimates as fallback.
