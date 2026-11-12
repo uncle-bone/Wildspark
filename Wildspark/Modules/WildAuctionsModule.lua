@@ -1,0 +1,56 @@
+local _, ns = ...
+local M = _G.WildAuctions or {}
+_G.WildAuctions = M
+ns.WildAuctions = M
+
+function M.IsEnabled()
+    return not (WildsparkDB and WildsparkDB.modules and WildsparkDB.modules.wildAuctions == false)
+end
+
+function M.SetEnabled(value)
+    local enabled = value and true or false
+    WildsparkDB = WildsparkDB or {}
+    WildsparkDB.modules = WildsparkDB.modules or {}
+    WildsparkDB.modules.wildAuctions = enabled
+
+    local core = M.M
+    if not core then return end
+
+    if not enabled then
+        if core.frame then core.frame:Hide() end
+        if AuctionHouseFrame and AuctionHouseFrame:IsShown()
+            and type(M.SetBlizzardUIVisible) == "function" then
+            M.SetBlizzardUIVisible(true)
+        end
+    end
+
+    if type(core.update_native_open_button) == "function" then
+        core.update_native_open_button()
+    end
+end
+
+function M.Open()
+    if not M.IsEnabled() then return end
+    local core = M.M
+    if not core then return end
+
+    if AuctionHouseFrame and AuctionHouseFrame:IsShown()
+        and type(M.OpenWindow) == "function" then
+        M.OpenWindow()
+    elseif core.frame then
+        core.frame:Show()
+    end
+end
+
+-- One-time repair for installs whose saved master toggle was left off by the previous build.
+-- Individual module switches remain untouched, and players may disable WildSpark again afterward.
+local enableDefaultRepair = CreateFrame("Frame")
+enableDefaultRepair:RegisterEvent("ADDON_LOADED")
+enableDefaultRepair:SetScript("OnEvent", function(self, _, name)
+    if type(name) ~= "string" or name:lower() ~= "wildspark" then return end
+    self:UnregisterEvent("ADDON_LOADED")
+    local db = _G.WildsparkDB
+    if type(db) ~= "table" or db.wildSparkEnableRepair216 then return end
+    db.enabled = true
+    db.wildSparkEnableRepair216 = true
+end)

@@ -1,0 +1,36 @@
+name: Build and publish WildSpark 1.5.18
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/wildspark-ah-hotfix.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wildspark-ah-hotfix
+  cancel-in-progress: false
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out WildSpark
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download the published 1.5.9 package
+        run: gh release download v1.5.9 --repo "$GITHUB_REPOSITORY" --pattern "WildSpark-1.5.9.zip" --dir baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Install image conversion dependencies
+        run: python -m pip install --quiet cairosvg pillow
+
+      - name: Build and publish WildSpark 1.5.18
+        run: python .github/scripts/build_wildspark_1510.py
+        env:
+          GH_TOKEN: ${{ github.token }}

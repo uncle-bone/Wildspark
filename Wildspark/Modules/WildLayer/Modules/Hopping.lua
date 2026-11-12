@@ -1,0 +1,316 @@
+local addonName, addonTable = ...
+addonTable.LibDeflate = LibStub("LibDeflate")
+
+addonTable.send_queue = {}
+
+local selected_layers = {}
+local is_closed = true
+local send
+
+local HOPPER_FRAME_GLOBAL = "WildLayerHopperFrame"
+local hopperFrameListed = false
+
+local lockdownWatcher
+
+-- A layer request cannot work during a chat lockdown, so tell the player why. Both messages are local only.
+function WildLayer:NotifyChatLockdownBlockedRequest()
+	if self.db.profile.lockdownRequestWarning and UIErrorsFrame then
+		UIErrorsFrame:AddMessage(
+			"WildLayer: layer requests are unavailable during a chat lockdown (dungeon, raid, PvP or encounter).",
+			1, 0.1, 0.1
+		)
+	end
+
+	if self.db.profile.lockdownEndedMessage and not lockdownWatcher then
+		lockdownWatcher = C_Timer.NewTicker(1, function(ticker)
+			if addonTable.compat.InChatLockdown() then
+				return
+			end
+			ticker:Cancel()
+			lockdownWatcher = nil
+			if WildLayer.db.profile.lockdownEndedMessage then
+				WildLayer:Print("The chat lockdown is over, you can request a layer again.")
+			end
+		end)
+	end
+end
+
+function WildLayer:SendLayerRequest()
+	if addonTable.compat.InChatLockdown() then
+		self:DebugPrint("Chat messaging lockdown: layer request blocked")
+		self:NotifyChatLockdownBlockedRequest()
+		return
+	end
+
+	local res = ""
+	local pendingLayerHop
+
+	if addonTable.flavor == "bcc" then
+		local scopeID = self:GetLayerZone()
+		res = self:BuildLayerRequestHeader(scopeID) .. " "
+		pendingLayerHop = {
+			scopeID = scopeID,
+			sentAt = time(),
+		}
+	elseif self.db.profile.layerSegments and addonTable.currentLayerSegment then
+		self:DebugPrint("Using layer segment:", addonTable.currentLayerSegment)
+		res = "<" .. addonTable.currentLayerSegment .. "> "
+	end
+
+	res = res .. "inv layer "
+	res = res .. table.concat(selected_layers, ",")
+	addonTable.compat.LeaveParty()
+	table.insert(addonTable.send_queue, res)
+	if pendingLayerHop then
+		addonTable.pendingLayerHop = pendingLayerHop
+		C_Timer.After(300, function()
+			if addonTable.pendingLayerHop == pendingLayerHop then
+				addonTable.pendingLayerHop = nil
+			end
+		end)
+	end
+	WildLayer:DebugPrint("Sending layer request: " .. res)
+	-- Auto-kick stays a manual action: it drains when the player sends a request, never on a timer.
+	WildLayer:HandleAutoKick()
+	addonTable.ProcessQueue()
+
+	-- Disable the send button to avoid the user from spam clicking it while the request is being processed.
+	-- The button only exists while the hopper GUI is open, so /autolayer req must work without it.
+	if send then
+		send:SetDisabled(true)
+		C_Timer.After(10, function()
+			if send then
+				send:SetDisabled(false)
+			end
+		end)
+	end
+end
+
+function WildLayer:SlashCommandRequest(input)
+	if not is_closed then
+		return self:Print("Hopper GUI is already open. Use either the GUI or slash commands, not both.")
+	end
+
+	selected_layers = {}
+	local slash_layers = self:GetArgs(input, 1, 5)
+
+	if slash_layers and slash_layers ~= "" then
+		self:DebugPrint("Received slash command request for layers:", slash_layers)
+
+		for layer in string.gmatch(slash_layers, '(%d+)') do
+			table.insert(selected_layers, layer)
+		end
+
+		if #selected_layers == 0 then
+			self:Print("No valid layers specified in the request. Use a comma-separated list of layer numbers. For example: /autolayer req 1,2,3")
+			return
+		end
+	else
+		local currentLayer = WildLayer:getCurrentLayer()
+		local layerNumbers = WildLayer:GetAvailableLayers()
+
+		if currentLayer and currentLayer > 0 and #layerNumbers > 0 then
+			self:DebugPrint("Received slash command request for all layers except current ( layer", currentLayer, ").")
+			for _, layerNumber in ipairs(layerNumbers) do
+				if layerNumber ~= currentLayer then
+					table.insert(selected_layers, tostring(layerNumber))
+				end
+			end
+		else
+			self:DebugPrint("Received slash command request for all layers except current, but current layer is unknown. Requesting any layer.")
+		end
+	end
+
+	WildLayer:SendLayerRequest()
+end
+
+function WildLayer:HopGUI()
+	if not is_closed then
+		return
+	end
+
+	is_closed = false
+	local frame = addonTable.AceGUI:Create("Frame")
+	frame:SetTitle("WildLayer - Hopper")
+	frame:SetWidth(400)
+	frame:SetHeight(250)
+	frame:SetLayout("Flow")
+
+	-- Register the frame so it closes when pressing ESC. The global alias is re-pointed on
+	-- every open, but the UISpecialFrames entry itself is only added once.
+	_G[HOPPER_FRAME_GLOBAL] = frame.frame
+	if not hopperFrameListed then
+		tinsert(UISpecialFrames, HOPPER_FRAME_GLOBAL)
+		hopperFrameListed = true
+	end
+
+	frame:SetCallback("OnClose", function(widget)
+		is_closed = true
+		selected_layers = {}
+		send = nil
+		if _G[HOPPER_FRAME_GLOBAL] == widget.frame then
+			_G[HOPPER_FRAME_GLOBAL] = nil
+		end
+		-- Release the widget instead of leaking a new AceGUI frame on every open
+		widget:Release()
+	end)
+
+	-- Create send button
+	send = addonTable.AceGUI:Create("Button")
+	send:SetText("Send Layer Request")
+	send:SetWidth(160)
+	send:SetCallback("OnClick", function()
+		WildLayer:SendLayerRequest()
+	end)
+
+	-- Layer detection is independent of NWB. Forever NWB 3.49 disables its own detector,
+	-- while WildLayer can still show the raw local GUID identifier it observes.
+	-- Create a header for clarity
+		local header = addonTable.AceGUI:Create("Label")
+		header:SetText("Select Layers to Hop to:")
+		header:SetFont("Fonts\\FRIZQT__.TTF", 14, "OUTLINE")
+		header:SetFullWidth(true)
+		header:SetJustifyH("CENTER")
+		frame:AddChild(header)
+
+		local currentLayerGroup = addonTable.AceGUI:Create("InlineGroup")
+		currentLayerGroup:SetFullWidth(true)
+		currentLayerGroup:SetLayout("Flow")
+
+		local currentLayerDescriptionLabel = addonTable.AceGUI:Create("Label")
+		currentLayerDescriptionLabel:SetText("Current Layer:")
+		currentLayerDescriptionLabel:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+		currentLayerDescriptionLabel:SetWidth(120)
+		currentLayerGroup:AddChild(currentLayerDescriptionLabel)
+
+		local currentLayerLabel = addonTable.AceGUI:Create("Label")
+		currentLayerLabel:SetFontObject(GameFontHighlightSmall)
+		currentLayerLabel:SetWidth(170)
+		currentLayerGroup:AddChild(currentLayerLabel)
+
+		frame:AddChild(currentLayerGroup)
+
+		-- Multi-combo box for selecting layers
+		local layer = addonTable.AceGUI:Create("Dropdown")
+		layer:SetLabel("Request Layers:")
+		layer:SetFullWidth(true)
+		layer:SetMultiselect(true)
+		layer:SetWidth(300)
+
+		local layers = {}
+		for _, layerNumber in ipairs(WildLayer:GetAvailableLayers()) do
+			layers[#layers + 1] = tostring(layerNumber)
+		end
+
+		-- Set previously selected values
+		for _, selected_layer in ipairs(selected_layers) do
+			layer:SetValue(selected_layer)
+		end
+
+		layer:SetList(layers)
+		if #layers == 0 then
+			local noList = addonTable.AceGUI:Create("Label")
+			noList:SetText("No shared layer list is available. You can still request any layer.")
+			noList:SetFullWidth(true)
+			frame:AddChild(noList)
+		end
+
+		local function OnValueChanged(_, _, v, checked)
+			local found = false
+			for i, selected_layer in ipairs(selected_layers) do
+				if selected_layer == v then
+					if not checked then
+						table.remove(selected_layers, i)
+					end
+					found = true
+					break
+				end
+			end
+			if checked and not found then
+				table.insert(selected_layers, v)
+			end
+
+			-- Enable or disable the Send button
+			if send then
+				if #selected_layers > 0 then
+					send:SetText("Send Layer Request")
+				else
+					send:SetText("Request Any Layer")
+				end
+			end
+		end
+
+		layer:SetCallback("OnValueChanged", OnValueChanged)
+
+		local currentLayer = WildLayer:getCurrentLayer()
+
+		if currentLayer and currentLayer > 0 then
+			-- autoselect all layers except the layer we're currently on
+			for index, layerNumber in ipairs(layers) do
+				if tonumber(layerNumber) ~= currentLayer then
+					layer:SetItemValue(index, true)
+					-- SetItemValue does not fire OnValueChanged, so the selection list is updated manually
+					OnValueChanged(nil, nil, layerNumber, true)
+				end
+			end
+		end
+
+		local lastDisplay = nil
+		local function UpdateLayerText() -- while UI open, monitors changes to 'NWB_CurrentLayer' and updates UI
+			if is_closed then
+				return
+			end
+
+			local currentLayer = WildLayer:getCurrentLayer()
+			local observedID = WildLayer:GetObservedLayerID()
+			local displayKey = currentLayer and currentLayer > 0 and ("NWB:" .. currentLayer)
+				or (observedID and ("GUID:" .. observedID) or "unknown")
+
+			if lastDisplay ~= displayKey then
+				if currentLayer and currentLayer > 0 then
+					for _, widget in layer.pullout:IterateItems() do
+						local itemLayer = tonumber(widget.userdata.value)
+						if itemLayer == currentLayer then
+							widget:SetText(widget.userdata.value .. " (current)")
+							layer:SetMultiselect(layer:GetMultiselect()) -- the most decent way to trigger dropdown text update
+						elseif lastDisplay and lastDisplay:match("^NWB:") and itemLayer == tonumber(lastDisplay:match("(%d+)$")) then
+							widget:SetText(widget.userdata.value)
+							layer:SetMultiselect(layer:GetMultiselect())
+						end
+					end
+
+					currentLayerLabel:SetText(currentLayer)
+					currentLayerLabel:SetColor(0, 1, 0)
+				elseif observedID then
+					currentLayerLabel:SetText("Observed ID " .. observedID .. " (raw GUID)")
+					currentLayerLabel:SetColor(1, 0.82, 0.2)
+				else
+					currentLayerLabel:SetText("Unknown (target or mouse over an NPC)")
+					currentLayerLabel:SetColor(0.85, 0.85, 0.85)
+				end
+
+				lastDisplay = displayKey
+			end
+
+			C_Timer.After(0.5, UpdateLayerText)
+		end
+		UpdateLayerText()
+
+		frame:AddChild(layer)
+		local note = addonTable.AceGUI:Create("Label")
+		note:SetText("Observed GUID IDs are local identifiers, not verified layer numbers. The layer list appears only when an addon provides one.")
+		note:SetColor(0.8, 0.8, 0.8)
+		note:SetFullWidth(true)
+		frame:AddChild(note)
+
+	if #selected_layers == 0 then
+		send:SetText("Request Any Layer")
+	end
+	frame:AddChild(send)
+
+	-- Add a label explaining there is a cooldown on layering
+	local cooldownLabel = addonTable.AceGUI:Create("Label")
+	cooldownLabel:SetText("|cffff0000Note:|r Blizzard enforces an increasing cooldown on layering.\nThe more you attempt to layer, the longer it takes each time.|r")
+	cooldownLabel:SetFullWidth(true)
+	frame:AddChild(cooldownLabel)
+end
