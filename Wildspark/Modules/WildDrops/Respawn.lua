@@ -103,6 +103,7 @@ local function OnNameplateRemoved(unit)
 end
 
 local function OnCombatLog()
+    if not ns.db or ns.db.enabled == false or ns.db.respawnEnabled == false then return end
     if type(CombatLogGetCurrentEventInfo) ~= "function" then return end
     local _, subevent, _, _, _, _, _, destGUID = CombatLogGetCurrentEventInfo()
     if subevent ~= "UNIT_DIED" and subevent ~= "UNIT_DESTROYED" then return end
@@ -188,6 +189,13 @@ function ns.GetRespawnText(npcID)
     return string.format("Respawn estimate: about %s (%d local observation%s)", Duration(estimate), count, count == 1 and "" or "s")
 end
 
+-- Register during file load, before PLAYER_LOGIN lockdown. Registering these through
+-- the deferred login callback can taint Frame:RegisterEvent on the Forever client.
+ns.RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED", OnCombatLog)
+ns.RegisterEvent("NAME_PLATE_UNIT_ADDED", OnNameplateAdded)
+ns.RegisterEvent("NAME_PLATE_UNIT_REMOVED", OnNameplateRemoved)
+ns.RegisterEvent("ZONE_CHANGED_NEW_AREA", function() wipe(pendingDeaths) end)
+
 ns.OnLogin(function()
     EnsureSamples()
     if not ns.db then return end
@@ -210,11 +218,4 @@ ns.OnLogin(function()
             if #samples == 0 then ns.db.respawnSamples[npcID] = nil end
         end
     end
-
-    pcall(ns.RegisterEvent, "COMBAT_LOG_EVENT_UNFILTERED", OnCombatLog)
-    pcall(ns.RegisterEvent, "NAME_PLATE_UNIT_ADDED", OnNameplateAdded)
-    pcall(ns.RegisterEvent, "NAME_PLATE_UNIT_REMOVED", OnNameplateRemoved)
-    local clearPending = function() wipe(pendingDeaths) end
-    pcall(ns.RegisterEvent, "PLAYER_LEAVING_WORLD", clearPending)
-    pcall(ns.RegisterEvent, "ZONE_CHANGED_NEW_AREA", clearPending)
 end)
