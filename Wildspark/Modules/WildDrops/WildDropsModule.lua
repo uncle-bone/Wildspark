@@ -3,6 +3,8 @@
 local _, addonNS = ...
 local core = addonNS.WildDropsCore
 local module = {}
+addonNS.WildInfo = module
+-- Keep the original API alias for older saved UI integrations.
 addonNS.WildDrops = module
 
 local function settings()
@@ -42,5 +44,17 @@ function module.SetShowRare(enabled)
     local db = settings()
     if not db then return end
     db.showRare = enabled and true or false
+    if core and core.Refresh then core.Refresh() end
+end
+
+function module.GetRespawnEnabled()
+    local db = settings()
+    return db ~= nil and db.respawnEnabled ~= false
+end
+
+function module.SetRespawnEnabled(enabled)
+    local db = settings()
+    if not db then return end
+    db.respawnEnabled = enabled and true or false
     if core and core.Refresh then core.Refresh() end
 end
