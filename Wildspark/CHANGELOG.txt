@@ -1,3 +1,6 @@
+WildSpark 2.1.6
+- Repair the saved master enable state once after upgrading so WildSpark starts enabled again; module-specific enable choices are preserved.
+
 WildSpark 2.1.5
 - Fix the WildAuctions auction-house open error by routing its event and window buttons through a local opener.
 - Keep the WildAuctions enable switch and Blizzard UI window toggle fixes from 2.1.4.

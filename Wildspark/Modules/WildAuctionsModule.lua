@@ -41,3 +41,16 @@ function M.Open()
         core.frame:Show()
     end
 end
+
+-- One-time repair for installs whose saved master toggle was left off by the previous build.
+-- Individual module switches remain untouched, and players may disable WildSpark again afterward.
+local enableDefaultRepair = CreateFrame("Frame")
+enableDefaultRepair:RegisterEvent("ADDON_LOADED")
+enableDefaultRepair:SetScript("OnEvent", function(self, _, name)
+    if type(name) ~= "string" or name:lower() ~= "wildspark" then return end
+    self:UnregisterEvent("ADDON_LOADED")
+    local db = _G.WildsparkDB
+    if type(db) ~= "table" or db.wildSparkEnableRepair216 then return end
+    db.enabled = true
+    db.wildSparkEnableRepair216 = true
+end)
