@@ -6,7 +6,3 @@ The included database identifies QuestieDB Forever and Wowhead as its sources. S
 
 WildDrops displays drop chances as percentages when the source data has a numeric chance. Rows without a recorded chance display “drop chance unknown.” Rare recorded drops are shown by default. Quest, race/class, completed-quest, and already-owned-item filters are retained from the supplied addon.
 
-
-## Respawn reference data
-
-WildInfo includes respawn records derived from RareScanner 12.1.5.6's `NpcSpawnInfoTables.lua`, with permission. The 75 records include fixed intervals, ranges, and event-triggered spawns. They are labeled in game as RareScanner reference data and have not been verified for WoW Forever. Source project: https://www.curseforge.com/wow/addons/rarescanner.
