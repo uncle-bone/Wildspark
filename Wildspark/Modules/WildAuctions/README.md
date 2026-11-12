@@ -41,20 +41,20 @@ Former Vanilla (1.12) addon - now also available for Classic!
 
 ## Slash Commands
 ### General
-**/wa** (Lists the settings)<br/>
-**/wa scan** (Scans the whole auction house. Currently only used for price history. May take about a minute)
-**/wa scale _factor_** (Scales the aux GUI by _factor_)<br/>
-**/wa ignore owner** (Disables waiting for owner names when scanning. Recommended)<br/>
-**/wa post bid** (Adds a bid price listing to the post tab. Requires **/run ReloadUI()** to take effect)<br/>
-**/wa crafting cost** (Toggles the crafting price information)<br/>
-**/wa post duration _hours_** (Sets the default auction duration to _2_/_8_/_24_ hours)<br/>
+**/aux** (Lists the settings)<br/>
+**/aux scan** (Scans the whole auction house. Currently only used for price history. May take about a minute)
+**/aux scale _factor_** (Scales the aux GUI by _factor_)<br/>
+**/aux ignore owner** (Disables waiting for owner names when scanning. Recommended)<br/>
+**/aux post bid** (Adds a bid price listing to the post tab. Requires **/run ReloadUI()** to take effect)<br/>
+**/aux crafting cost** (Toggles the crafting price information)<br/>
+**/aux post duration _hours_** (Sets the default auction duration to _2_/_8_/_24_ hours)<br/>
 ### Tooltip
-**/wa tooltip value**<br/>
-**/wa tooltip daily**<br/>
-**/wa tooltip disenchant value**<br/>
-**/wa tooltip disenchant distribution**<br/>
-**/wa tooltip merchant buy**<br/>
-**/wa tooltip merchant sell**<br/>
+**/aux tooltip value**<br/>
+**/aux tooltip daily**<br/>
+**/aux tooltip disenchant value**<br/>
+**/aux tooltip disenchant distribution**<br/>
+**/aux tooltip merchant buy**<br/>
+**/aux tooltip merchant sell**<br/>
 
 ## Usage
 ### General

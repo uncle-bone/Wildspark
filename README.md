@@ -35,6 +35,8 @@ WildSpark is a modular WoW Forever utility suite for gathering highlights, quest
 
 ## Features
 
+- Fix WildAuctions duration migration to use module-scoped constants, preventing the PLAYER_LOGIN nil error.
+
 - Highlight nearby herbs, ore, quest objects, chests, and fishing bobbers with configurable glow effects, colors, labels, and visibility rules.
 - Show gathering icons on the minimap, learn node names and profession skill requirements, and optionally alternate herb and ore tracking.
 - Use the optional minimap ping when a new target is recognized, with separate visual and sound controls.

@@ -547,7 +547,7 @@ function M.price_key(item_id, name)
         return (item_id or 0) .. ':0'
     end
     local base = base_name(item_id)
-    -- any letter case: a typed name (/wa price) as well as the game's (0.8, review H-002)
+    -- any letter case: a typed name (/aux price) as well as the game's (0.8, review H-002)
     if base and #name > #base and strlower(strsub(name, 1, #base)) == strlower(base) then
         local ending = strlower(aux.trim(strsub(name, #base + 1)))
         if ending ~= '' then

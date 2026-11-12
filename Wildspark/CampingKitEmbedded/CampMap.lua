@@ -194,7 +194,6 @@ local function ZoomedOut(mapID)
 end
 
 local provider
-local mapShowHooked = false
 local function MakeProvider()
     if provider or not (WorldMapFrame and WorldMapFrame.AddDataProvider and MapCanvasDataProviderMixin) then return end
     provider = CreateFromMixins(MapCanvasDataProviderMixin)
@@ -247,15 +246,6 @@ local function MakeProvider()
         end
     end
     WorldMapFrame:AddDataProvider(provider)
-    -- The world map can be shown after WildSpark logs in. Force a refresh on
-    -- every opening so pins deferred while hidden are drawn when the map appears.
-    if not mapShowHooked and WorldMapFrame.HookScript then
-        mapShowHooked = true
-        WorldMapFrame:HookScript("OnShow", function()
-            if provider then provider:RefreshAllData() end
-        end)
-    end
-    provider:RefreshAllData()
 end
 
 ---------------------------------------------------------------------------
@@ -417,17 +407,11 @@ local function HookFilterMenu()
 end
 
 ticker:RegisterEvent("PLAYER_LOGIN")
-ticker:RegisterEvent("ADDON_LOADED")
 ticker:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 ticker:RegisterEvent("PLAYER_REGEN_ENABLED")
 ticker:SetScript("OnEvent", function(_, event)
-    -- Retry after Blizzard's map UI loads on demand; at PLAYER_LOGIN the map
-    -- canvas APIs may not exist yet on some Forever client builds.
     MakeProvider()
     HookFilterMenu()
-    if event == "ADDON_LOADED" and provider and WorldMapFrame and WorldMapFrame.IsShown and WorldMapFrame:IsShown() then
-        provider:RefreshAllData()
-    end
     -- Zoomed out, the camps shown follow the zone you're in.
     if event == "ZONE_CHANGED_NEW_AREA" and provider and WorldMapFrame:IsShown() then provider:RefreshAllData() end
     if event == "PLAYER_REGEN_ENABLED" and provider and WorldMapFrame:IsShown() then provider:RefreshAllData() end

@@ -182,7 +182,7 @@ function extend_tooltip(tooltip, link, quantity, data)
     tooltip:Show()
 end
 
--- WildAuctions: /wa memory detail
+-- WildAuctions: /aux memory detail
 function M.memory_counts()
     local n = 0
     for _ in pairs(auctionable_cache) do n = n + 1 end

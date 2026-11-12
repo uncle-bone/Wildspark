@@ -1031,7 +1031,7 @@ function M.clear_auctions()
     update_post_done()
 end
 
--- /wa memory detail: items whose listings the Post tab keeps
+-- /aux memory detail: items whose listings the Post tab keeps
 function M.memory_counts()
     local n = 0
     for _ in pairs(bid_records) do n = n + 1 end

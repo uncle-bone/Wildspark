@@ -19,8 +19,6 @@ end
 -- Forever: the window can be resized from its bottom right corner (double-click the corner for the
 -- default size), and it remembers its size and position.
 local DEFAULT_WIDTH, DEFAULT_HEIGHT = 1100, 660
--- Switching to Blizzard's AH hides this frame without closing the auction-house session.
-local keep_auction_house_open = false
 local MIN_WIDTH, MIN_HEIGHT = 1000, 549
 -- WildAuctions: the logo, tabs, full scan, Blizzard UI and close sit in a bar across the top
 local TOP_BAR_HEIGHT = 40
@@ -57,7 +55,7 @@ end
 
 MIN_SCALE, MAX_SCALE = .7, 1.5
 
--- WildAuctions: window scale, 70% to 150% (the Scale setting and /wa scale)
+-- WildAuctions: window scale, 70% to 150% (the Scale setting and /aux scale)
 function M.clean_scale(scale)
 	return bounded(MIN_SCALE, MAX_SCALE, floor((tonumber(scale) or 1) * 20 + .5) / 20)
 end
@@ -114,10 +112,7 @@ do
 	frame:SetClampedToScreen(true)
 --	frame:CreateTitleRegion():SetAllPoints() TODO classic why
 	frame:SetScript('OnShow', function() PlaySound(SOUNDKIT.AUCTION_WINDOW_OPEN) end)
-	frame:SetScript('OnHide', function()
-		PlaySound(SOUNDKIT.AUCTION_WINDOW_CLOSE)
-		if not keep_auction_house_open then C_AuctionHouse.CloseAuctionHouse() end
-	end)
+	frame:SetScript('OnHide', function() PlaySound(SOUNDKIT.AUCTION_WINDOW_CLOSE); C_AuctionHouse.CloseAuctionHouse() end)
 	-- everything under the top bar; each tab's frame fills it
 	frame.body = CreateFrame('Frame', nil, frame)
 	frame.body:SetPoint('TOPLEFT', 0, -TOP_BAR_HEIGHT)
@@ -255,22 +250,12 @@ do
 	gui.set_size(btn, 80, 26)
 	btn:SetText(color.blizzard'Blizzard UI')
 	btn:SetScript('OnClick',function()
-		if not (_G.WildAuctions and _G.WildAuctions.IsEnabled and _G.WildAuctions.IsEnabled()) then return end
-        local show_blizzard = not blizzard_frame_shown()
-        if show_blizzard then
-            set_blizzard_frame_shown(true)
-            -- Keep the current auction-house session open while handing its visible UI back to Blizzard.
-            keep_auction_house_open = true
-            frame:Hide()
-            keep_auction_house_open = false
-        elseif _G.WildAuctions and _G.WildAuctions.OpenWindow then
-            _G.WildAuctions.OpenWindow()
-        end
+		set_blizzard_frame_shown(not blizzard_frame_shown())
 	end)
 	btn:SetScript('OnEnter', function(self)
 		GameTooltip:SetOwner(self, 'ANCHOR_BOTTOM')
 		GameTooltip:AddLine(blizzard_frame_shown() and 'Hide the Blizzard auction house' or 'Show the Blizzard auction house')
-		GameTooltip:AddLine('The Blizzard auction house has a WildAuctions button to switch back.', 1, 1, 1, true)
+		GameTooltip:AddLine('It opens on top of WildAuctions. Click WildAuctions to bring it back to the front.', 1, 1, 1, true)
 		GameTooltip:Show()
 	end)
 	btn:SetScript('OnLeave', function() GameTooltip:Hide() end)
@@ -290,9 +275,7 @@ do
     btn:SetText('Full scan')
     -- Forever: a full scan uses C_AuctionHouse.ReplicateItems, which the server allows once every 15 minutes
     local function seconds_until_scan()
-        if type(account_data) ~= 'table' then return 2147483647 end
-        local last_scan = tonumber(account_data.replicate_time) or 0
-        return max(0, last_scan + scan.REPLICATE_COOLDOWN - time())
+        return max(0, account_data.replicate_time + scan.REPLICATE_COOLDOWN - time())
     end
     -- WildAuctions: checked twice a second and restyled only when ready changes (it was every frame)
     local ready, next_check
@@ -499,9 +482,9 @@ do
     -- left column: Window
     section(popup, LEFT_X, -34, 'WINDOW')
     local opacity_minus, opacity_value, opacity_plus = stepper(row(popup, LEFT_X, -50, 30, 'Background',
-        nil, {'How solid the window is, from 50% to 100%. Text and buttons stay solid.', '/wa opacity'}))
+        nil, {'How solid the window is, from 50% to 100%. Text and buttons stay solid.', '/aux opacity'}))
     local scale_minus, scale_value, scale_plus = stepper(row(popup, LEFT_X, -80, 30, 'Scale',
-        nil, {'The size of the whole window, from 70% to 150%.', '/wa scale'}))
+        nil, {'The size of the whole window, from 70% to 150%.', '/aux scale'}))
     M.scale_buttons = {scale_minus, scale_plus}
     M.scale_value = scale_value
 
@@ -533,7 +516,7 @@ do
     gui.set_size(posting, COLUMN, 100)
     section(posting, 0, 0, 'POSTING')
     local length_row = row(posting, 0, -16, 30, 'Default duration',
-        nil, {'How long new auctions last unless you pick another length on the Post tab.', '/wa post duration'})
+        nil, {'How long new auctions last unless you pick another length on the Post tab.', '/aux post duration'})
     local length_buttons = {}
     do
         -- the hours come from the auction house (util/info.lua, loaded later): written in refresh
@@ -541,11 +524,11 @@ do
         for i = 1, 3 do length_buttons[i] = by_code[i] end
     end
     M.auction_length_buttons = length_buttons
-    -- Bid prices (/wa post bid) was here in build 3 and taken out in build 4: on Forever only gear
+    -- Bid prices (/aux post bid) was here in build 3 and taken out in build 4: on Forever only gear
     -- can have bids, few sellers set one, and gear is one item per auction, so "per stack" means
     -- nothing (Tyler: "does the stack option even make any sense?"). The chat command stays.
 
-    -- right column: the tooltip lines, also /wa tooltip ... (a player on CurseForge asked for the
+    -- right column: the tooltip lines, also /aux tooltip ... (a player on CurseForge asked for the
     -- chat settings in this menu, FB-008). Kept per character, like the chat commands.
     local TOOLTIP_LINES = {
         {'value', 'Value', 'Price from your latest scan', 'The market price from your latest look at the item.'},
@@ -568,7 +551,7 @@ do
     for i, line in ipairs(TOOLTIP_LINES) do
         local key = line[1]
         local height = line[3] and 36 or 30
-        local r = row(popup, RIGHT_X, y, height, line[2], line[3], {line[4], '/wa tooltip'})
+        local r = row(popup, RIGHT_X, y, height, line[2], line[3], {line[4], '/aux tooltip'})
         y = y - height
         local switch = gui.switch(r)
         switch:SetPoint('RIGHT', 0, 0)

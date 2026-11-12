@@ -36,12 +36,9 @@ local value_cache = {}
 local price_keys_since
 
 function aux.event.PLAYER_LOGIN()
-	local faction_data = type(aux.faction_data) == 'table' and aux.faction_data or {}
-	aux.faction_data = faction_data
-	if type(faction_data.history) ~= 'table' then faction_data.history = {} end
-	data = faction_data.history
-	faction_data.price_keys_since = faction_data.price_keys_since or today()
-	price_keys_since = faction_data.price_keys_since
+	data = aux.faction_data.history
+	aux.faction_data.price_keys_since = aux.faction_data.price_keys_since or today()
+	price_keys_since = aux.faction_data.price_keys_since
 end
 
 -- the price history is read once the saved variables load (PLAYER_LOGIN); before that every price is unknown
@@ -474,7 +471,7 @@ function M.finish_collector(collector, each)
 	collector.items, collector.count, collector.partial = {}, 0, {}
 end
 
--- WildAuctions (0.5): /wa price <item>. What aux keeps for an item, in plain words, so a price that
+-- WildAuctions (0.5): /aux price <item>. What aux keeps for an item, in plain words, so a price that
 -- looks wrong can be checked against what was recorded (Tyler, build 1). money_text formats copper.
 function M.report(item_key, money_text)
 	if not data[item_key] then
@@ -501,7 +498,7 @@ function M.report(item_key, money_text)
 	return lines
 end
 
--- WildAuctions: /wa memory detail
+-- WildAuctions: /aux memory detail
 function M.memory_counts()
 	local cached_n, today_n = 0, 0
 	for _ in pairs(value_cache) do cached_n = cached_n + 1 end

@@ -10,7 +10,7 @@ function status(enabled)
 	return (enabled and aux.color.green'on' or aux.color.red'off')
 end
 
--- WildAuctions: /wa memory. How much memory aux uses, and how many items its price history holds
+-- WildAuctions: /aux memory. How much memory aux uses, and how many items its price history holds
 -- (the part that grows over time). Measured only when asked: updating the game's memory figures
 -- takes a moment.
 function M.memory_report()
@@ -33,7 +33,7 @@ function M.memory_report()
     return text
 end
 
--- /wa memory detail: how many entries aux's main stores hold, to find one that keeps growing
+-- /aux memory detail: how many entries aux's main stores hold, to find one that keeps growing
 function M.memory_detail()
     local known, seen, deals, markets = require('aux.tabs.sniper').memory_counts()
     local cached, today = require('aux.core.history').memory_counts()
@@ -48,9 +48,9 @@ function M.memory_detail()
     }
 end
 
-_G.SLASH_WA1 = '/wa'
-_G.SLASH_WA2 = '/WildAuctions'
-function SlashCmdList.WA(command)
+_G.SLASH_AUX1 = '/aux'
+_G.SLASH_AUX2 = '/WildAuctions'
+function SlashCmdList.AUX(command)
 	if not command then return end
 	local arguments = aux.tokenize(command)
     local tooltip_settings = aux.character_data.tooltip
@@ -64,7 +64,7 @@ function SlashCmdList.WA(command)
             scan.measure_item_list()
         end
     elseif arguments[1] == 'price' then
-        -- WildAuctions (0.5): /wa price <item link or exact name>
+        -- WildAuctions (0.5): /aux price <item link or exact name>
         local target = strmatch(command, '^%s*price%s+(.-)%s*$') or ''
         local item_id, suffix_id
         if strfind(target, 'item:', 1, true) then
@@ -74,7 +74,7 @@ function SlashCmdList.WA(command)
             item_id, suffix_id = info.split_ending(target), 0
         end
         if not item_id then
-            aux.print('Usage: /wa price followed by an item link (Shift-click the item) or its exact name.')
+            aux.print('Usage: /aux price followed by an item link (Shift-click the item) or its exact name.')
         else
             local item_info = info.item(item_id)
             aux.print('Price data for ' .. (item_info and item_info.link or ('item ' .. item_id)) .. ':')
@@ -153,7 +153,7 @@ function SlashCmdList.WA(command)
         aux.print('If it holds, posting at the cheapest price sells just as fast as going below it, and keeps prices from sliding.')
         aux.print('WildAuctions matches the cheapest price by default. Undercut mode (the goblin on the Post tab) goes one step below it.')
         aux.print('For gear, buyers pick the listing themselves.')
-        aux.print('Undercut mode [' .. status(aux.account_data.post_undercut) .. '] - /wa undercut on|off (it starts off each time the auction house opens)')
+        aux.print('Undercut mode [' .. status(aux.account_data.post_undercut) .. '] - /aux undercut on|off (it starts off each time the auction house opens)')
     elseif arguments[1] == 'clear' and arguments[2] == 'post' then
         aux.faction_data.post = {}
         aux.print('Post data cleared.')

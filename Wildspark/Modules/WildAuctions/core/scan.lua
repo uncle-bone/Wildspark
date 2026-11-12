@@ -22,7 +22,7 @@ local TIMEOUT = 20
 
 local state
 
--- WildAuctions: search timing log (/wa debug). While it is on, each search records where its time
+-- WildAuctions: search timing log (/aux debug). While it is on, each search records where its time
 -- goes and prints a summary when it ends, so slow searches can be measured instead of guessed.
 local timing
 
@@ -64,7 +64,7 @@ function M.timing_report(t, total, stopped)
 end
 
 -- 0.8.2 (FB-027): the chat line when a Full scan ends, with how long it took and how much of that was
--- the auction house's answer, so slow scans can be measured in game without /wa debug. nil when
+-- the auction house's answer, so slow scans can be measured in game without /aux debug. nil when
 -- the scan got no answer (it printed why already).
 function M.full_scan_summary(result, recorded)
     local full = result and result.full
@@ -794,7 +794,7 @@ function replicate()
     check_aborted(scan_state)
 end
 
--- WildAuctions: /wa debug list. Times the item list of the whole auction house without opening any
+-- WildAuctions: /aux debug list. Times the item list of the whole auction house without opening any
 -- item, which is what fast mode and the sniper would do: how long it takes and how big it is.
 function M.measure_item_list()
     if state then

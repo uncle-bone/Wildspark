@@ -1,6 +1,3 @@
-WildSpark 2.0.0
-2.0.0: Updates Lueur-based ignore behavior, WildLayer to AutoLayer 1.9.14 behavior, and WildAuctions SavedVariables recovery. Reworks Wild Loot Rolls to reposition Blizzard's actual group-roll frames and adds a draggable preview with scale and spacing controls.
-
 WildSpark 1.5.18
 1.5.9: Adds a Forever GUID-based local layer identifier observer to WildLayer and shows the latest observed ID below the minimap. The display marks raw GUID IDs as unverified, keeps NovaWorldBuffs integration optional, and avoids Forever's restricted IsAddOnLoaded query. NovaWorldBuffs 3.49 disables its own layer detector on Forever, so WildLayer can still show an observed ID after targeting or mousing over an NPC; it does not claim that ID is an official layer number.
 

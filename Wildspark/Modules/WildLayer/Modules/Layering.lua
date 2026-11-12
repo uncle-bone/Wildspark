@@ -132,22 +132,6 @@ local function isPlayerLoggingOut()
 	return isLoggingOut
 end
 
-function WildLayer:IsRecentLayerRequest(name)
-	if type(name) ~= "string" or name == "" then return false end
-	local requested = normalizeCharacterName(removeRealmName(name))
-	if not requested or requested == "" then return false end
-	local now = time()
-	for i = #recentLayerRequests, 1, -1 do
-		local entry = recentLayerRequests[i]
-		if not entry or not entry.time or entry.time + 60 < now then
-			table.remove(recentLayerRequests, i)
-		elseif normalizeCharacterName(entry.name) == requested then
-			return true
-		end
-	end
-	return false
-end
-
 function WildLayer:pruneCache()
 	local currentTime = time()
 	-- Iterate backwards: table.remove shifts every later entry, so a forward loop skips entries.

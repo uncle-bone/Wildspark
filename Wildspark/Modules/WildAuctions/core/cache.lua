@@ -173,7 +173,7 @@ function save_item(item_id)
 end
 
 -- WildAuctions: an item seen at the auction house joins the item list at once (names for
--- autocompletion, exact searches and /wa price). The walk at login only goes up to item number
+-- autocompletion, exact searches and /aux price). The walk at login only goes up to item number
 -- MAX_ITEM_ID, and Forever adds many items Classic did not have (Tyler, 2026-10-11), whose
 -- numbers are likely higher. An item listed at the auction house can be auctioned, so no tooltip
 -- is read. Costs one table lookup for an item already known.
