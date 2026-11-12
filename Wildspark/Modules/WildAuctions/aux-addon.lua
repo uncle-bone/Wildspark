@@ -16,6 +16,10 @@ for _, event in pairs{'ADDON_LOADED', 'PLAYER_LOGIN', 'AUCTION_HOUSE_SHOW', 'AUC
 end
 
 local aux_events = {}
+local function wild_auctions_enabled()
+    local addon = _G.WildAuctions
+    return not (addon and addon.IsEnabled and not addon.IsEnabled())
+end
 M.event = setmetatable({}, {__metatable=false, __newindex=function(_, k, v) aux_events[k](v) end})
 
 do
@@ -288,6 +292,10 @@ do
         return blizzard_visible
     end
 
+    function M.set_blizzard_frame_shown(shown)
+        set_blizzard_frame_shown(shown)
+    end
+
     function settle_side_panel()
         -- Keep Blizzard's normal adjacent-panel layout around its full-size auction house frame.
     end
@@ -313,10 +321,55 @@ do
     end
 
     local hooked
+    local native_open_button
+
+    local function update_native_open_button()
+        if native_open_button then native_open_button:SetShown(wild_auctions_enabled()) end
+    end
+
+    function M.update_native_open_button()
+        update_native_open_button()
+    end
+
+    local function create_native_open_button()
+        if native_open_button or not AuctionHouseFrame then return end
+        native_open_button = CreateFrame(
+            'Button',
+            'WildAuctionsOpenButton',
+            AuctionHouseFrame,
+            'UIPanelButtonTemplate'
+        )
+        native_open_button:SetSize(112, 24)
+        native_open_button:SetText('WildAuctions')
+        local close = AuctionHouseFrame.CloseButton or _G.AuctionHouseFrameCloseButton
+        if close then
+            native_open_button:SetPoint('RIGHT', close, 'LEFT', -4, 0)
+        else
+            native_open_button:SetPoint('TOPRIGHT', AuctionHouseFrame, 'TOPRIGHT', -42, -8)
+        end
+        native_open_button:SetFrameLevel(AuctionHouseFrame:GetFrameLevel() + 5)
+        native_open_button:SetScript('OnClick', function()
+            if wild_auctions_enabled() and M.open_wild_auctions then
+                M.open_wild_auctions()
+            end
+        end)
+        native_open_button:SetShown(wild_auctions_enabled())
+    end
+
     function hook_blizzard_frame()
         if hooked or not AuctionHouseFrame then return end
         hooked = true
+        create_native_open_button()
         AuctionHouseFrame:HookScript('OnShow', function(self)
+            if not wild_auctions_enabled() then
+                blizzard_visible = true
+                self:SetScale(1)
+                self:SetClampedToScreen(true)
+                self:SetAlpha(1)
+                self:EnableMouse(true)
+                update_native_open_button()
+                return
+            end
             set_blizzard_frame_shown(false)
             self:UnregisterEvent('AUCTION_HOUSE_POST_WARNING')
             self:UnregisterEvent('AUCTION_HOUSE_POST_ERROR')
@@ -334,19 +387,16 @@ do
 end
 
 function AUCTION_HOUSE_SHOW()
-    -- Blizzard_AuctionHouseUI is loaded by Blizzard's bootstrap.
     hook_blizzard_frame()
     hook_panel_layout()
-    if AuctionHouseFrame and AuctionHouseFrame:IsShown() then
-        set_blizzard_frame_shown(false)
+    if not wild_auctions_enabled() then
+        frame:Hide()
+        if AuctionHouseFrame and AuctionHouseFrame:IsShown() then
+            set_blizzard_frame_shown(true)
+        end
+        return
     end
-    frame:Show()
-    set_tab(1)
-    -- WildAuctions: undercut mode is a choice for the moment, so it starts off every visit and stays
-    -- as clicked until the auction house closes (Tyler, 2026-10-17, FB-018: no setting for it)
-    post.set_undercut_mode(false)
-    query_owned_auctions()
-    query_bids()
+    M.open_wild_auctions()
 end
 
 function M.query_owned_auctions()
@@ -362,6 +412,18 @@ function M.query_bids()
         tinsert(ids, id)
     end
     C_AuctionHouse.QueryBids({{sortOrder = Enum.AuctionHouseSortOrder.Name, reverseSort = false}}, ids)
+end
+
+function M.open_wild_auctions()
+    if not wild_auctions_enabled() then return end
+    if AuctionHouseFrame and AuctionHouseFrame:IsShown() then
+        set_blizzard_frame_shown(false)
+    end
+    frame:Show()
+    set_tab(1)
+    post.set_undercut_mode(false)
+    query_owned_auctions()
+    query_bids()
 end
 
 do

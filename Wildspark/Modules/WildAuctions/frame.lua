@@ -250,12 +250,19 @@ do
 	gui.set_size(btn, 80, 26)
 	btn:SetText(color.blizzard'Blizzard UI')
 	btn:SetScript('OnClick',function()
-		set_blizzard_frame_shown(not blizzard_frame_shown())
+		if not (_G.WildAuctions and _G.WildAuctions.IsEnabled and _G.WildAuctions.IsEnabled()) then return end
+        local show_blizzard = not blizzard_frame_shown()
+        if show_blizzard then
+            set_blizzard_frame_shown(true)
+            frame:Hide()
+        elseif M.open_wild_auctions then
+            M.open_wild_auctions()
+        end
 	end)
 	btn:SetScript('OnEnter', function(self)
 		GameTooltip:SetOwner(self, 'ANCHOR_BOTTOM')
 		GameTooltip:AddLine(blizzard_frame_shown() and 'Hide the Blizzard auction house' or 'Show the Blizzard auction house')
-		GameTooltip:AddLine('It opens on top of WildAuctions. Click WildAuctions to bring it back to the front.', 1, 1, 1, true)
+		GameTooltip:AddLine('The Blizzard auction house has a WildAuctions button to switch back.', 1, 1, 1, true)
 		GameTooltip:Show()
 	end)
 	btn:SetScript('OnLeave', function() GameTooltip:Hide() end)

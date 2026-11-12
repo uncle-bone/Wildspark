@@ -13,8 +13,10 @@ function groups.IsEnabled()
     return not s or s.enabled ~= false
 end
 function groups.SetEnabled(enabled)
+    local isEnabled = enabled and true or false
     local s = settings()
-    if s then s.enabled = enabled and true or false end
+    if s then s.enabled = isEnabled end
+    if not isEnabled and groups.CloseWindow then groups.CloseWindow() end
     if groups.UpdateBlizzardTab then groups.UpdateBlizzardTab() end
     if groups.UpdateMinimapButton then groups.UpdateMinimapButton() end
 end
