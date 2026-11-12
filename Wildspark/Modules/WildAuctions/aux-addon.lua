@@ -20,6 +20,7 @@ local function wild_auctions_enabled()
     local addon = _G.WildAuctions
     return not (addon and addon.IsEnabled and not addon.IsEnabled())
 end
+local open_wild_auctions
 M.event = setmetatable({}, {__metatable=false, __newindex=function(_, k, v) aux_events[k](v) end})
 
 do
@@ -349,8 +350,8 @@ do
         end
         native_open_button:SetFrameLevel(AuctionHouseFrame:GetFrameLevel() + 5)
         native_open_button:SetScript('OnClick', function()
-            if wild_auctions_enabled() and M.open_wild_auctions then
-                M.open_wild_auctions()
+            if wild_auctions_enabled() and open_wild_auctions then
+                open_wild_auctions()
             end
         end)
         native_open_button:SetShown(wild_auctions_enabled())
@@ -396,7 +397,11 @@ function AUCTION_HOUSE_SHOW()
         end
         return
     end
-    M.open_wild_auctions()
+    if open_wild_auctions then
+        open_wild_auctions()
+    else
+        frame:Show()
+    end
 end
 
 function M.query_owned_auctions()
@@ -414,7 +419,7 @@ function M.query_bids()
     C_AuctionHouse.QueryBids({{sortOrder = Enum.AuctionHouseSortOrder.Name, reverseSort = false}}, ids)
 end
 
-function M.open_wild_auctions()
+open_wild_auctions = function()
     if not wild_auctions_enabled() then return end
     if AuctionHouseFrame and AuctionHouseFrame:IsShown() then
         set_blizzard_frame_shown(false)
@@ -424,6 +429,15 @@ function M.open_wild_auctions()
     post.set_undercut_mode(false)
     query_owned_auctions()
     query_bids()
+end
+
+_G.WildAuctions.OpenWindow = function()
+    if open_wild_auctions then return open_wild_auctions() end
+end
+_G.WildAuctions.SetBlizzardUIVisible = function(shown)
+    if type(set_blizzard_frame_shown) == 'function' then
+        set_blizzard_frame_shown(shown)
+    end
 end
 
 do

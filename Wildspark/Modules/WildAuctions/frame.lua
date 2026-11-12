@@ -255,8 +255,8 @@ do
         if show_blizzard then
             set_blizzard_frame_shown(true)
             frame:Hide()
-        elseif M.open_wild_auctions then
-            M.open_wild_auctions()
+        elseif _G.WildAuctions and _G.WildAuctions.OpenWindow then
+            _G.WildAuctions.OpenWindow()
         end
 	end)
 	btn:SetScript('OnEnter', function(self)

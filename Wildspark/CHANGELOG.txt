@@ -1,3 +1,7 @@
+WildSpark 2.1.5
+- Fix the WildAuctions auction-house open error by routing its event and window buttons through a local opener.
+- Keep the WildAuctions enable switch and Blizzard UI window toggle fixes from 2.1.4.
+
 WildSpark 2.1.4
 - Make WildAuctions' Enable switch suppress its automatic auction-house window and prevent its Open button from silently re-enabling the module.
 - Make the WildAuctions Blizzard UI control switch cleanly between windows, and add a WildAuctions button to Blizzard's auction-house window.

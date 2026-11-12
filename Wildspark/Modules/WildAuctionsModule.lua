@@ -19,8 +19,8 @@ function M.SetEnabled(value)
     if not enabled then
         if core.frame then core.frame:Hide() end
         if AuctionHouseFrame and AuctionHouseFrame:IsShown()
-            and type(core.set_blizzard_frame_shown) == "function" then
-            core.set_blizzard_frame_shown(true)
+            and type(M.SetBlizzardUIVisible) == "function" then
+            M.SetBlizzardUIVisible(true)
         end
     end
 
@@ -35,8 +35,8 @@ function M.Open()
     if not core then return end
 
     if AuctionHouseFrame and AuctionHouseFrame:IsShown()
-        and type(core.open_wild_auctions) == "function" then
-        core.open_wild_auctions()
+        and type(M.OpenWindow) == "function" then
+        M.OpenWindow()
     elseif core.frame then
         core.frame:Show()
     end
