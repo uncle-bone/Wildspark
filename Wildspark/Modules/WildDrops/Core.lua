@@ -10,7 +10,7 @@ local ADDON_NAME, addonNS = ...
 local ns = addonNS.WildDropsCore or {}
 addonNS.WildDropsCore = ns
 
-"ns.PREFIX = "|cffffd100WildInfo:|r "
+ns.PREFIX = "|cffffd100WildInfo:|r "
 ns.RARE_CHANCE = 0.1 -- drops below this percentage are hidden unless showRare is on
 local QUEST_ICON = "Interface\\GossipFrame\\AvailableQuestIcon"
 
