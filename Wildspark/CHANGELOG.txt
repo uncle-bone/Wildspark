@@ -1,3 +1,7 @@
+WildSpark 2.2.3
+- Bundle the 75-entry RareScanner NPC respawn reference table and show matching fixed, ranged, or event-triggered entries in WildInfo tooltips.
+- Label imported timers as reference data not verified for WoW Forever; keep local observation estimates as fallback.
+
 WildSpark 2.2.2
 - Fix WildInfo ADDON_ACTION_FORBIDDEN: route NPC death, nameplate, and zone events through WildSpark's existing LeashHelper event feed instead of registering additional events.
 
