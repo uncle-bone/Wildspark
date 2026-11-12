@@ -8,7 +8,7 @@ WildSpark is a modular WoW Forever utility suite for gathering highlights, quest
 
 ## What's new in 2.1.9
 
-- Repair saved settings once after upgrading so WildSpark's master enable switch starts on again. Individual modules keep their saved enable states.
+- Normalize WildBuffs' bundled minimap icon path to match the `WildSpark` addon folder casing.
 
 ## Features
 
@@ -20,8 +20,8 @@ WildSpark is a modular WoW Forever utility suite for gathering highlights, quest
 - Use **WildFire** for camping objects, camp effects, food and Well Fed timers, camp tracking, sharing, and map pins.
 - Use **WildAuctions** for auction-house tools, including selecting bag items while the auction house is open. It does not post auctions automatically.
 - Use **WildGroups** from its own tab in Blizzard's Looking For Group pane.
-- Use **WildLayer** from its own WildSpark tab or minimap button to request layer hops.
-- Use **WildDrops** to see quest-starting items and their recorded drop chances when mousing over creatures. Automatic invites for players requesting your layer are off by default.
+- Use **WildLayer** from its own WildSpark tab or minimap button to request layer hops. Automatic invites for people requesting your layer are off by default.
+- Use **WildDrops** to see quest-starting items and their recorded drop chances when mousing over creatures.
 - Adjust Blizzard group-loot position, scale, and spacing from WildSpark's Wild Loot Rolls tab.
 - Open settings with `/wildspark` or `/ws`.
 
