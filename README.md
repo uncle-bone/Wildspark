@@ -2,9 +2,15 @@
 
 > **[Download WildSpark 2.2.2 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.2/WildSpark-2.2.2.zip)**
 
-**Current stable release: 2.2.3 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
+**Current stable release: 2.2.4 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
 
 WildSpark is a modular WoW Forever utility suite for gathering highlights, quest-drop tooltips, buffs, creature leash tracking, WildFire camping, auctions, group finding, and layer hopping. Its major modules have dedicated settings tabs, and can be enabled or disabled independently.
+
+## What's new in 2.2.4
+
+- Fix WildInfo local respawn learning for repeated identical NPCs: retain multiple pending deaths per NPC type and pair later nameplate appearances instead of discarding kills when several are visible.
+- Also observe confirmed deaths from existing unit-health/flag events when available, and show a clear collection status when no local timer has been learned yet.
+- Remove RareScanner's rare-only reference table; respawn timing is learned locally for the NPCs you actually encounter.
 
 ## What's new in 2.2.3
 
@@ -46,4 +52,4 @@ Download the ZIP, extract it, and place the included `WildSpark` folder in the F
 
 ## Third-party notices
 
-WildSpark retains the license and attribution files for its embedded components in their respective folders. The original Camping Kit artwork is excluded; WildFire uses replacement artwork with its own license notice. WildInfo (formerly WildDrops) is included and modified with permission from the original Questionable Drops author; its quest database credits QuestieDB Forever and Wowhead. Its respawn reference table is derived from RareScanner 12.1.5.6 and included with permission; those timer values are not verified for Forever.
+WildSpark retains the license and attribution files for its embedded components in their respective folders. The original Camping Kit artwork is excluded; WildFire uses replacement artwork with its own license notice. WildInfo (formerly WildDrops) is included and modified with permission from the original Questionable Drops author; its quest database credits QuestieDB Forever and Wowhead. Respawn estimates are learned locally; WildSpark does not bundle rare-only timer data.
