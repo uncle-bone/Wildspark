@@ -1849,6 +1849,14 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1, arg2, arg3, arg4, arg5)
 		return
 	end
 	local unit = SafeStr(arg1)
+	if event == "UNIT_HEALTH" or event == "UNIT_FLAGS" then
+		if unit and Bool(UnitIsDead, unit) == true then
+			local guid = ReadableGUID(unit)
+			if guid then
+				NotifyRespawnListeners("onDeath", guid, event)
+			end
+		end
+	end
 	if event == "NAME_PLATE_UNIT_ADDED" then
 		NotifyRespawnListeners("onNameplateAdded", unit)
 	elseif event == "NAME_PLATE_UNIT_REMOVED" then
