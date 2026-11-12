@@ -19,6 +19,8 @@ end
 -- Forever: the window can be resized from its bottom right corner (double-click the corner for the
 -- default size), and it remembers its size and position.
 local DEFAULT_WIDTH, DEFAULT_HEIGHT = 1100, 660
+-- Switching to Blizzard's AH hides this frame without closing the auction-house session.
+local keep_auction_house_open = false
 local MIN_WIDTH, MIN_HEIGHT = 1000, 549
 -- WildAuctions: the logo, tabs, full scan, Blizzard UI and close sit in a bar across the top
 local TOP_BAR_HEIGHT = 40
@@ -112,7 +114,10 @@ do
 	frame:SetClampedToScreen(true)
 --	frame:CreateTitleRegion():SetAllPoints() TODO classic why
 	frame:SetScript('OnShow', function() PlaySound(SOUNDKIT.AUCTION_WINDOW_OPEN) end)
-	frame:SetScript('OnHide', function() PlaySound(SOUNDKIT.AUCTION_WINDOW_CLOSE); C_AuctionHouse.CloseAuctionHouse() end)
+	frame:SetScript('OnHide', function()
+		PlaySound(SOUNDKIT.AUCTION_WINDOW_CLOSE)
+		if not keep_auction_house_open then C_AuctionHouse.CloseAuctionHouse() end
+	end)
 	-- everything under the top bar; each tab's frame fills it
 	frame.body = CreateFrame('Frame', nil, frame)
 	frame.body:SetPoint('TOPLEFT', 0, -TOP_BAR_HEIGHT)
@@ -254,7 +259,10 @@ do
         local show_blizzard = not blizzard_frame_shown()
         if show_blizzard then
             set_blizzard_frame_shown(true)
+            -- Keep the current auction-house session open while handing its visible UI back to Blizzard.
+            keep_auction_house_open = true
             frame:Hide()
+            keep_auction_house_open = false
         elseif _G.WildAuctions and _G.WildAuctions.OpenWindow then
             _G.WildAuctions.OpenWindow()
         end
