@@ -51,7 +51,7 @@ local NODES_ICON = "INV_Misc_Map_01"
 local NODES_HEIGHT = 320      -- hauteur des deux panneaux de la page de la minimap
 
 -- Titre de chaque page sous la barre de titre ; celle des objets compose le sien (LookTitle)
-local PAGE_TITLES = { nodes = "NODES_PAGE", settings = "SETTINGS", leash = "LEASH_SETTINGS", buffs = "BUFFS_TAB", camping = "CAMPING_TAB", auctions = "WILDAUCTIONS_TAB", groups = "WILDGROUPS_TAB", layers = "WILDLAYER_TAB", drops = "WILDDROPS_TAB", lootrolls = "WILDLOOTROLLS_TAB" }
+local PAGE_TITLES = { nodes = "NODES_PAGE", settings = "SETTINGS", leash = "LEASH_SETTINGS", buffs = "BUFFS_TAB", camping = "CAMPING_TAB", auctions = "WILDAUCTIONS_TAB", groups = "WILDGROUPS_TAB", layers = "WILDLAYER_TAB", info = "WILDINFO_TAB", lootrolls = "WILDLOOTROLLS_TAB" }
 
 -- Choix d'un réglage : { valeur, nom du texte } ; ou { valeur, nil, libellé } quand le libellé
 -- ne se traduit pas
@@ -732,7 +732,7 @@ local function CreateMenu()
 	if _G.WildAuctions then list[#list + 1] = { "auctions", ICONS .. "INV_Misc_Coin_01", "WILDAUCTIONS_TAB" } end
 	if ns.WildGroups then list[#list + 1] = { "groups", ICONS .. "INV_SideTab_GroupFinder_c60", "WILDGROUPS_TAB" } end
 	if ns.WildLayer then list[#list + 1] = { "layers", MEDIA .. "WildLayerIcon", "WILDLAYER_TAB" } end
-	if ns.WildDrops then list[#list + 1] = { "drops", MEDIA .. "icon.tga", "WILDDROPS_TAB" } end
+	if ns.WildInfo then list[#list + 1] = { "info", MEDIA .. "icon.tga", "WILDINFO_TAB" } end
 	if ns.WildLootRolls then list[#list + 1] = { "lootrolls", ICONS .. "INV_Misc_Dice_02", "WILDLOOTROLLS_TAB" } end
 	frame.tabs = {}
 	local previous
@@ -967,20 +967,21 @@ local function CreateMenu()
 	end
 
 
-	page = pages.drops
-	if page and ns.WildDrops then
-		local drops = ns.WildDrops
-		column = NewCard(page, 0, 0, page:GetWidth(), height, "WILDDROPS_TAB")
+	page = pages.info
+	if page and ns.WildInfo then
+		local info = ns.WildInfo
+		column = NewCard(page, 0, 0, page:GetWidth(), height, "WILDINFO_TAB")
 		local note = column.parent:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
 		note:SetPoint("TOPLEFT", column.x, column.y)
 		note:SetWidth(column.width)
 		note:SetJustifyH("LEFT")
 		note:SetWordWrap(true)
-		note:SetText(L.WILDDROPS_NOTE)
+		note:SetText(L.WILDINFO_NOTE)
 		column.y = column.y - 58
-		AddCheckbox(column, "WILDDROPS_ENABLED", drops.IsEnabled, drops.SetEnabled)
-		AddCheckbox(column, "WILDDROPS_TOOLTIP", drops.IsTooltipEnabled, drops.SetTooltipEnabled)
-		AddCheckbox(column, "WILDDROPS_RARE", drops.GetShowRare, drops.SetShowRare)
+		AddCheckbox(column, "WILDINFO_ENABLED", info.IsEnabled, info.SetEnabled)
+		AddCheckbox(column, "WILDINFO_TOOLTIP", info.IsTooltipEnabled, info.SetTooltipEnabled)
+		AddCheckbox(column, "WILDINFO_RARE", info.GetShowRare, info.SetShowRare)
+		AddCheckbox(column, "WILDINFO_RESPAWN", info.GetRespawnEnabled, info.SetRespawnEnabled)
 	end
 
 	page = pages.lootrolls
