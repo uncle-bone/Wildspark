@@ -18,13 +18,27 @@ local hasOurLines = false -- the shown GameTooltip contains our lines (cleared o
 
 local function AddTooltipLines(tooltip, guid)
     if not ns.db or ns.db.enabled == false or ns.db.tooltip == false or tooltip ~= GameTooltip then return end
-    local drops = ns.GetAvailableDrops(ns.GetNpcID(guid)) -- nil for a secret GUID
-    if not drops then return end
-    for _, drop in ipairs(drops) do
-        local item, quest = ns.FormatDropParts(drop)
-        tooltip:AddDoubleLine(item, ns.FormatChance(drop[3]))
-        tooltip:AddLine(quest)
+    local npcID = ns.GetNpcID(guid) -- nil for players, game objects, or an unreadable GUID
+    if not npcID then return end
+
+    local added = false
+    local drops = ns.GetAvailableDrops(npcID)
+    if drops then
+        for _, drop in ipairs(drops) do
+            local item, quest = ns.FormatDropParts(drop)
+            tooltip:AddDoubleLine(item, ns.FormatChance(drop[3]))
+            tooltip:AddLine(quest)
+            added = true
+        end
     end
+
+    local respawnText = ns.GetRespawnText and ns.GetRespawnText(npcID)
+    if respawnText then
+        tooltip:AddLine("|cff66ccffWildInfo:|r " .. respawnText)
+        added = true
+    end
+
+    if not added then return end
     hasOurLines = true
     tooltip:Show()
 end
