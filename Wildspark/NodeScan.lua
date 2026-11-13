@@ -1890,41 +1890,63 @@ local function TooltipHasLine(tooltip, wanted)
 	return false
 end
 
+local function LineFont(tooltip, index)
+	local name = tooltip and tooltip.GetName and tooltip:GetName()
+	return name and _G[name .. "TextLeft" .. index]
+end
+
 local function AddNodeSkillLine(tooltip, text)
 	if not (ns.db and ns.db.enabled) or not tooltip or tooltip.wildsparkAddingSkillLines
-		or IsSecret(text) or type(text) ~= "string" then return end
+		or tooltip.wildsparkCustomNodeTooltip or IsSecret(text) or type(text) ~= "string" then return end
 	for _, entry in ipairs(Names(text)) do
 		local node = ns.NodeOf(entry.name)
 		if node and node.skill and Wanted(node.kind) then
-			local label = entry.name .. " " .. node.skill
 			local skill = ns.GatherSkill(node.kind)
-			local requirement = ns.NodeRequirement(node)
-				or string.format("%s (%d)", skill and skill.name or node.kind, node.skill)
-			local key = entry.name .. ":" .. node.skill
-			local seen = tooltip.wildsparkNodeSkillSeen
-			if type(seen) ~= "table" then
-				seen = {}
-				tooltip.wildsparkNodeSkillSeen = seen
+			local skillName = skill and skill.name
+			if not skillName and GetSpellInfo then
+				skillName = SafeCall(GetSpellInfo, node.kind == "herb" and 182 or 186)
 			end
-			local hasLabel, hasRequirement = TooltipHasLine(tooltip, label), TooltipHasLine(tooltip, requirement)
-			if not seen[key] or not (hasLabel and hasRequirement) then
-				seen[key] = true
-				if not (hasLabel and hasRequirement) then
-					local r, g, b = ns.DifficultyColor(ns.NodeDifficulty(node) or "difficult")
-					tooltip.wildsparkAddingSkillLines = true
-					if not hasLabel then pcall(tooltip.AddLine, tooltip, label, r, g, b) end
-					if not hasRequirement then pcall(tooltip.AddLine, tooltip, requirement, r, g, b) end
-					tooltip.wildsparkAddingSkillLines = nil
+			if type(skillName) ~= "string" then skillName = node.kind == "herb" and "Herbalism" or "Mining" end
+			local requirement = ns.NodeRequirement(node)
+				or string.format("%s (%d)", skillName, node.skill)
+			local r, g, b = ns.DifficultyColor(ns.NodeDifficulty(node) or "difficult")
+			local name = tooltip.GetName and tooltip:GetName()
+			local count = tooltip.NumLines and tooltip:NumLines() or 0
+			local skillLine, requirementLine
+			for index = 1, count do
+				local line = LineFont(tooltip, index)
+				if line and line.GetText then
+					local ok, visible = pcall(line.GetText, line)
+					if ok and not IsSecret(visible) and type(visible) == "string" then
+						if NameKey(visible) == NameKey(entry.name) then
+							pcall(line.SetTextColor, line, r, g, b)
+						end
+						local key = NameKey(visible)
+					if key == NameKey(skillName) or key == NameKey(node.kind == "herb" and "Herbalism" or "Mining") then
+							skillLine = line
+						elseif visible == requirement then
+							requirementLine = line
+						end
+					end
 				end
+			end
+			if requirementLine then
+				pcall(requirementLine.SetTextColor, requirementLine, r, g, b)
+			elseif skillLine then
+				pcall(skillLine.SetText, skillLine, requirement)
+				pcall(skillLine.SetTextColor, skillLine, r, g, b)
+			elseif not TooltipHasLine(tooltip, requirement) then
+				tooltip.wildsparkAddingSkillLines = true
+				pcall(tooltip.AddLine, tooltip, requirement, r, g, b)
+				tooltip.wildsparkAddingSkillLines = nil
 			end
 		end
 	end
 end
 
-local ScanVisibleTooltip
-
 local function OnTooltip(tooltip, data)
-	if not (ns.db and ns.db.enabled) or not tooltip or IsSecret(data) or type(data) ~= "table" then return end
+	if not (ns.db and ns.db.enabled) or not tooltip or tooltip.wildsparkCustomNodeTooltip
+		or IsSecret(data) or type(data) ~= "table" then return end
 	local lines = data.lines
 	if IsSecret(lines) or type(lines) ~= "table" then return end
 	for _, line in ipairs(lines) do
@@ -1932,6 +1954,8 @@ local function OnTooltip(tooltip, data)
 		if not IsSecret(text) and type(text) == "string" then AddNodeSkillLine(tooltip, text) end
 	end
 end
+
+local ScanVisibleTooltip
 
 ScanVisibleTooltip = function(tooltip)
 	local name = tooltip and tooltip.GetName and tooltip:GetName()
@@ -1946,14 +1970,25 @@ ScanVisibleTooltip = function(tooltip)
 	end
 end
 
+local function QueueTooltipScan(tooltip)
+	if not tooltip or tooltip.wildsparkTooltipScanQueued or tooltip.wildsparkCustomNodeTooltip then return end
+	tooltip.wildsparkTooltipScanQueued = true
+	local function scan()
+		tooltip.wildsparkTooltipScanQueued = nil
+		if tooltip.IsShown and not tooltip:IsShown() then return end
+		ScanVisibleTooltip(tooltip)
+	end
+	if C_Timer and C_Timer.After then C_Timer.After(0, scan) else scan() end
+end
+
 local function HookTooltipFrame(tooltip)
 	if not tooltip or tooltip.wildsparkTooltipHooks then return end
 	tooltip.wildsparkTooltipHooks = true
-	-- TooltipDataProcessor callbacks above provide the supported update path.
-	-- Do not hook AddLine or tooltip setters here: QueueTooltipScan is not defined
-	-- in this module, and AddLine is called during Blizzard's protected tooltip
-	-- construction path. Calling it from a hook can raise repeated errors.
-
+	-- Forever builds route native minimap hovers through SetWorldCursor. Defer
+	-- until Blizzard and UI skins such as EllesmereUI have finished laying out the lines.
+	if hooksecurefunc and tooltip.SetWorldCursor then
+		pcall(hooksecurefunc, tooltip, "SetWorldCursor", QueueTooltipScan)
+	end
 end
 
 local function HookTooltip()
