@@ -256,6 +256,7 @@ local function ShowNodeTooltip(frame, marker)
 	local r, g, b = ns.DifficultyColor(difficulty)
 	GameTooltip:SetOwner(frame, "ANCHOR_RIGHT")
 	GameTooltip:ClearLines()
+	GameTooltip.wildsparkNodeSkills = {}
 	GameTooltip.wildsparkAddingSkillLines = true
 	GameTooltip:AddLine(("%s %d"):format(name, node.skill), r, g, b)
 	local requirement = ns.NodeRequirement(node)
@@ -1931,6 +1932,7 @@ local function OnTooltip(tooltip, data)
 	if not (ns.db and ns.db.enabled) or IsSecret(data) or type(data) ~= "table" then return end
 	local lines = data.lines
 	if IsSecret(lines) or type(lines) ~= "table" then return end
+	tooltip.wildsparkNodeSkills = {}
 	-- TooltipDataProcessor post-calls run after Blizzard has populated this native
 	-- minimap tooltip. Read its data directly and append once; do not hook AddLine,
 	-- because our own rows pass through that method too.
@@ -1944,6 +1946,11 @@ end
 
 local function HookTooltip()
 	if hooked then return end
+	if GameTooltip and GameTooltip.HookScript then
+		GameTooltip:HookScript("OnHide", function(tooltip)
+			tooltip.wildsparkNodeSkills, tooltip.wildsparkScanQueued, tooltip.wildsparkScanReset = nil, nil, nil
+		end)
+	end
 	local kind = Enum and Enum.TooltipDataType and Enum.TooltipDataType.MinimapMouseover
 	if kind and TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall then
 		local ok = pcall(TooltipDataProcessor.AddTooltipPostCall, kind, OnTooltip)
@@ -1959,9 +1966,6 @@ local function HookTooltip()
 	end
 	if GameTooltip and GameTooltip.HookScript then
 		GameTooltip:HookScript("OnShow", QueueTooltipScan)
-		GameTooltip:HookScript("OnHide", function(tooltip)
-			tooltip.wildsparkNodeSkills, tooltip.wildsparkScanQueued, tooltip.wildsparkScanReset = nil, nil, nil
-		end)
 	end
 	hooked = true
 end
