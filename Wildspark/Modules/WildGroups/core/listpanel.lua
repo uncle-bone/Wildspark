@@ -112,6 +112,13 @@ local function EnsureRowButtons(row)
 
 	row.LFGFInvite = CreateRowButton(row, INVITE_ICON_ATLAS, L.GROUP_INVITE)
 	row.LFGFAskToJoin = CreateRowButton(row, ASK_TO_JOIN_ICON_ATLAS, ASK_TO_JOIN_LABEL)
+	local requested = row.LFGFAskToJoin:CreateTexture(nil, "OVERLAY")
+	requested:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
+	requested:SetSize(10, 10)
+	requested:SetPoint("TOPRIGHT", row.LFGFAskToJoin, "TOPRIGHT", 3, 3)
+	requested:SetVertexColor(0.35, 1, 0.35)
+	requested:Hide()
+	row.LFGFAskToJoin.LFGFRequestedCheck = requested
 	row.DataDisplay:SetPoint("RIGHT", row.LFGFInvite, "LEFT", -2, -1)
 end
 
@@ -220,7 +227,11 @@ end
 --- the player sees as an error from this addon.
 local function UpdateAskToJoinButton(row, info, isDelisted, isSolo)
 	local button = row.LFGFAskToJoin
+	local resultID = row.resultID
 	button.action = nil
+	if button.LFGFRequestedCheck then
+		button.LFGFRequestedCheck:SetShown(button.requestedResultID == resultID)
+	end
 	ApplyLockTo(button)
 
 	if isSolo or not CanActOnRow(row, info, isDelisted) then
@@ -236,10 +247,16 @@ local function UpdateAskToJoinButton(row, info, isDelisted, isSolo)
 		local message = LFGF.AskToJoinMessage()
 		if message == nil then
 			ChatFrameUtil.SendTell(leaderName)
+			-- The player has started contacting this group, even though the
+			-- message is being composed rather than sent automatically.
+			button.requestedResultID = resultID
+			if button.LFGFRequestedCheck then button.LFGFRequestedCheck:Show() end
 			-- Nothing was sent, so no cooldown (see RunAction, core/main.lua).
 			return false
 		end
 		LFGF.Whisper(leaderName, message)
+		button.requestedResultID = resultID
+		if button.LFGFRequestedCheck then button.LFGFRequestedCheck:Show() end
 	end
 	button:Show()
 end
