@@ -1,3 +1,6 @@
+WildSpark 2.2.24
+- Deduplicate rank/profession lines against the visible tooltip. Handle MinimapMouseover, Unit, and Object post-calls, plus delayed rescans after SetText/SetOwner/SetWorldCursor for minimap skins that bypass post-calls.
+
 WildSpark 2.2.23
 - Register native tooltip post-calls for MinimapMouseover, Unit, and Object, covering Forever's SetWorldCursor path. Remove the detached custom marker tooltip so the native tooltip receives the required rank and profession lines.
 
