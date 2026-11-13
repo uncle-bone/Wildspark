@@ -1884,7 +1884,11 @@ local function AddNodeSkillLine(tooltip, text)
 			if not seen[key] then
 				seen[key] = true
 				local r, g, b = ns.DifficultyColor(ns.NodeDifficulty(node) or "difficult")
+				local skill = ns.GatherSkill(node.kind)
+				local requirement = ns.NodeRequirement(node)
+					or string.format("%s (%d)", skill and skill.name or node.kind, node.skill)
 				pcall(tooltip.AddLine, tooltip, entry.name .. " " .. node.skill, r, g, b)
+				pcall(tooltip.AddLine, tooltip, requirement, r, g, b)
 			end
 		end
 	end
@@ -1917,11 +1921,12 @@ local function HookTooltip()
 		hooked = pcall(TooltipDataProcessor.AddTooltipPostCall, kind, OnTooltip)
 	end
 	if GameTooltip and hooksecurefunc then
-		pcall(hooksecurefunc, GameTooltip, "SetText", OnMinimapTooltipText)
+		local textHooked = pcall(hooksecurefunc, GameTooltip, "SetText", OnMinimapTooltipText)
+		local lineHooked = pcall(hooksecurefunc, GameTooltip, "AddLine", OnMinimapTooltipText)
 		if GameTooltip.HookScript then
 			GameTooltip:HookScript("OnHide", function(tooltip) tooltip.wildsparkNodeSkills = nil end)
 		end
-		hooked = true
+		hooked = hooked or textHooked or lineHooked
 	end
 end
 
