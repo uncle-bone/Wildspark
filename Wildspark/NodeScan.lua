@@ -1955,8 +1955,8 @@ local function HookTooltip()
 		pcall(hooksecurefunc, GameTooltip, "AddLine", OnMinimapTooltipText)
 	end
 	if GameTooltip and GameTooltip.HookScript then
-		GameTooltip:HookScript("OnShow", ScanVisibleTooltip)
-		GameTooltip:HookScript("OnHide", function(tooltip) tooltip.wildsparkNodeSkills = nil end)
+		GameTooltip:HookScript("OnShow", QueueTooltipScan)
+		GameTooltip:HookScript("OnHide", function(tooltip) tooltip.wildsparkNodeSkills, tooltip.wildsparkScanQueued = nil, nil end)
 	end
 	hooked = true
 end
