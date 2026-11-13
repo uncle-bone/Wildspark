@@ -1,3 +1,6 @@
+WildSpark 2.2.28
+- Restore profession requirements on WildSpark's own minimap node icons. The tooltip reads the requirement from the marker, independent of Blizzard's native minimap hover callback.
+
 WildSpark 2.2.27
 - Remove the undefined tooltip rescan hook that caused repeated nil-call errors during Blizzard tooltip line construction. Keep native TooltipDataProcessor callbacks as the gathering tooltip path.
 
