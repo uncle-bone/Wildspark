@@ -1927,11 +1927,16 @@ local function AddNodeSkillLine(tooltip, text)
 					end
 				end
 			end
-			if requirementLine then
+			if skillLine and requirementLine then
+				-- The native minimap tooltip already supplied a profession row; keep
+				-- the ranked requirement and hide the redundant profession-only row.
+				pcall(skillLine.Hide, skillLine)
 				pcall(requirementLine.SetTextColor, requirementLine, r, g, b)
 			elseif skillLine then
 				pcall(skillLine.SetText, skillLine, requirement)
 				pcall(skillLine.SetTextColor, skillLine, r, g, b)
+			elseif requirementLine then
+				pcall(requirementLine.SetTextColor, requirementLine, r, g, b)
 			elseif not TooltipHasLine(tooltip, requirement) then
 				tooltip.wildsparkAddingSkillLines = true
 				pcall(tooltip.AddLine, tooltip, requirement, r, g, b)
