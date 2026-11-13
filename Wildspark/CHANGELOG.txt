@@ -1,3 +1,7 @@
+WildSpark 2.2.17
+- Prevent gathering tooltip errors when Mining or Herbalism skill-line data is unavailable; keep the known profession requirement and rank visible using fallback text.
+- Preserve localized gathering-node name matching.
+
 WildSpark 2.2.16
 - Show rare-spawn reference respawn ranges and event-spawn notes in WildInfo creature tooltips; local and shared observations stay primary, and reference data is labeled unverified for WoW Forever.
 - Register tooltip hooks as the addon loads and rescan visible GameTooltip text on show, so gathering requirements do not depend on minimap tooltip ownership or callback timing.
