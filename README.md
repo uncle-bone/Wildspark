@@ -1,14 +1,14 @@
 # WildSpark
 
-> **[Download WildSpark 2.2.21 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.21/WildSpark-2.2.21.zip)**
+> **[Download WildSpark 2.2.22 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.22/WildSpark-2.2.22.zip)**
 
-**Current stable release: 2.2.21 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
+**Current stable release: 2.2.22 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
 
 WildSpark is a modular WoW Forever utility suite for gathering highlights, quest-drop tooltips, buffs, creature leash tracking, WildFire camping, auctions, group finding, and layer hopping. Its major modules have dedicated settings tabs, and can be enabled or disabled independently.
 
-## What's new in 2.2.21
+## What's new in 2.2.22
 
-- Use Blizzard's native MinimapMouseover post-call data to append gathering requirements once, and remove the AddLine hook that caused repeated text. Keep a visible-tooltip fallback for clients without tooltip data callbacks.
+- Hook Forever's `GameTooltip:SetWorldCursor` path used by native minimap node hovers, plus the native tooltip data callback. Deferred scans add required profession/rank only when those lines are missing, preventing duplicates across refreshes.
 - Add rare-spawn reference respawn ranges and event-spawn notes to WildInfo tooltips. These are explicitly marked unverified for WoW Forever; locally learned and peer-shared observations remain the primary estimate.
 - Mark WildGroups listings with a green check after you ask to join, matching the newer upstream behavior.
 
@@ -40,7 +40,7 @@ WildSpark is a modular WoW Forever utility suite for gathering highlights, quest
 
 ## What's new in 2.2.3
 
-- Originally bundled RareScanner's 75-entry respawn reference table in WildInfo; it was later removed and is restored in 2.2.21.
+- Originally bundled RareScanner's 75-entry respawn reference table in WildInfo; it was later removed and is restored in 2.2.22.
 
 ## What's new in 2.2.2
 
