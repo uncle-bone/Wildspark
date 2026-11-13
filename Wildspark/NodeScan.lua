@@ -31,6 +31,7 @@
 local ADDON_NAME, ns = ...
 local L = ns.L
 local SafeCall, IsSecret = ns.SafeCall, ns.IsSecret
+local NameKey = ns.NameKey
 local MEDIA = "Interface\\AddOns\\" .. ADDON_NAME .. "\\Media\\"
 
 local STEP = 10           -- unités de minimap entre deux points de la grille
