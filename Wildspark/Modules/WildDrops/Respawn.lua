@@ -236,29 +236,55 @@ local function ObservationLabel(count, sharedCount)
     return string.format("(%d observations; %d shared)", count, sharedCount)
 end
 
+local function GetReferenceRespawnText(npcID)
+    local database = addonNS.WildInfoRespawnDB
+    local record = type(database) == "table" and database[npcID]
+    if type(record) ~= "table" then return end
+
+    local detail
+    if record.event then
+        detail = "event-triggered; timer unknown"
+    elseif type(record.exact) == "number" then
+        detail = "about " .. Duration(record.exact)
+    elseif type(record.min) == "number" and type(record.max) == "number" then
+        detail = Duration(record.min) .. "–" .. Duration(record.max)
+    end
+    if not detail then return end
+    return "Rare spawn reference: " .. detail .. " (not verified for WoW Forever)"
+end
+
 function ns.GetRespawnText(npcID)
     if not ns.db or ns.db.enabled == false or ns.db.respawnEnabled == false then return end
     local samplesByNpc = ns.db.respawnSamples
     local samples = type(samplesByNpc) == "table" and samplesByNpc[npcID]
-    if type(samples) ~= "table" then
-        return "Learning respawn time (needs a death and return)"
+    local estimate, count, sharedCount
+    if type(samples) == "table" then
+        estimate, count, sharedCount = GetMedian(samples)
     end
 
-    local estimate, count, sharedCount = GetMedian(samples)
     if not estimate then
-        return "Learning respawn time (needs a death and return)"
+        return GetReferenceRespawnText(npcID) or "Learning respawn time (needs a death and return)"
     end
+
     local observations = ObservationLabel(count, sharedCount)
     local queue = pendingDeaths[npcID]
     local death = type(queue) == "table" and queue[#queue]
+    local estimateText
     if death then
         local remaining = estimate - (time() - death.at)
         if remaining > 0 then
-            return string.format("Respawn estimate: about %s %s", Duration(remaining), observations)
+            estimateText = string.format("Respawn estimate: about %s %s", Duration(remaining), observations)
+        else
+            estimateText = string.format("Respawn estimate: due or overdue %s", observations)
         end
-        return string.format("Respawn estimate: due or overdue %s", observations)
+    else
+        estimateText = string.format("Respawn estimate: about %s %s", Duration(estimate), observations)
     end
-    return string.format("Respawn estimate: about %s %s", Duration(estimate), observations)
+    local referenceText = GetReferenceRespawnText(npcID)
+    if referenceText then
+        return estimateText .. " | " .. referenceText
+    end
+    return estimateText
 end
 
 -- Reuse WildSpark's existing event owners instead of registering more frame events.

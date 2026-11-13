@@ -1,3 +1,8 @@
+WildSpark 2.2.10
+- Show rare-spawn reference respawn ranges and event-spawn notes in WildInfo creature tooltips; local and shared observations stay primary, and reference data is labeled unverified for WoW Forever.
+- Restore required Herbalism and Mining skill levels on custom minimap node hover tooltips, colored by whether the player's current skill can gather the node.
+- Mark WildGroups listings with a green check after asking to join, matching the newer upstream behavior.
+
 WildSpark 2.2.9
 - Keep WildLayer's public coordination channels after all existing channels, restoring built-in and custom channel ordering when channels join or change.
 

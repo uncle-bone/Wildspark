@@ -1,10 +1,16 @@
 # WildSpark
 
-> **[Download WildSpark 2.2.9 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.9/WildSpark-2.2.9.zip)**
+> **[Download WildSpark 2.2.10 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.10/WildSpark-2.2.10.zip)**
 
-**Current stable release: 2.2.9 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
+**Current stable release: 2.2.10 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
 
 WildSpark is a modular WoW Forever utility suite for gathering highlights, quest-drop tooltips, buffs, creature leash tracking, WildFire camping, auctions, group finding, and layer hopping. Its major modules have dedicated settings tabs, and can be enabled or disabled independently.
+
+## What's new in 2.2.10
+
+- Restore Herbalism and Mining requirements on custom minimap gathering markers; the required level is color-coded by your current skill on the minimap and in the node tooltip.
+- Add rare-spawn reference respawn ranges and event-spawn notes to WildInfo tooltips. These are explicitly marked unverified for WoW Forever; locally learned and peer-shared observations remain the primary estimate.
+- Mark WildGroups listings with a green check after you ask to join, matching the newer upstream behavior.
 
 ## What's new in 2.2.9
 
@@ -72,4 +78,4 @@ Download the ZIP, extract it, and place the included `WildSpark` folder in the F
 
 ## Third-party notices
 
-WildSpark retains the license and attribution files for its embedded components in their respective folders. The original Camping Kit artwork is excluded; WildFire uses replacement artwork with its own license notice. WildInfo (formerly WildDrops) is included and modified with permission from the original Questionable Drops author; its quest database credits QuestieDB Forever and Wowhead. Respawn estimates are learned locally; WildSpark does not bundle rare-only timer data.
+WildSpark retains the license and attribution files for its embedded components in their respective folders. The original Camping Kit artwork is excluded; WildFire uses replacement artwork with its own license notice. WildInfo (formerly WildDrops) is included and modified with permission from the original Questionable Drops author; its quest database credits QuestieDB Forever and Wowhead. Respawn estimates combine local and peer-shared observations with a clearly labeled rare-spawn reference table that is not verified for WoW Forever.
