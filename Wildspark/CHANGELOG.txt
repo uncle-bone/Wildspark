@@ -1,3 +1,6 @@
+WildSpark 2.2.27
+- Remove the undefined tooltip rescan hook that caused repeated nil-call errors during Blizzard tooltip line construction. Keep native TooltipDataProcessor callbacks as the gathering tooltip path.
+
 WildSpark 2.2.26
 - Remove HookScript calls from tooltip setup for UI combinations that reject them on GameTooltip. Retain the native data callbacks, secure method hooks, and per-tooltip duplicate checks.
 
