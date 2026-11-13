@@ -1867,31 +1867,28 @@ local function AddNodeSkillLine(tooltip, text)
 			local skill = ns.GatherSkill(node.kind)
 			local requirement = ns.NodeRequirement(node)
 				or string.format("%s (%d)", skill and skill.name or node.kind, node.skill)
-			if not (TooltipHasLine(tooltip, label) and TooltipHasLine(tooltip, requirement)) then
-				local r, g, b = ns.DifficultyColor(ns.NodeDifficulty(node) or "difficult")
-				tooltip.wildsparkAddingSkillLines = true
-				if not TooltipHasLine(tooltip, label) then pcall(tooltip.AddLine, tooltip, label, r, g, b) end
-				if not TooltipHasLine(tooltip, requirement) then pcall(tooltip.AddLine, tooltip, requirement, r, g, b) end
-				tooltip.wildsparkAddingSkillLines = nil
+			local key = entry.name .. ":" .. node.skill
+			local seen = tooltip.wildsparkNodeSkillSeen
+			if type(seen) ~= "table" then
+				seen = {}
+				tooltip.wildsparkNodeSkillSeen = seen
+			end
+			if not seen[key] then
+				seen[key] = true
+				local hasLabel, hasRequirement = TooltipHasLine(tooltip, label), TooltipHasLine(tooltip, requirement)
+				if not (hasLabel and hasRequirement) then
+					local r, g, b = ns.DifficultyColor(ns.NodeDifficulty(node) or "difficult")
+					tooltip.wildsparkAddingSkillLines = true
+					if not hasLabel then pcall(tooltip.AddLine, tooltip, label, r, g, b) end
+					if not hasRequirement then pcall(tooltip.AddLine, tooltip, requirement, r, g, b) end
+					tooltip.wildsparkAddingSkillLines = nil
+				end
 			end
 		end
 	end
 end
 
 local ScanVisibleTooltip
-
--- Some minimap skins build the same native node tooltip through SetText/SetOwner
--- rather than a TooltipDataProcessor callback. Scan after those methods complete.
-local function QueueTooltipScan(tooltip)
-	if not tooltip or tooltip.wildsparkAddingSkillLines or tooltip.wildsparkScanQueued then return end
-	tooltip.wildsparkScanQueued = true
-	local function scan()
-		tooltip.wildsparkScanQueued = nil
-		if tooltip.IsShown and not tooltip:IsShown() then return end
-		if ScanVisibleTooltip then ScanVisibleTooltip(tooltip) end
-	end
-	if C_Timer and C_Timer.After then C_Timer.After(0, scan) else scan() end
-end
 
 local function OnTooltip(tooltip, data)
 	if not (ns.db and ns.db.enabled) or not tooltip or IsSecret(data) or type(data) ~= "table" then return end
@@ -1916,26 +1913,40 @@ ScanVisibleTooltip = function(tooltip)
 	end
 end
 
-local function HookTooltip()
-	if hooked then return end
-	local kinds = Enum and Enum.TooltipDataType
-	if kinds and TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall then
-		if kinds.MinimapMouseover then pcall(TooltipDataProcessor.AddTooltipPostCall, kinds.MinimapMouseover, OnTooltip) end
-		if kinds.Unit then pcall(TooltipDataProcessor.AddTooltipPostCall, kinds.Unit, OnTooltip) end
-		if kinds.Object then pcall(TooltipDataProcessor.AddTooltipPostCall, kinds.Object, OnTooltip) end
-	end
-	if GameTooltip and GameTooltip.HookScript then
-		GameTooltip:HookScript("OnShow", QueueTooltipScan)
-		GameTooltip:HookScript("OnHide", function(tooltip)
-			tooltip.wildsparkScanQueued = nil
+local function HookTooltipFrame(tooltip)
+	if not tooltip or tooltip.wildsparkTooltipHooks then return end
+	tooltip.wildsparkTooltipHooks = true
+	if tooltip.HookScript then
+		tooltip:HookScript("OnShow", QueueTooltipScan)
+		tooltip:HookScript("OnHide", function(frame)
+			frame.wildsparkScanQueued, frame.wildsparkNodeSkillSeen = nil, nil
 		end)
 	end
-	if GameTooltip and hooksecurefunc then
+	if hooksecurefunc then
 		for _, method in ipairs({ "SetText", "SetOwner", "SetWorldCursor", "SetUnit", "SetHyperlink" }) do
-			if GameTooltip[method] then pcall(hooksecurefunc, GameTooltip, method, QueueTooltipScan) end
+			if tooltip[method] then pcall(hooksecurefunc, tooltip, method, QueueTooltipScan) end
+		end
+		if tooltip.AddLine then
+			pcall(hooksecurefunc, tooltip, "AddLine", function(frame)
+				if not frame.wildsparkAddingSkillLines then QueueTooltipScan(frame) end
+			end)
 		end
 	end
-	hooked = true
+end
+
+local function HookTooltip()
+	if not hooked then
+		local kinds = Enum and Enum.TooltipDataType
+		if kinds and TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall then
+			if kinds.MinimapMouseover then pcall(TooltipDataProcessor.AddTooltipPostCall, kinds.MinimapMouseover, OnTooltip) end
+			if kinds.Unit then pcall(TooltipDataProcessor.AddTooltipPostCall, kinds.Unit, OnTooltip) end
+			if kinds.Object then pcall(TooltipDataProcessor.AddTooltipPostCall, kinds.Object, OnTooltip) end
+		end
+		hooked = true
+	end
+	HookTooltipFrame(GameTooltip)
+	HookTooltipFrame(WorldMapTooltip)
+	HookTooltipFrame(MinimapTooltip)
 end
 
 -- Install before login settings or minimap scanning are initialized. The live
