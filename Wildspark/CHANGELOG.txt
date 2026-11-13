@@ -1,3 +1,6 @@
+WildSpark 2.2.22
+- Hook Forever's GameTooltip:SetWorldCursor path used by native minimap node hovers. Deferred scans add required profession/rank only when those lines are missing, preventing duplicates across refreshes.
+
 WildSpark 2.2.21
 - Use Blizzard's native MinimapMouseover post-call data to append gathering requirements once, and remove the AddLine hook that caused repeated text. Keep a visible-tooltip fallback for clients without tooltip data callbacks.
 
