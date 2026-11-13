@@ -1878,26 +1878,44 @@ end
 
 -- La souris sur un nœud que la compétence du joueur ne permet pas de récolter : sous son nom,
 -- ce qu'il demande, écrit comme le jeu l'écrit pour un objet inutilisable
+local function TooltipHasLine(tooltip, wanted)
+	if type(wanted) ~= "string" then return false end
+	local name = tooltip and tooltip.GetName and tooltip:GetName()
+	local count = tooltip and tooltip.NumLines and tooltip:NumLines() or 0
+	if not name or type(count) ~= "number" then return false end
+	for index = 1, count do
+		local line = _G[name .. "TextLeft" .. index]
+		if line and line.GetText then
+			local ok, text = pcall(line.GetText, line)
+			if ok and not IsSecret(text) and text == wanted then return true end
+		end
+	end
+	return false
+end
+
 local function AddNodeSkillLine(tooltip, text)
 	if not (ns.db and ns.db.enabled) or not tooltip or tooltip.wildsparkAddingSkillLines
 		or IsSecret(text) or type(text) ~= "string" then return end
 	for _, entry in ipairs(Names(text)) do
 		local node = ns.NodeOf(entry.name)
 		if node and node.skill then
+			local label = entry.name .. " " .. node.skill
+			local skill = ns.GatherSkill(node.kind)
+			local requirement = ns.NodeRequirement(node)
+				or string.format("%s (%d)", skill and skill.name or node.kind, node.skill)
 			local seen = tooltip.wildsparkNodeSkills
 			if type(seen) ~= "table" then
 				seen = {}
 				tooltip.wildsparkNodeSkills = seen
 			end
 			local key = entry.name .. ":" .. node.skill
-			if not seen[key] then
+			-- The client can rebuild this tooltip without hiding it. Re-add only if
+			-- the two WildSpark rows are no longer present in the visible tooltip.
+			if not seen[key] or not (TooltipHasLine(tooltip, label) and TooltipHasLine(tooltip, requirement)) then
 				seen[key] = true
 				local r, g, b = ns.DifficultyColor(ns.NodeDifficulty(node) or "difficult")
-				local skill = ns.GatherSkill(node.kind)
-				local requirement = ns.NodeRequirement(node)
-					or string.format("%s (%d)", skill and skill.name or node.kind, node.skill)
 				tooltip.wildsparkAddingSkillLines = true
-				pcall(tooltip.AddLine, tooltip, entry.name .. " " .. node.skill, r, g, b)
+				pcall(tooltip.AddLine, tooltip, label, r, g, b)
 				pcall(tooltip.AddLine, tooltip, requirement, r, g, b)
 				tooltip.wildsparkAddingSkillLines = nil
 			end
@@ -1907,21 +1925,13 @@ end
 
 local ScanVisibleTooltip
 
--- Blizzard may issue many AddLine callbacks while a tooltip is being assembled. Coalesce them,
--- then inspect the completed lines on the next frame so the client cannot overwrite our additions.
+-- Defer until SetWorldCursor/SetText has finished rebuilding Blizzard's tooltip.
+-- Repeated calls are coalesced; existing lines are checked before adding anything.
 local function QueueTooltipScan(tooltip)
-	-- AddLine's secure hook fires for our own appended rows too. Ignore those calls
-	-- or each deferred scan would append another pair of requirement lines forever.
-	if not tooltip or tooltip.wildsparkAddingSkillLines then return end
-	tooltip.wildsparkScanReset = true
-	if tooltip.wildsparkScanQueued then return end
+	if not tooltip or tooltip.wildsparkAddingSkillLines or tooltip.wildsparkScanQueued then return end
 	tooltip.wildsparkScanQueued = true
 	local function scan()
 		tooltip.wildsparkScanQueued = nil
-		if tooltip.wildsparkScanReset then
-			tooltip.wildsparkNodeSkills = nil
-			tooltip.wildsparkScanReset = nil
-		end
 		if tooltip.IsShown and not tooltip:IsShown() then return end
 		if ScanVisibleTooltip then ScanVisibleTooltip(tooltip) end
 	end
@@ -1932,14 +1942,23 @@ local function OnTooltip(tooltip, data)
 	if not (ns.db and ns.db.enabled) or IsSecret(data) or type(data) ~= "table" then return end
 	local lines = data.lines
 	if IsSecret(lines) or type(lines) ~= "table" then return end
-	tooltip.wildsparkNodeSkills = {}
-	-- TooltipDataProcessor post-calls run after Blizzard has populated this native
-	-- minimap tooltip. Read its data directly and append once; do not hook AddLine,
-	-- because our own rows pass through that method too.
+	-- Use the native data callback when available, then SetWorldCursor as a
+	-- follow-up path for client builds that display nodes through world-cursor data.
 	for _, line in ipairs(lines) do
 		local text = line.leftText
-		if not IsSecret(text) and type(text) == "string" then
-			AddNodeSkillLine(tooltip, text)
+		if not IsSecret(text) and type(text) == "string" then AddNodeSkillLine(tooltip, text) end
+	end
+end
+
+ScanVisibleTooltip = function(tooltip)
+	local name = tooltip and tooltip.GetName and tooltip:GetName()
+	local count = tooltip and tooltip.NumLines and tooltip:NumLines() or 0
+	if not name or type(count) ~= "number" then return end
+	for index = 1, count do
+		local line = _G[name .. "TextLeft" .. index]
+		if line and line.GetText then
+			local ok, text = pcall(line.GetText, line)
+			if ok then AddNodeSkillLine(tooltip, text) end
 		end
 	end
 end
@@ -1948,24 +1967,19 @@ local function HookTooltip()
 	if hooked then return end
 	if GameTooltip and GameTooltip.HookScript then
 		GameTooltip:HookScript("OnHide", function(tooltip)
-			tooltip.wildsparkNodeSkills, tooltip.wildsparkScanQueued, tooltip.wildsparkScanReset = nil, nil, nil
+			tooltip.wildsparkNodeSkills, tooltip.wildsparkScanQueued = nil, nil
 		end)
+		GameTooltip:HookScript("OnShow", QueueTooltipScan)
 	end
 	local kind = Enum and Enum.TooltipDataType and Enum.TooltipDataType.MinimapMouseover
 	if kind and TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall then
-		local ok = pcall(TooltipDataProcessor.AddTooltipPostCall, kind, OnTooltip)
-		if ok then
-			hooked = true
-			return
-		end
+		pcall(TooltipDataProcessor.AddTooltipPostCall, kind, OnTooltip)
 	end
-	-- Older clients without tooltip data callbacks can still use the completed
-	-- visible GameTooltip as a fallback. No AddLine hook is installed.
+	-- Forever routes native minimap node hovers through SetWorldCursor. SetText
+	-- also covers interface skins that build the same tooltip through plain text.
 	if GameTooltip and hooksecurefunc then
-		pcall(hooksecurefunc, GameTooltip, "SetText", QueueTooltipScan)
-	end
-	if GameTooltip and GameTooltip.HookScript then
-		GameTooltip:HookScript("OnShow", QueueTooltipScan)
+		if GameTooltip.SetWorldCursor then pcall(hooksecurefunc, GameTooltip, "SetWorldCursor", QueueTooltipScan) end
+		if GameTooltip.SetText then pcall(hooksecurefunc, GameTooltip, "SetText", QueueTooltipScan) end
 	end
 	hooked = true
 end
