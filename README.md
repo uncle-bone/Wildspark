@@ -1,14 +1,14 @@
 # WildSpark
 
-> **[Download WildSpark 2.2.24 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.24/WildSpark-2.2.24.zip)**
+> **[Download WildSpark 2.2.25 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.25/WildSpark-2.2.25.zip)**
 
-**Current stable release: 2.2.24 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
+**Current stable release: 2.2.25 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
 
 WildSpark is a modular WoW Forever utility suite for gathering highlights, quest-drop tooltips, buffs, creature leash tracking, WildFire camping, auctions, group finding, and layer hopping. Its major modules have dedicated settings tabs, and can be enabled or disabled independently.
 
-## What's new in 2.2.24
+## What's new in 2.2.25
 
-- Deduplicate rank/profession lines against the visible tooltip. Handle MinimapMouseover, Unit, and Object post-calls, plus delayed rescans after SetText/SetOwner/SetWorldCursor for minimap skins that bypass post-calls.
+- Prevent duplicate gathering requirements with an immediate per-tooltip cache and visible-line checks. Watch AddLine-built updates while ignoring WildSpark's own inserted rows; hook GameTooltip, WorldMapTooltip, and MinimapTooltip.
 - Add rare-spawn reference respawn ranges and event-spawn notes to WildInfo tooltips. These are explicitly marked unverified for WoW Forever; locally learned and peer-shared observations remain the primary estimate.
 - Mark WildGroups listings with a green check after you ask to join, matching the newer upstream behavior.
 
@@ -40,7 +40,7 @@ WildSpark is a modular WoW Forever utility suite for gathering highlights, quest
 
 ## What's new in 2.2.3
 
-- Originally bundled RareScanner's 75-entry respawn reference table in WildInfo; it was later removed and is restored in 2.2.24.
+- Originally bundled RareScanner's 75-entry respawn reference table in WildInfo; it was later removed and is restored in 2.2.25.
 
 ## What's new in 2.2.2
 
