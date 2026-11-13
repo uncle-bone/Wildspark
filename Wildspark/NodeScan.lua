@@ -1870,24 +1870,43 @@ end
 
 -- La souris sur un nœud que la compétence du joueur ne permet pas de récolter : sous son nom,
 -- ce qu'il demande, écrit comme le jeu l'écrit pour un objet inutilisable
+local function AddNodeSkillLine(tooltip, text)
+	if not (ns.db and ns.db.enabled) or IsSecret(text) or type(text) ~= "string" then return end
+	for _, entry in ipairs(Names(text)) do
+		local node = ns.NodeOf(entry.name)
+		if node and node.skill and Wanted(node.kind) then
+			local seen = tooltip.wildsparkNodeSkills
+			if type(seen) ~= "table" then
+				seen = {}
+				tooltip.wildsparkNodeSkills = seen
+			end
+			local key = entry.name .. ":" .. node.skill
+			if not seen[key] then
+				seen[key] = true
+				local r, g, b = ns.DifficultyColor(ns.NodeDifficulty(node) or "difficult")
+				pcall(tooltip.AddLine, tooltip, entry.name .. " " .. node.skill, r, g, b)
+			end
+		end
+	end
+end
+
 local function OnTooltip(tooltip, data)
 	if not (ns.db and ns.db.enabled) or IsSecret(data) or type(data) ~= "table" then return end
 	local lines = data.lines
 	if IsSecret(lines) or type(lines) ~= "table" then return end
-	local said
 	for _, line in ipairs(lines) do
 		local text = line.leftText
 		if not IsSecret(text) and type(text) == "string" then
-			for _, entry in ipairs(Names(text)) do
-				local node = ns.NodeOf(entry.name)
-				local needs = node and Wanted(node.kind) and ns.NodeRequirement(node)
-				if needs and not (said and said[needs]) then
-					said = said or {}
-					said[needs] = true
-					pcall(tooltip.AddLine, tooltip, needs, ns.DifficultyColor(ns.NodeDifficulty(node) or "difficult"))
-				end
-			end
+			AddNodeSkillLine(tooltip, text)
 		end
+	end
+end
+
+local function OnMinimapTooltipText(tooltip, text)
+	-- Some Forever builds do not dispatch TooltipDataProcessor's minimap callback.
+	-- Their tracking-dot tooltip still sets the visible node name through SetText.
+	if tooltip == GameTooltip and Minimap and Minimap.IsMouseOver and Minimap:IsMouseOver() then
+		AddNodeSkillLine(tooltip, text)
 	end
 end
 
@@ -1896,6 +1915,13 @@ local function HookTooltip()
 	local kind = Enum and Enum.TooltipDataType and Enum.TooltipDataType.MinimapMouseover
 	if kind and TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall then
 		hooked = pcall(TooltipDataProcessor.AddTooltipPostCall, kind, OnTooltip)
+	end
+	if GameTooltip and hooksecurefunc then
+		pcall(hooksecurefunc, GameTooltip, "SetText", OnMinimapTooltipText)
+		if GameTooltip.HookScript then
+			GameTooltip:HookScript("OnHide", function(tooltip) tooltip.wildsparkNodeSkills = nil end)
+		end
+		hooked = true
 	end
 end
 
