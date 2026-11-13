@@ -1,6 +1,6 @@
-WildSpark 2.2.11
+WildSpark 2.2.12
 - Show rare-spawn reference respawn ranges and event-spawn notes in WildInfo creature tooltips; local and shared observations stay primary, and reference data is labeled unverified for WoW Forever.
-- Restore required Herbalism and Mining skill levels on custom minimap node hover tooltips, colored by whether the player's current skill can gather the node.
+- Show gathering skill on the minimap tracking tooltip as node name plus required level, color-coded by the player's skill; add a fallback for Forever builds without the minimap tooltip-data callback.
 - Mark WildGroups listings with a green check after asking to join, matching the newer upstream behavior.
 
 WildSpark 2.2.9
