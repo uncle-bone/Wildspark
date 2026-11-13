@@ -1,14 +1,14 @@
 # WildSpark
 
-> **[Download WildSpark 2.2.20 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.20/WildSpark-2.2.20.zip)**
+> **[Download WildSpark 2.2.21 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.21/WildSpark-2.2.21.zip)**
 
-**Current stable release: 2.2.20 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
+**Current stable release: 2.2.21 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
 
 WildSpark is a modular WoW Forever utility suite for gathering highlights, quest-drop tooltips, buffs, creature leash tracking, WildFire camping, auctions, group finding, and layer hopping. Its major modules have dedicated settings tabs, and can be enabled or disabled independently.
 
-## What's new in 2.2.20
+## What's new in 2.2.21
 
-- Prevent gathering tooltip duplication by ignoring WildSpark's own inserted lines in the AddLine hook. Native minimap node hovers show one rank and profession requirement, refreshed per hover.
+- Use Blizzard's native MinimapMouseover post-call data to append gathering requirements once, and remove the AddLine hook that caused repeated text. Keep a visible-tooltip fallback for clients without tooltip data callbacks.
 - Add rare-spawn reference respawn ranges and event-spawn notes to WildInfo tooltips. These are explicitly marked unverified for WoW Forever; locally learned and peer-shared observations remain the primary estimate.
 - Mark WildGroups listings with a green check after you ask to join, matching the newer upstream behavior.
 
@@ -40,7 +40,7 @@ WildSpark is a modular WoW Forever utility suite for gathering highlights, quest
 
 ## What's new in 2.2.3
 
-- Originally bundled RareScanner's 75-entry respawn reference table in WildInfo; it was later removed and is restored in 2.2.20.
+- Originally bundled RareScanner's 75-entry respawn reference table in WildInfo; it was later removed and is restored in 2.2.21.
 
 ## What's new in 2.2.2
 
