@@ -1899,7 +1899,6 @@ local function AddNodeSkillLine(tooltip, text)
 				pcall(tooltip.AddLine, tooltip, entry.name .. " " .. node.skill, r, g, b)
 				pcall(tooltip.AddLine, tooltip, requirement, r, g, b)
 				tooltip.wildsparkAddingSkillLines = nil
-				pcall(tooltip.Show, tooltip)
 			end
 		end
 	end
@@ -1930,23 +1929,15 @@ end
 
 local function OnTooltip(tooltip, data)
 	if not (ns.db and ns.db.enabled) or IsSecret(data) or type(data) ~= "table" then return end
-	QueueTooltipScan(tooltip)
-end
-
-local function OnMinimapTooltipText(tooltip)
-	-- Queue after Blizzard's tooltip data handler has finished replacing its lines.
-	QueueTooltipScan(tooltip)
-end
-
-ScanVisibleTooltip = function(tooltip)
-	local name = tooltip and tooltip.GetName and tooltip:GetName()
-	local count = tooltip and tooltip.NumLines and tooltip:NumLines() or 0
-	if not name or type(count) ~= "number" then return end
-	for index = 1, count do
-		local line = _G[name .. "TextLeft" .. index]
-		if line and line.GetText then
-			local ok, text = pcall(line.GetText, line)
-			if ok then AddNodeSkillLine(tooltip, text) end
+	local lines = data.lines
+	if IsSecret(lines) or type(lines) ~= "table" then return end
+	-- TooltipDataProcessor post-calls run after Blizzard has populated this native
+	-- minimap tooltip. Read its data directly and append once; do not hook AddLine,
+	-- because our own rows pass through that method too.
+	for _, line in ipairs(lines) do
+		local text = line.leftText
+		if not IsSecret(text) and type(text) == "string" then
+			AddNodeSkillLine(tooltip, text)
 		end
 	end
 end
@@ -1955,15 +1946,22 @@ local function HookTooltip()
 	if hooked then return end
 	local kind = Enum and Enum.TooltipDataType and Enum.TooltipDataType.MinimapMouseover
 	if kind and TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall then
-		pcall(TooltipDataProcessor.AddTooltipPostCall, kind, OnTooltip)
+		local ok = pcall(TooltipDataProcessor.AddTooltipPostCall, kind, OnTooltip)
+		if ok then
+			hooked = true
+			return
+		end
 	end
+	-- Older clients without tooltip data callbacks can still use the completed
+	-- visible GameTooltip as a fallback. No AddLine hook is installed.
 	if GameTooltip and hooksecurefunc then
-		pcall(hooksecurefunc, GameTooltip, "SetText", OnMinimapTooltipText)
-		pcall(hooksecurefunc, GameTooltip, "AddLine", OnMinimapTooltipText)
+		pcall(hooksecurefunc, GameTooltip, "SetText", QueueTooltipScan)
 	end
 	if GameTooltip and GameTooltip.HookScript then
 		GameTooltip:HookScript("OnShow", QueueTooltipScan)
-		GameTooltip:HookScript("OnHide", function(tooltip) tooltip.wildsparkNodeSkills, tooltip.wildsparkScanQueued, tooltip.wildsparkScanReset = nil, nil, nil end)
+		GameTooltip:HookScript("OnHide", function(tooltip)
+			tooltip.wildsparkNodeSkills, tooltip.wildsparkScanQueued, tooltip.wildsparkScanReset = nil, nil, nil
+		end)
 	end
 	hooked = true
 end
