@@ -252,18 +252,15 @@ local function ShowNodeTooltip(frame, marker)
 	if type(name) ~= "string" or name == "" then return end
 
 	local r, g, b = ns.DifficultyColor(ns.NodeDifficulty(node) or "difficult")
+	local requirement = ns.NodeRequirement(node)
+	local skill = ns.GatherSkill(node.kind)
+	local skillName = skill and skill.name or (node.kind == "herb" and "Herbalism" or "Mining")
+	GameTooltip.wildsparkCustomNodeTooltip = true
 	GameTooltip:SetOwner(frame, "ANCHOR_RIGHT")
 	GameTooltip:ClearLines()
 	GameTooltip.wildsparkAddingSkillLines = true
-	GameTooltip:AddLine(("%s %d"):format(name, node.skill), r, g, b)
-	local requirement = ns.NodeRequirement(node)
-	local skill = ns.GatherSkill(node.kind)
-	local skillName = skill and skill.name or (node.kind == "herb" and L.NAME_HERB or L.NAME_ORE)
-	if requirement then
-		GameTooltip:AddLine(requirement, 0.8, 0.8, 0.8)
-	elseif skillName then
-		GameTooltip:AddLine(("%s (%d)"):format(skillName, node.skill), 0.8, 0.8, 0.8)
-	end
+	GameTooltip:AddLine(name, r, g, b)
+	GameTooltip:AddLine(requirement or string.format("%s (%d)", skillName, node.skill), r, g, b)
 	GameTooltip.wildsparkAddingSkillLines = nil
 	GameTooltip:Show()
 end
@@ -285,7 +282,7 @@ local function NewIcon(parent)
 	Loose(icon.ring)
 	frame:EnableMouse(true)
 	frame:SetScript("OnEnter", function(button) ShowNodeTooltip(button, button.marker) end)
-	frame:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	frame:SetScript("OnLeave", function() GameTooltip.wildsparkCustomNodeTooltip = nil; GameTooltip:Hide() end)
 	frame:Hide()
 	return icon
 end
@@ -2030,6 +2027,8 @@ function ns.UpdateNodes()
 		if not holder then
 			holder = CreateFrame("Frame", nil, Minimap)
 			holder:SetAllPoints(Minimap)
+			-- Keep our node faces above minimap skin overlays (including EllesmereUI).
+			if Minimap.GetFrameLevel then holder:SetFrameLevel(Minimap:GetFrameLevel() + 50) end
 		end
 		-- sans alternance, plus rien ne justifie de garder les nœuds d'un pistage éteint
 		if not ns.GetOption("nodeSwitch") then
