@@ -1906,12 +1906,23 @@ local function OnTooltip(tooltip, data)
 	end
 end
 
-local function OnMinimapTooltipText(tooltip, text)
-	-- Some Forever builds do not dispatch TooltipDataProcessor's minimap callback.
-	-- Their tracking-dot tooltip still sets the visible node name through SetText.
-	if tooltip == GameTooltip and Minimap and Minimap.IsMouseOver and Minimap:IsMouseOver() then
-		AddNodeSkillLine(tooltip, text)
+local function IsMinimapTooltip(tooltip)
+	if tooltip ~= GameTooltip then return false end
+	if Minimap and Minimap.IsMouseOver and Minimap:IsMouseOver() then return true end
+	local owner = tooltip.GetOwner and tooltip:GetOwner()
+	for _ = 1, 6 do
+		if not owner then break end
+		if owner == Minimap then return true end
+		local ok, parent = pcall(owner.GetParent, owner)
+		owner = ok and parent or nil
 	end
+	return false
+end
+
+local function OnMinimapTooltipText(tooltip, text)
+	-- Forever builds may omit TooltipDataProcessor callbacks. Their minimap tooltip
+	-- can still be recognized by its owner and the native SetText/AddLine calls.
+	if IsMinimapTooltip(tooltip) then AddNodeSkillLine(tooltip, text) end
 end
 
 local function HookTooltip()

@@ -102,6 +102,40 @@ local VEIN_NAMES = {
 		darkiron = "Залежи черного железа", thorium = "Малая ториевая жила", richthorium = "Богатая ториевая жила",
 	},
 }
+-- English names are indexed even when Forever has not cached the localized item
+-- names yet. Without these aliases, a freshly encountered herb is known only as
+-- "Herbalism" and cannot be assigned its actual required skill.
+local EN_HERB_NAMES = {
+	[2447] = "Peacebloom",
+	[765] = "Silverleaf",
+	[2449] = "Earthroot",
+	[785] = "Mageroyal",
+	[2450] = "Briarthorn",
+	[3820] = "Stranglekelp",
+	[2453] = "Bruiseweed",
+	[3355] = "Wild Steelbloom",
+	[3369] = "Grave Moss",
+	[3356] = "Kingsblood",
+	[3357] = "Liferoot",
+	[3818] = "Fadeleaf",
+	[3821] = "Goldthorn",
+	[3358] = "Khadgar's Whisker",
+	[3819] = "Wintersbite",
+	[4625] = "Firebloom",
+	[8831] = "Purple Lotus",
+	[8836] = "Arthas' Tears",
+	[8838] = "Sungrass",
+	[8839] = "Blindweed",
+	[8845] = "Ghost Mushroom",
+	[8846] = "Gromsblood",
+	[13464] = "Golden Sansam",
+	[13463] = "Dreamfoil",
+	[13465] = "Mountain Silversage",
+	[13466] = "Plaguebloom",
+	[13467] = "Icecap",
+	[13468] = "Black Lotus",
+}
+
 local SAME_AS = { enGB = "enUS", esMX = "esES" }
 
 local SKILL_LINE = { herb = 182, ore = 186 }  -- Herboristerie et Minage dans les données du jeu
@@ -168,15 +202,17 @@ end
 -- charge alors, et prévient par GET_ITEM_INFO_RECEIVED.
 local function Build()
 	built = true
-	local veins = VEIN_NAMES[ClientLocale()] or {}
+	local locale = ClientLocale()
+	local veins = VEIN_NAMES[locale] or {}
+	local englishHerbNames = locale == "enUS" and EN_HERB_NAMES or nil
 	for _, node in ipairs(nodes) do
 		if node.kind == "ore" then
 			Index(veins[node.vein], node)
 		else
 			local name = ItemName(node.item)
-			if name then
-				Index(name, node)
-			else
+			if name then Index(name, node) end
+			if englishHerbNames then Index(englishHerbNames[node.item], node) end
+			if not name then
 				pending[node.item] = node
 				if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, node.item) end
 			end

@@ -1,14 +1,14 @@
 # WildSpark
 
-> **[Download WildSpark 2.2.13 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.13/WildSpark-2.2.13.zip)**
+> **[Download WildSpark 2.2.14 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.14/WildSpark-2.2.14.zip)**
 
-**Current stable release: 2.2.13 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
+**Current stable release: 2.2.14 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
 
 WildSpark is a modular WoW Forever utility suite for gathering highlights, quest-drop tooltips, buffs, creature leash tracking, WildFire camping, auctions, group finding, and layer hopping. Its major modules have dedicated settings tabs, and can be enabled or disabled independently.
 
-## What's new in 2.2.13
+## What's new in 2.2.14
 
-- Show gathering skill in the minimap node hover tooltip as the node name and required level, color-coded by your current skill. Fallback hooks also capture minimap tooltip lines on Forever builds that do not dispatch minimap tooltip-data callbacks.
+- Show gathering skill in both the minimap node hover and node tooltips. Built-in English herb name mappings ensure required levels remain available before the client caches item data; tooltip hooks cover both SetText and AddLine.
 - Add rare-spawn reference respawn ranges and event-spawn notes to WildInfo tooltips. These are explicitly marked unverified for WoW Forever; locally learned and peer-shared observations remain the primary estimate.
 - Mark WildGroups listings with a green check after you ask to join, matching the newer upstream behavior.
 
@@ -40,7 +40,7 @@ WildSpark is a modular WoW Forever utility suite for gathering highlights, quest
 
 ## What's new in 2.2.3
 
-- Originally bundled RareScanner's 75-entry respawn reference table in WildInfo; it was later removed and is restored in 2.2.13.
+- Originally bundled RareScanner's 75-entry respawn reference table in WildInfo; it was later removed and is restored in 2.2.14.
 
 ## What's new in 2.2.2
 
