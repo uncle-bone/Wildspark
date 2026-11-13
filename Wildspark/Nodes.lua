@@ -151,14 +151,14 @@ local COLORS = {
 	trivial = { "TRIVIAL_DIFFICULTY_COLOR", 0.5, 0.5, 0.5 },
 }
 
-local byId = {}           -- numéro d'objet -> nœud
-local byName = {}         -- nom replié -> nœud
-local pending = {}        -- objet dont le client n'a pas encore donné le nom -> la plante qui le donne
-local generic = { herb = { kind = "herb" }, ore = { kind = "ore" } }  -- nœud dont seul le métier est connu
-local resolved, resolvedCount = {}, 0  -- nom replié -> nœud, ou false : la réponse déjà trouvée
-local built = false       -- les noms ont-ils été demandés au client ?
-local skills = {}         -- métier -> { rank, total, name }, false si le jeu ne le dit pas ; vidé pour le relire
-local lastKind, lastTime  -- métier du dernier nœud que le jeu a désigné, et quand
+local byId = {}
+local byName = {}
+local pending = {}
+local generic = { herb = { kind = "herb" }, ore = { kind = "ore" } }
+local resolved, resolvedCount = {}, 0
+local built = false
+local skills = {}
+local lastKind, lastTime
 
 local nodes = {}
 for _, entry in ipairs(HERBS) do
@@ -187,7 +187,6 @@ local function Index(name, node)
 	Forget()
 end
 
--- Nom d'un objet dans la langue du client ; nil tant que le client ne l'a pas en mémoire
 local function ItemName(item)
 	local name
 	if C_Item and C_Item.GetItemNameByID then
@@ -198,8 +197,6 @@ local function ItemName(item)
 	return type(name) == "string" and name ~= "" and name or nil
 end
 
--- Demande au client le nom de chaque nœud. Celui d'une plante peut manquer encore : le client le
--- charge alors, et prévient par GET_ITEM_INFO_RECEIVED.
 local function Build()
 	built = true
 	local locale = ClientLocale()
@@ -236,7 +233,6 @@ end)
 pcall(events.RegisterEvent, events, "GET_ITEM_INFO_RECEIVED")
 pcall(events.RegisterEvent, events, "SKILL_LINES_CHANGED")
 
--- Noms appris dans la langue de ce client
 local function Learned(create)
 	local db = ns.db
 	if not db then return nil end
@@ -245,15 +241,13 @@ local function Learned(create)
 	return db.nodeNames[code]
 end
 
--- Le nœud connu dont le nom ouvre ou ferme celui-ci, pour ce métier ; le plus long l'emporte
 local function Variant(key, kind)
 	local best, length = nil, 0
-	-- l'ajout se compte en lettres : une lettre cyrillique tient deux octets
-	local letters = select(2, key:gsub("[^\128-\191]", ""))
+	local letters = select(2, key:gsub("[^\\128-\\191]", ""))
 	for known, node in pairs(byName) do
 		local size = #known
 		if node.kind == kind and size > length and #key > size + 1
-			and letters - select(2, known:gsub("[^\128-\191]", "")) <= MAX_AFFIX
+			and letters - select(2, known:gsub("[^\\128-\\191]", "")) <= MAX_AFFIX
 			and (key:sub(-size - 1) == " " .. known or key:sub(1, size + 1) == known .. " ") then
 			best, length = node, size
 		end
@@ -267,15 +261,11 @@ local function Resolve(key)
 	if type(learned) ~= "table" then learned = nil end
 	local node = learned and learned.id and byId[learned.id] or byName[key]
 	if node then return node end
-	-- le nom d'une plante est souvent un mot de tous les jours (« Pacifique ») : sa variante n'est
-	-- admise que si le jeu a déjà désigné cet objet comme une plante
 	node = Variant(key, learned and learned.kind or "ore")
 	if node then return node end
 	return learned and generic[learned.kind] or nil
 end
 
--- Le nœud que désigne ce nom lu sur la minimap, ou nil si ce n'en est pas un. Un nœud a un
--- métier (`kind`), et le plus souvent une compétence requise (`skill`) et un objet (`item`).
 function ns.NodeOf(name)
 	if IsSecret(name) or type(name) ~= "string" then return nil end
 	if not built then Build() end
@@ -289,8 +279,6 @@ function ns.NodeOf(name)
 	return node or nil
 end
 
--- Le jeu vient de désigner cet objet comme un filon ou une plante (Wildspark.lua) : son nom est
--- retenu, avec son numéro s'il est lisible
 function ns.LearnNode(name, id, category)
 	if not generic[category] or IsSecret(name) or type(name) ~= "string" then return end
 	lastKind, lastTime = category, GetTime()
@@ -304,12 +292,10 @@ function ns.LearnNode(name, id, category)
 	Forget()
 end
 
--- Métier du nœud que le jeu désignait il y a moins de `seconds` : celui que le joueur vient de récolter
 function ns.LastNodeKind(seconds)
 	if lastTime and GetTime() - lastTime <= seconds then return lastKind end
 end
 
--- Image d'un nœud : l'icône de l'objet qu'il donne (un numéro de fichier), ou nil
 function ns.NodeIcon(node)
 	if not node.icon and node.item then
 		local icon
@@ -323,8 +309,6 @@ function ns.NodeIcon(node)
 	return node.icon
 end
 
--- Compétence du joueur dans un métier de récolte : la sienne (`rank`), celle que lui donnent en
--- plus sa race et son équipement (`total`), et le nom du métier ; nil si le jeu ne la dit pas
 local function Skill(kind)
 	local skill = skills[kind]
 	if skill == nil then
@@ -344,16 +328,12 @@ local function Skill(kind)
 end
 ns.GatherSkill = Skill
 
--- Fait relire la compétence au prochain besoin
 function ns.ForgetSkills()
 	skills = {}
 end
 
--- Difficulté d'un nœud pour le joueur, du nom des couleurs du jeu : "impossible" (compétence
--- insuffisante), "difficult", "fair", "easy", "trivial" ; nil si elle ne se sait pas. Les seuils
--- des quatre dernières sont ceux de la récolte dans Classic (requis, +25, +50, +100).
 function ns.NodeDifficulty(node)
-	if not node.skill then return nil end
+	if not node or not node.skill then return nil end
 	local skill = Skill(node.kind)
 	if not skill then return nil end
 	if skill.total < node.skill then return "impossible" end
@@ -374,13 +354,20 @@ function ns.DifficultyColor(level)
 	return entry[2], entry[3], entry[4]
 end
 
--- Ce que le jeu écrirait d'un objet que le joueur ne peut pas utiliser (« Requiert Herboristerie
--- (70) »), pour un nœud au-dessus de sa compétence ; nil pour tout autre
+-- Return the native localized minimum-skill text when available.  Node records carry a
+-- guaranteed Classic requirement, so the numeric rank remains useful even if the client
+-- has no Mining/Herbalism skill-line record loaded (or the skill name cannot be resolved).
 function ns.NodeRequirement(node)
 	if not node or not node.skill then return nil end
 	local skill = Skill(node.kind)
-	if not skill.name or type(ITEM_MIN_SKILL) ~= "string" then return nil end
-	local ok, text = pcall(string.format, ITEM_MIN_SKILL, skill.name, node.skill)
+	local skillName = skill and skill.name
+	if not skillName then
+		skillName = node.kind == "herb" and (GetSpellInfo and GetSpellInfo( herbalismSpellID )) or nil
+	end
+	if not skillName then
+		skillName = node.kind == "herb" and "Herbalism" or node.kind == "ore" and "Mining" or nil
+	end
+	if not skillName or type(ITEM_MIN_SKILL) ~= "string" then return nil end
+	local ok, text = pcall(string.format, ITEM_MIN_SKILL, skillName, node.skill)
 	return ok and text or nil
 end
-
