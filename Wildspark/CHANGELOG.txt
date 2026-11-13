@@ -1,3 +1,6 @@
+WildSpark 2.2.26
+- Remove HookScript calls from tooltip setup for UI combinations that reject them on GameTooltip. Retain the native data callbacks, secure method hooks, and per-tooltip duplicate checks.
+
 WildSpark 2.2.25
 - Prevent duplicate gathering requirements with an immediate per-tooltip cache and visible-line checks. Watch AddLine-built updates while ignoring WildSpark's own inserted rows; hook GameTooltip, WorldMapTooltip, and MinimapTooltip.
 
