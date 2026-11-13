@@ -1889,6 +1889,7 @@ local function AddNodeSkillLine(tooltip, text)
 					or string.format("%s (%d)", skill and skill.name or node.kind, node.skill)
 				pcall(tooltip.AddLine, tooltip, entry.name .. " " .. node.skill, r, g, b)
 				pcall(tooltip.AddLine, tooltip, requirement, r, g, b)
+				pcall(tooltip.Show, tooltip)
 			end
 		end
 	end
@@ -1913,21 +1914,40 @@ local function OnMinimapTooltipText(tooltip, text)
 	if tooltip == GameTooltip then AddNodeSkillLine(tooltip, text) end
 end
 
+local function ScanVisibleTooltip(tooltip)
+	if tooltip ~= GameTooltip then return end
+	local name = tooltip.GetName and tooltip:GetName()
+	local count = tooltip.NumLines and tooltip:NumLines() or 0
+	if not name or type(count) ~= "number" then return end
+	for index = 1, count do
+		local line = _G[name .. "TextLeft" .. index]
+		if line and line.GetText then
+			local ok, text = pcall(line.GetText, line)
+			if ok then AddNodeSkillLine(tooltip, text) end
+		end
+	end
+end
+
 local function HookTooltip()
 	if hooked then return end
 	local kind = Enum and Enum.TooltipDataType and Enum.TooltipDataType.MinimapMouseover
 	if kind and TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall then
-		hooked = pcall(TooltipDataProcessor.AddTooltipPostCall, kind, OnTooltip)
+		pcall(TooltipDataProcessor.AddTooltipPostCall, kind, OnTooltip)
 	end
 	if GameTooltip and hooksecurefunc then
-		local textHooked = pcall(hooksecurefunc, GameTooltip, "SetText", OnMinimapTooltipText)
-		local lineHooked = pcall(hooksecurefunc, GameTooltip, "AddLine", OnMinimapTooltipText)
-		if GameTooltip.HookScript then
-			GameTooltip:HookScript("OnHide", function(tooltip) tooltip.wildsparkNodeSkills = nil end)
-		end
-		hooked = hooked or textHooked or lineHooked
+		pcall(hooksecurefunc, GameTooltip, "SetText", OnMinimapTooltipText)
+		pcall(hooksecurefunc, GameTooltip, "AddLine", OnMinimapTooltipText)
 	end
+	if GameTooltip and GameTooltip.HookScript then
+		GameTooltip:HookScript("OnShow", ScanVisibleTooltip)
+		GameTooltip:HookScript("OnHide", function(tooltip) tooltip.wildsparkNodeSkills = nil end)
+	end
+	hooked = true
 end
+
+-- Install before login settings or minimap scanning are initialized. The live
+-- callbacks check current settings when a node tooltip is actually drawn.
+HookTooltip()
 
 ---------------------------------------------------------------------------
 -- Liens avec Wildspark.lua et avec le jeu

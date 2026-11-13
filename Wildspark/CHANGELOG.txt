@@ -1,6 +1,6 @@
-WildSpark 2.2.15
+WildSpark 2.2.16
 - Show rare-spawn reference respawn ranges and event-spawn notes in WildInfo creature tooltips; local and shared observations stay primary, and reference data is labeled unverified for WoW Forever.
-- Remove restrictive tooltip-owner and minimap-tracking option checks so recognized herb/ore tooltips always show the requirement; fallback hooks accept ordinary SetText/AddLine tooltips on Forever.
+- Register tooltip hooks as the addon loads and rescan visible GameTooltip text on show, so gathering requirements do not depend on minimap tooltip ownership or callback timing.
 - Mark WildGroups listings with a green check after asking to join, matching the newer upstream behavior.
 
 WildSpark 2.2.9
