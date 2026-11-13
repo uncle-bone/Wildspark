@@ -243,11 +243,11 @@ end
 
 local function Variant(key, kind)
 	local best, length = nil, 0
-	local letters = select(2, key:gsub("[^\\128-\\191]", ""))
+	local letters = select(2, key:gsub("[^\128-\191]", ""))
 	for known, node in pairs(byName) do
 		local size = #known
 		if node.kind == kind and size > length and #key > size + 1
-			and letters - select(2, known:gsub("[^\\128-\\191]", "")) <= MAX_AFFIX
+			and letters - select(2, known:gsub("[^\128-\191]", "")) <= MAX_AFFIX
 			and (key:sub(-size - 1) == " " .. known or key:sub(1, size + 1) == known .. " ") then
 			best, length = node, size
 		end
@@ -362,7 +362,7 @@ function ns.NodeRequirement(node)
 	local skill = Skill(node.kind)
 	local skillName = skill and skill.name
 	if not skillName then
-		skillName = node.kind == "herb" and (GetSpellInfo and GetSpellInfo( herbalismSpellID )) or nil
+		skillName = node.kind == "herb" and (GetSpellInfo and GetSpellInfo(182)) or nil
 	end
 	if not skillName then
 		skillName = node.kind == "herb" and "Herbalism" or node.kind == "ore" and "Mining" or nil
