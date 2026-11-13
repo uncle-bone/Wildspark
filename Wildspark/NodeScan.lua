@@ -1857,12 +1857,13 @@ local function OnTooltip(tooltip, data)
 					if not added[key] then
 						added[key] = true
 						local label = entry.name .. " " .. node.skill
-					local skill = ns.GatherSkill(node.kind)
-					local requirement = ns.NodeRequirement(node)
-						or string.format("%s (%d)", skill and skill.name or node.kind, node.skill)
-					local r, g, b = ns.DifficultyColor(ns.NodeDifficulty(node) or "difficult")
-					pcall(tooltip.AddLine, tooltip, label, r, g, b)
-					pcall(tooltip.AddLine, tooltip, requirement, r, g, b)
+						local skill = ns.GatherSkill(node.kind)
+						local requirement = ns.NodeRequirement(node)
+							or string.format("%s (%d)", skill and skill.name or node.kind, node.skill)
+						local r, g, b = ns.DifficultyColor(ns.NodeDifficulty(node) or "difficult")
+						pcall(tooltip.AddLine, tooltip, label, r, g, b)
+						pcall(tooltip.AddLine, tooltip, requirement, r, g, b)
+					end
 				end
 			end
 		end
