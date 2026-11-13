@@ -238,6 +238,36 @@ end
 -- qui se recouvrent restent chacune d'un seul tenant.
 -- Sans l'image de l'anneau (Wildspark mis à jour sans relancer le jeu, qui ne charge un nouveau fichier
 -- qu'à son démarrage), l'anneau est un disque de couleur sous l'image (`flat`).
+-- Show the node requirement directly from WildSpark's minimap marker.
+-- Blizzard may not route the hover through the native node tooltip on some UI builds.
+local function ShowNodeTooltip(frame, marker)
+	local node = marker and marker.node
+	if not (node and node.skill and GameTooltip) then return end
+	local name
+	if node.item then
+		if C_Item and C_Item.GetItemNameByID then name = SafeCall(C_Item.GetItemNameByID, node.item) end
+		if not name and GetItemInfo then name = SafeCall(GetItemInfo, node.item) end
+	end
+	if type(name) ~= "string" or name == "" then name = marker.name end
+	if type(name) ~= "string" or name == "" then return end
+
+	local r, g, b = ns.DifficultyColor(ns.NodeDifficulty(node) or "difficult")
+	GameTooltip:SetOwner(frame, "ANCHOR_RIGHT")
+	GameTooltip:ClearLines()
+	GameTooltip.wildsparkAddingSkillLines = true
+	GameTooltip:AddLine(("%s %d"):format(name, node.skill), r, g, b)
+	local requirement = ns.NodeRequirement(node)
+	local skill = ns.GatherSkill(node.kind)
+	local skillName = skill and skill.name or (node.kind == "herb" and L.NAME_HERB or L.NAME_ORE)
+	if requirement then
+		GameTooltip:AddLine(requirement, 0.8, 0.8, 0.8)
+	elseif skillName then
+		GameTooltip:AddLine(("%s (%d)"):format(skillName, node.skill), 0.8, 0.8, 0.8)
+	end
+	GameTooltip.wildsparkAddingSkillLines = nil
+	GameTooltip:Show()
+end
+
 local function NewIcon(parent)
 	local frame = CreateFrame("Frame", nil, parent)
 	local icon = { frame = frame }
@@ -253,6 +283,9 @@ local function NewIcon(parent)
 	if icon.flat then Clip(icon, icon.ring) end
 	Loose(icon.face)
 	Loose(icon.ring)
+	frame:EnableMouse(true)
+	frame:SetScript("OnEnter", function(button) ShowNodeTooltip(button, button.marker) end)
+	frame:SetScript("OnLeave", function() GameTooltip:Hide() end)
 	frame:Hide()
 	return icon
 end
