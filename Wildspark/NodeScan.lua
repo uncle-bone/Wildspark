@@ -1916,16 +1916,11 @@ end
 local function HookTooltipFrame(tooltip)
 	if not tooltip or tooltip.wildsparkTooltipHooks then return end
 	tooltip.wildsparkTooltipHooks = true
-	if hooksecurefunc then
-		for _, method in ipairs({ "SetText", "SetOwner", "SetWorldCursor", "SetUnit", "SetHyperlink" }) do
-			if tooltip[method] then pcall(hooksecurefunc, tooltip, method, QueueTooltipScan) end
-		end
-		if tooltip.AddLine then
-			pcall(hooksecurefunc, tooltip, "AddLine", function(frame)
-				if not frame.wildsparkAddingSkillLines then QueueTooltipScan(frame) end
-			end)
-		end
-	end
+	-- TooltipDataProcessor callbacks above provide the supported update path.
+	-- Do not hook AddLine or tooltip setters here: QueueTooltipScan is not defined
+	-- in this module, and AddLine is called during Blizzard's protected tooltip
+	-- construction path. Calling it from a hook can raise repeated errors.
+
 end
 
 local function HookTooltip()
