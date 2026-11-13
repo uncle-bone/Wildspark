@@ -36,12 +36,11 @@ WildSpark is a modular WoW Forever utility suite for gathering highlights, quest
 
 - Fix WildInfo local respawn learning for repeated identical NPCs: retain multiple pending deaths per NPC type and pair later nameplate appearances instead of discarding kills when several are visible.
 - Also observe confirmed deaths from existing unit-health/flag events when available, and show a clear collection status when no local timer has been learned yet.
-- Remove RareScanner's rare-only reference table; respawn timing is learned locally for the NPCs you actually encounter.
+- Temporarily remove the rare-only reference table; local respawn timing continues to be learned for NPCs you encounter.
 
 ## What's new in 2.2.3
 
-- Bundle RareScanner's 75-entry respawn reference table in WildInfo; matching creature tooltips show fixed/ranged reference values or event-spawn notes, clearly labeled as not verified for Forever.
-- Keep locally learned respawn estimates as a fallback for NPCs absent from the reference table.
+- Originally bundled RareScanner's 75-entry respawn reference table in WildInfo; it was later removed and is restored in 2.2.10.
 
 ## What's new in 2.2.2
 
