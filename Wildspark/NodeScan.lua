@@ -1910,11 +1910,18 @@ local ScanVisibleTooltip
 -- Blizzard may issue many AddLine callbacks while a tooltip is being assembled. Coalesce them,
 -- then inspect the completed lines on the next frame so the client cannot overwrite our additions.
 local function QueueTooltipScan(tooltip)
-	if not tooltip or tooltip.wildsparkScanQueued then return end
+	-- AddLine's secure hook fires for our own appended rows too. Ignore those calls
+	-- or each deferred scan would append another pair of requirement lines forever.
+	if not tooltip or tooltip.wildsparkAddingSkillLines then return end
+	tooltip.wildsparkScanReset = true
+	if tooltip.wildsparkScanQueued then return end
 	tooltip.wildsparkScanQueued = true
 	local function scan()
 		tooltip.wildsparkScanQueued = nil
-		tooltip.wildsparkNodeSkills = {}
+		if tooltip.wildsparkScanReset then
+			tooltip.wildsparkNodeSkills = nil
+			tooltip.wildsparkScanReset = nil
+		end
 		if tooltip.IsShown and not tooltip:IsShown() then return end
 		if ScanVisibleTooltip then ScanVisibleTooltip(tooltip) end
 	end
@@ -1956,7 +1963,7 @@ local function HookTooltip()
 	end
 	if GameTooltip and GameTooltip.HookScript then
 		GameTooltip:HookScript("OnShow", QueueTooltipScan)
-		GameTooltip:HookScript("OnHide", function(tooltip) tooltip.wildsparkNodeSkills, tooltip.wildsparkScanQueued = nil, nil end)
+		GameTooltip:HookScript("OnHide", function(tooltip) tooltip.wildsparkNodeSkills, tooltip.wildsparkScanQueued, tooltip.wildsparkScanReset = nil, nil, nil end)
 	end
 	hooked = true
 end
