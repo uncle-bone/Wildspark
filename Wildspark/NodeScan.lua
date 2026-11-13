@@ -1842,30 +1842,76 @@ end
 
 -- La souris sur un nœud que la compétence du joueur ne permet pas de récolter : sous son nom,
 -- ce qu'il demande, écrit comme le jeu l'écrit pour un objet inutilisable
+local function TooltipHasLine(tooltip, wanted)
+	if type(wanted) ~= "string" then return false end
+	local name = tooltip and tooltip.GetName and tooltip:GetName()
+	local count = tooltip and tooltip.NumLines and tooltip:NumLines() or 0
+	if not name or type(count) ~= "number" then return false end
+	for index = 1, count do
+		local line = _G[name .. "TextLeft" .. index]
+		if line and line.GetText then
+			local ok, text = pcall(line.GetText, line)
+			if ok and not IsSecret(text) and text == wanted then return true end
+		end
+	end
+	return false
+end
+
+local function AddNodeSkillLine(tooltip, text)
+	if not (ns.db and ns.db.enabled) or not tooltip or tooltip.wildsparkAddingSkillLines
+		or IsSecret(text) or type(text) ~= "string" then return end
+	for _, entry in ipairs(Names(text)) do
+		local node = ns.NodeOf(entry.name)
+		if node and node.skill and Wanted(node.kind) then
+			local label = entry.name .. " " .. node.skill
+			local skill = ns.GatherSkill(node.kind)
+			local requirement = ns.NodeRequirement(node)
+				or string.format("%s (%d)", skill and skill.name or node.kind, node.skill)
+			if not (TooltipHasLine(tooltip, label) and TooltipHasLine(tooltip, requirement)) then
+				local r, g, b = ns.DifficultyColor(ns.NodeDifficulty(node) or "difficult")
+				tooltip.wildsparkAddingSkillLines = true
+				if not TooltipHasLine(tooltip, label) then pcall(tooltip.AddLine, tooltip, label, r, g, b) end
+				if not TooltipHasLine(tooltip, requirement) then pcall(tooltip.AddLine, tooltip, requirement, r, g, b) end
+				tooltip.wildsparkAddingSkillLines = nil
+			end
+		end
+	end
+end
+
+local ScanVisibleTooltip
+
+-- Some minimap skins build the same native node tooltip through SetText/SetOwner
+-- rather than a TooltipDataProcessor callback. Scan after those methods complete.
+local function QueueTooltipScan(tooltip)
+	if not tooltip or tooltip.wildsparkAddingSkillLines or tooltip.wildsparkScanQueued then return end
+	tooltip.wildsparkScanQueued = true
+	local function scan()
+		tooltip.wildsparkScanQueued = nil
+		if tooltip.IsShown and not tooltip:IsShown() then return end
+		if ScanVisibleTooltip then ScanVisibleTooltip(tooltip) end
+	end
+	if C_Timer and C_Timer.After then C_Timer.After(0, scan) else scan() end
+end
+
 local function OnTooltip(tooltip, data)
 	if not (ns.db and ns.db.enabled) or not tooltip or IsSecret(data) or type(data) ~= "table" then return end
 	local lines = data.lines
 	if IsSecret(lines) or type(lines) ~= "table" then return end
-	local added = {}
 	for _, line in ipairs(lines) do
 		local text = line.leftText
-		if not IsSecret(text) and type(text) == "string" then
-			for _, entry in ipairs(Names(text)) do
-				local node = ns.NodeOf(entry.name)
-				if node and node.skill and Wanted(node.kind) then
-					local key = entry.name .. ":" .. node.skill
-					if not added[key] then
-						added[key] = true
-						local label = entry.name .. " " .. node.skill
-						local skill = ns.GatherSkill(node.kind)
-						local requirement = ns.NodeRequirement(node)
-							or string.format("%s (%d)", skill and skill.name or node.kind, node.skill)
-						local r, g, b = ns.DifficultyColor(ns.NodeDifficulty(node) or "difficult")
-						pcall(tooltip.AddLine, tooltip, label, r, g, b)
-						pcall(tooltip.AddLine, tooltip, requirement, r, g, b)
-					end
-				end
-			end
+		if not IsSecret(text) and type(text) == "string" then AddNodeSkillLine(tooltip, text) end
+	end
+end
+
+ScanVisibleTooltip = function(tooltip)
+	local name = tooltip and tooltip.GetName and tooltip:GetName()
+	local count = tooltip and tooltip.NumLines and tooltip:NumLines() or 0
+	if not name or type(count) ~= "number" then return end
+	for index = 1, count do
+		local line = _G[name .. "TextLeft" .. index]
+		if line and line.GetText then
+			local ok, text = pcall(line.GetText, line)
+			if ok then AddNodeSkillLine(tooltip, text) end
 		end
 	end
 end
@@ -1874,11 +1920,20 @@ local function HookTooltip()
 	if hooked then return end
 	local kinds = Enum and Enum.TooltipDataType
 	if kinds and TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall then
-		-- Forever's minimap and SetWorldCursor paths expose node names through
-		-- MinimapMouseover or WorldCursor's Unit/Object data types.
 		if kinds.MinimapMouseover then pcall(TooltipDataProcessor.AddTooltipPostCall, kinds.MinimapMouseover, OnTooltip) end
 		if kinds.Unit then pcall(TooltipDataProcessor.AddTooltipPostCall, kinds.Unit, OnTooltip) end
 		if kinds.Object then pcall(TooltipDataProcessor.AddTooltipPostCall, kinds.Object, OnTooltip) end
+	end
+	if GameTooltip and GameTooltip.HookScript then
+		GameTooltip:HookScript("OnShow", QueueTooltipScan)
+		GameTooltip:HookScript("OnHide", function(tooltip)
+			tooltip.wildsparkScanQueued = nil
+		end)
+	end
+	if GameTooltip and hooksecurefunc then
+		for _, method in ipairs({ "SetText", "SetOwner", "SetWorldCursor", "SetUnit", "SetHyperlink" }) do
+			if GameTooltip[method] then pcall(hooksecurefunc, GameTooltip, method, QueueTooltipScan) end
+		end
 	end
 	hooked = true
 end
