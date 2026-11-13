@@ -1,3 +1,6 @@
+WildSpark 2.2.25
+- Prevent duplicate gathering requirements with an immediate per-tooltip cache and visible-line checks. Watch AddLine-built updates while ignoring WildSpark's own inserted rows; hook GameTooltip, WorldMapTooltip, and MinimapTooltip.
+
 WildSpark 2.2.24
 - Deduplicate rank/profession lines against the visible tooltip. Handle MinimapMouseover, Unit, and Object post-calls, plus delayed rescans after SetText/SetOwner/SetWorldCursor for minimap skins that bypass post-calls.
 
