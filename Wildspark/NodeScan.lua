@@ -1874,7 +1874,7 @@ local function AddNodeSkillLine(tooltip, text)
 	if not (ns.db and ns.db.enabled) or IsSecret(text) or type(text) ~= "string" then return end
 	for _, entry in ipairs(Names(text)) do
 		local node = ns.NodeOf(entry.name)
-		if node and node.skill and Wanted(node.kind) then
+		if node and node.skill then
 			local seen = tooltip.wildsparkNodeSkills
 			if type(seen) ~= "table" then
 				seen = {}
@@ -1906,23 +1906,11 @@ local function OnTooltip(tooltip, data)
 	end
 end
 
-local function IsMinimapTooltip(tooltip)
-	if tooltip ~= GameTooltip then return false end
-	if Minimap and Minimap.IsMouseOver and Minimap:IsMouseOver() then return true end
-	local owner = tooltip.GetOwner and tooltip:GetOwner()
-	for _ = 1, 6 do
-		if not owner then break end
-		if owner == Minimap then return true end
-		local ok, parent = pcall(owner.GetParent, owner)
-		owner = ok and parent or nil
-	end
-	return false
-end
-
 local function OnMinimapTooltipText(tooltip, text)
-	-- Forever builds may omit TooltipDataProcessor callbacks. Their minimap tooltip
-	-- can still be recognized by its owner and the native SetText/AddLine calls.
-	if IsMinimapTooltip(tooltip) then AddNodeSkillLine(tooltip, text) end
+	-- Some Forever interfaces build the node tooltip through ordinary GameTooltip
+	-- SetText/AddLine calls rather than dispatching minimap TooltipDataProcessor data.
+	-- Match known gathering-node names directly; do not depend on tooltip ownership.
+	if tooltip == GameTooltip then AddNodeSkillLine(tooltip, text) end
 end
 
 local function HookTooltip()
@@ -1953,7 +1941,7 @@ function ns.UpdateNodes()
 	-- custom minimap markers. Its native minimap pins still have usable tooltip
 	-- data, though, so keep the profession requirement tooltip hook independent
 	-- of the custom marker scan's compatibility gate.
-	if ns.db.enabled and (Wanted("herb") or Wanted("ore")) then HookTooltip() end
+	if ns.db.enabled then HookTooltip() end
 	local on = ns.db.enabled and (Wanted("herb") or Wanted("ore")) and not Failure()
 	scan, wait, slow = nil, 0, 1
 	turn.map, turn.kind, turn.want = nil, nil, nil

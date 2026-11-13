@@ -1,6 +1,6 @@
-WildSpark 2.2.14
+WildSpark 2.2.15
 - Show rare-spawn reference respawn ranges and event-spawn notes in WildInfo creature tooltips; local and shared observations stay primary, and reference data is labeled unverified for WoW Forever.
-- Add built-in English herb name mappings so required Herbalism levels work before item data is cached; hook minimap-owned SetText/AddLine tooltips to show node name, required level, and explicit profession requirement.
+- Remove restrictive tooltip-owner and minimap-tracking option checks so recognized herb/ore tooltips always show the requirement; fallback hooks accept ordinary SetText/AddLine tooltips on Forever.
 - Mark WildGroups listings with a green check after asking to join, matching the newer upstream behavior.
 
 WildSpark 2.2.9
