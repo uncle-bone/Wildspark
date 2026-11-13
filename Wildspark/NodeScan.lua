@@ -256,10 +256,17 @@ local function ShowNodeTooltip(frame, marker)
 	local r, g, b = ns.DifficultyColor(difficulty)
 	GameTooltip:SetOwner(frame, "ANCHOR_RIGHT")
 	GameTooltip:ClearLines()
+	GameTooltip.wildsparkAddingSkillLines = true
 	GameTooltip:AddLine(("%s %d"):format(name, node.skill), r, g, b)
+	local requirement = ns.NodeRequirement(node)
 	local skill = ns.GatherSkill(node.kind)
 	local skillName = skill and skill.name or (node.kind == "herb" and L.NAME_HERB or L.NAME_ORE)
-	if skillName then GameTooltip:AddLine(skillName, 0.8, 0.8, 0.8) end
+	if requirement then
+		GameTooltip:AddLine(requirement, 0.8, 0.8, 0.8)
+	elseif skillName then
+		GameTooltip:AddLine(("%s (%d)"):format(skillName, node.skill), 0.8, 0.8, 0.8)
+	end
+	GameTooltip.wildsparkAddingSkillLines = nil
 	GameTooltip:Show()
 end
 
@@ -1871,7 +1878,8 @@ end
 -- La souris sur un nœud que la compétence du joueur ne permet pas de récolter : sous son nom,
 -- ce qu'il demande, écrit comme le jeu l'écrit pour un objet inutilisable
 local function AddNodeSkillLine(tooltip, text)
-	if not (ns.db and ns.db.enabled) or IsSecret(text) or type(text) ~= "string" then return end
+	if not (ns.db and ns.db.enabled) or not tooltip or tooltip.wildsparkAddingSkillLines
+		or IsSecret(text) or type(text) ~= "string" then return end
 	for _, entry in ipairs(Names(text)) do
 		local node = ns.NodeOf(entry.name)
 		if node and node.skill then
@@ -1887,37 +1895,45 @@ local function AddNodeSkillLine(tooltip, text)
 				local skill = ns.GatherSkill(node.kind)
 				local requirement = ns.NodeRequirement(node)
 					or string.format("%s (%d)", skill and skill.name or node.kind, node.skill)
+				tooltip.wildsparkAddingSkillLines = true
 				pcall(tooltip.AddLine, tooltip, entry.name .. " " .. node.skill, r, g, b)
 				pcall(tooltip.AddLine, tooltip, requirement, r, g, b)
+				tooltip.wildsparkAddingSkillLines = nil
 				pcall(tooltip.Show, tooltip)
 			end
 		end
 	end
 end
 
+local ScanVisibleTooltip
+
+-- Blizzard may issue many AddLine callbacks while a tooltip is being assembled. Coalesce them,
+-- then inspect the completed lines on the next frame so the client cannot overwrite our additions.
+local function QueueTooltipScan(tooltip)
+	if not tooltip or tooltip.wildsparkScanQueued then return end
+	tooltip.wildsparkScanQueued = true
+	local function scan()
+		tooltip.wildsparkScanQueued = nil
+		tooltip.wildsparkNodeSkills = {}
+		if tooltip.IsShown and not tooltip:IsShown() then return end
+		if ScanVisibleTooltip then ScanVisibleTooltip(tooltip) end
+	end
+	if C_Timer and C_Timer.After then C_Timer.After(0, scan) else scan() end
+end
+
 local function OnTooltip(tooltip, data)
 	if not (ns.db and ns.db.enabled) or IsSecret(data) or type(data) ~= "table" then return end
-	local lines = data.lines
-	if IsSecret(lines) or type(lines) ~= "table" then return end
-	for _, line in ipairs(lines) do
-		local text = line.leftText
-		if not IsSecret(text) and type(text) == "string" then
-			AddNodeSkillLine(tooltip, text)
-		end
-	end
+	QueueTooltipScan(tooltip)
 end
 
-local function OnMinimapTooltipText(tooltip, text)
-	-- Some Forever interfaces build the node tooltip through ordinary GameTooltip
-	-- SetText/AddLine calls rather than dispatching minimap TooltipDataProcessor data.
-	-- Match known gathering-node names directly; do not depend on tooltip ownership.
-	if tooltip == GameTooltip then AddNodeSkillLine(tooltip, text) end
+local function OnMinimapTooltipText(tooltip)
+	-- Queue after Blizzard's tooltip data handler has finished replacing its lines.
+	QueueTooltipScan(tooltip)
 end
 
-local function ScanVisibleTooltip(tooltip)
-	if tooltip ~= GameTooltip then return end
-	local name = tooltip.GetName and tooltip:GetName()
-	local count = tooltip.NumLines and tooltip:NumLines() or 0
+ScanVisibleTooltip = function(tooltip)
+	local name = tooltip and tooltip.GetName and tooltip:GetName()
+	local count = tooltip and tooltip.NumLines and tooltip:NumLines() or 0
 	if not name or type(count) ~= "number" then return end
 	for index = 1, count do
 		local line = _G[name .. "TextLeft" .. index]
