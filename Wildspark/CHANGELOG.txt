@@ -1,3 +1,6 @@
+WildSpark 2.2.21
+- Use Blizzard's native MinimapMouseover post-call data to append gathering requirements once, and remove the AddLine hook that caused repeated text. Keep a visible-tooltip fallback for clients without tooltip data callbacks.
+
 WildSpark 2.2.20
 - Prevent gathering tooltip duplication by ignoring WildSpark's own inserted lines in the AddLine hook. Native minimap node hovers show one rank and profession requirement, refreshed per hover.
 
