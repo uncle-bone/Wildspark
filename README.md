@@ -1,14 +1,14 @@
 # WildSpark
 
-> **[Download WildSpark 2.2.27 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.27/WildSpark-2.2.27.zip)**
+> **[Download WildSpark 2.2.28 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.28/WildSpark-2.2.28.zip)**
 
-**Current stable release: 2.2.27 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
+**Current stable release: 2.2.28 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
 
 WildSpark is a modular WoW Forever utility suite for gathering highlights, quest-drop tooltips, buffs, creature leash tracking, WildFire camping, auctions, group finding, and layer hopping. Its major modules have dedicated settings tabs, and can be enabled or disabled independently.
 
-## What's new in 2.2.27
+## What's new in 2.2.28
 
-- Remove the undefined tooltip rescan hook that caused repeated nil-call errors during Blizzard tooltip line construction. Gathering tooltips use native TooltipDataProcessor callbacks.
+- Restore profession requirements on WildSpark's own minimap node icons, independent of Blizzard's native minimap hover callback. Remove the undefined tooltip rescan hook.
 - Add rare-spawn reference respawn ranges and event-spawn notes to WildInfo tooltips. These are explicitly marked unverified for WoW Forever; locally learned and peer-shared observations remain the primary estimate.
 - Mark WildGroups listings with a green check after you ask to join, matching the newer upstream behavior.
 
@@ -40,7 +40,7 @@ WildSpark is a modular WoW Forever utility suite for gathering highlights, quest
 
 ## What's new in 2.2.3
 
-- Originally bundled RareScanner's 75-entry respawn reference table in WildInfo; it was later removed and is restored in 2.2.27.
+- Originally bundled RareScanner's 75-entry respawn reference table in WildInfo; it was later removed and is restored in 2.2.28.
 
 ## What's new in 2.2.2
 
