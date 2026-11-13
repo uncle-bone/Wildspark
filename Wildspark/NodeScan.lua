@@ -1875,9 +1875,9 @@ local function HookTooltip()
 	if kinds and TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall then
 		-- Forever's minimap and SetWorldCursor paths expose node names through
 		-- MinimapMouseover or WorldCursor's Unit/Object data types.
-		for _, kind in ipairs({ kinds.MinimapMouseover, kinds.Unit, kinds.Object }) do
-			if kind then pcall(TooltipDataProcessor.AddTooltipPostCall, kind, OnTooltip) end
-		end
+		if kinds.MinimapMouseover then pcall(TooltipDataProcessor.AddTooltipPostCall, kinds.MinimapMouseover, OnTooltip) end
+		if kinds.Unit then pcall(TooltipDataProcessor.AddTooltipPostCall, kinds.Unit, OnTooltip) end
+		if kinds.Object then pcall(TooltipDataProcessor.AddTooltipPostCall, kinds.Object, OnTooltip) end
 	end
 	hooked = true
 end
