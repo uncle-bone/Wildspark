@@ -1,3 +1,7 @@
+WildSpark 2.2.19
+- Wait until Blizzard finishes assembling or opening a tooltip, then scan visible lines and refresh profession requirements for each hover. This fixes intermittent skill info on native minimap nodes.
+- Show the required profession and rank on WildSpark's custom map marker tooltip.
+
 WildSpark 2.2.18
 - Defer gathering tooltip additions until Blizzard finishes building its tooltip and refresh added skill lines for each hover, fixing intermittent profession requirements on native minimap nodes.
 - Show the required profession and rank on WildSpark's custom map marker tooltip.
