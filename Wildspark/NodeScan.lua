@@ -1873,9 +1873,9 @@ local function AddNodeSkillLine(tooltip, text)
 				seen = {}
 				tooltip.wildsparkNodeSkillSeen = seen
 			end
-			if not seen[key] then
+			local hasLabel, hasRequirement = TooltipHasLine(tooltip, label), TooltipHasLine(tooltip, requirement)
+			if not seen[key] or not (hasLabel and hasRequirement) then
 				seen[key] = true
-				local hasLabel, hasRequirement = TooltipHasLine(tooltip, label), TooltipHasLine(tooltip, requirement)
 				if not (hasLabel and hasRequirement) then
 					local r, g, b = ns.DifficultyColor(ns.NodeDifficulty(node) or "difficult")
 					tooltip.wildsparkAddingSkillLines = true
@@ -1916,12 +1916,6 @@ end
 local function HookTooltipFrame(tooltip)
 	if not tooltip or tooltip.wildsparkTooltipHooks then return end
 	tooltip.wildsparkTooltipHooks = true
-	if tooltip.HookScript then
-		tooltip:HookScript("OnShow", QueueTooltipScan)
-		tooltip:HookScript("OnHide", function(frame)
-			frame.wildsparkScanQueued, frame.wildsparkNodeSkillSeen = nil, nil
-		end)
-	end
 	if hooksecurefunc then
 		for _, method in ipairs({ "SetText", "SetOwner", "SetWorldCursor", "SetUnit", "SetHyperlink" }) do
 			if tooltip[method] then pcall(hooksecurefunc, tooltip, method, QueueTooltipScan) end
