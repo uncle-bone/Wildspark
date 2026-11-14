@@ -11,6 +11,11 @@ WildSpark is a modular WoW Forever utility suite for gathering highlights, quest
 - Bundle QuestDB v0.1.0 for WoW Forever inside the ZIP as a required dependency. It loads automatically with WildSpark, and WildDrops uses it for active quest-item drop rates.
 - QuestDB covers shared Classic quest-item sources; newer Forever quests may not have drop-rate data yet.
 
+## What's new in 2.2.32
+
+- Bundle QuestDB v0.1.0 for WoW Forever in the same ZIP as WildSpark. The client loads it automatically when WildSpark is enabled, with no separate addon toggle.
+- WildDrops checks the bundled QuestDB database for drop chances on active quest-item objectives. Newer Forever-specific quests may not have data yet.
+
 ## What's new in 2.2.29
 
 - Fix duplicate minimap profession rows, recolor the node name by gather-skill difficulty, and scan native WorldCursor tooltips after Blizzard and EllesmereUI finish building them.

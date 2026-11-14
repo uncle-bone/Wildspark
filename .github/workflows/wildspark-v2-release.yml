@@ -50,7 +50,7 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
-      - name: Package installable addon
+      - name: Package installable addon with QuestDB
         env:
           VERSION: ${{ steps.release.outputs.version }}
         run: |
@@ -59,59 +59,20 @@ jobs:
           curl --fail --location --retry 3 --output "$RUNNER_TEMP/QuestDB.zip" "https://www.curseforge.com/api/v1/mods/1700352/files/9014639/download"
           mkdir -p "$RUNNER_TEMP/questdb-package"
           unzip -q "$RUNNER_TEMP/QuestDB.zip" -d "$RUNNER_TEMP/questdb-package"
-          echo "QuestDB archive contents:"
-          find "$RUNNER_TEMP/questdb-package" -maxdepth 4 -type f | sort | head -n 120
-          while IFS= read -r toc_file; do
-            echo "--- $toc_file"
-            sed -n '1,12p' "$toc_file"
-          done < <(find "$RUNNER_TEMP/questdb-package" -type f -iname '*.toc' | sort)
-          QDB_TOC="$(find "$RUNNER_TEMP/questdb-package" -type f -iname '*.toc' | while IFS= read -r candidate; do grep -q '16001' "$candidate" && { echo "$candidate"; break; }; done)"
-          test -n "$QDB_TOC"
-          QDB_DIR="$(dirname "$QDB_TOC")"
+          QDB_DIR="$RUNNER_TEMP/questdb-package/QuestDB"
+          test -f "$QDB_DIR/QuestDB_Camelot.toc"
+          test -f "$QDB_DIR/LibQuestDB-1.0.lua"
+          test -f "$QDB_DIR/LICENSE"
           mkdir -p dist/stage/QuestDB
           cp -a "$QDB_DIR/." dist/stage/QuestDB/
-          cp "$QDB_TOC" dist/stage/QuestDB/QuestDB.toc
-          grep -q '16001' dist/stage/QuestDB/QuestDB.toc
-          find dist/stage/QuestDB -iname 'LibQuestDB-1.0.lua' -print -quit | grep -q .
+          cp "$QDB_DIR/QuestDB_Camelot.toc" dist/stage/QuestDB/QuestDB.toc
+          grep -q '^## Interface: 16001' dist/stage/QuestDB/QuestDB.toc
           cd dist/stage
           zip -qr "../WildSpark-$VERSION.zip" WildSpark QuestDB
           cd ../..
-          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/WildSpark.toc
-      - name: Publish stable GitHub release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.release.outputs.tag }}
-          VERSION: ${{ steps.release.outputs.version }}
-        run: |
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Release $TAG already exists; skipping duplicate publish."
-            exit 0
-          fi
-          gh release create "$TAG" "dist/WildSpark-$VERSION.zip" \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "WildSpark $VERSION — Stable release" \
-            --notes-file ".github/releases/$TAG.md" \
-            --target "$GITHUB_SHA" \
-            --latest
-
-          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^QuestDB/QuestDB.toc
-      - name: Publish stable GitHub release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.release.outputs.tag }}
-          VERSION: ${{ steps.release.outputs.version }}
-        run: |
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Release $TAG already exists; skipping duplicate publish."
-            exit 0
-          fi
-          gh release create "$TAG" "dist/WildSpark-$VERSION.zip" \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "WildSpark $VERSION — Stable release" \
-            --notes-file ".github/releases/$TAG.md" \
-            --target "$GITHUB_SHA" \
-            --latest
-
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/WildSpark.toc$'
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^QuestDB/QuestDB.toc$'
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^QuestDB/LICENSE$'
 
       - name: Publish stable GitHub release
         env:
