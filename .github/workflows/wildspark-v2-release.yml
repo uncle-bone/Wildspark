@@ -56,10 +56,58 @@ jobs:
         run: |
           mkdir -p dist/stage/WildSpark
           cp -a Wildspark/. dist/stage/WildSpark/
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/QuestDB.zip" "https://www.curseforge.com/api/v1/mods/1700352/files/9014639/download"
+          mkdir -p "$RUNNER_TEMP/questdb-package"
+          unzip -q "$RUNNER_TEMP/QuestDB.zip" -d "$RUNNER_TEMP/questdb-package"
+          QDB_TOC="$(grep -RIl --include='*.toc' '^## Interface:.*16001' "$RUNNER_TEMP/questdb-package" | head -n 1)"
+          test -n "$QDB_TOC"
+          QDB_DIR="$(dirname "$QDB_TOC")"
+          mkdir -p dist/stage/QuestDB
+          cp -a "$QDB_DIR/." dist/stage/QuestDB/
+          if [ ! -f dist/stage/QuestDB/QuestDB.toc ]; then
+            cp "$QDB_TOC" dist/stage/QuestDB/QuestDB.toc
+          fi
+          grep -q '^## Interface:.*16001' dist/stage/QuestDB/QuestDB.toc
+          test -f dist/stage/QuestDB/LibQuestDB-1.0.lua
           cd dist/stage
-          zip -qr "../WildSpark-$VERSION.zip" WildSpark
+          zip -qr "../WildSpark-$VERSION.zip" WildSpark QuestDB
           cd ../..
-          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/WildSpark.toc$'
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/WildSpark.toc
+      - name: Publish stable GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; skipping duplicate publish."
+            exit 0
+          fi
+          gh release create "$TAG" "dist/WildSpark-$VERSION.zip" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "WildSpark $VERSION — Stable release" \
+            --notes-file ".github/releases/$TAG.md" \
+            --target "$GITHUB_SHA" \
+            --latest
+
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^QuestDB/QuestDB.toc
+      - name: Publish stable GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; skipping duplicate publish."
+            exit 0
+          fi
+          gh release create "$TAG" "dist/WildSpark-$VERSION.zip" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "WildSpark $VERSION — Stable release" \
+            --notes-file ".github/releases/$TAG.md" \
+            --target "$GITHUB_SHA" \
+            --latest
+
 
       - name: Publish stable GitHub release
         env:

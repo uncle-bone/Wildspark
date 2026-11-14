@@ -1,5 +1,5 @@
 ## Interface: 11509, 16001
-## OptionalDeps: QuestDB
+## Dependencies: QuestDB
 ## Title: WildSpark
 ## Author: Uncle Bone
 ## Notes: Makes ore veins, herbs, quest objects and chests glow as you approach them, with a choice of light effects, and shows herbs and veins on the minimap as their own icons (uses Blizzard's soft targeting).
