@@ -50,7 +50,7 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
-      - name: Package installable addon with QuestDB
+      - name: Package single-folder WildSpark with embedded quest databases
         env:
           VERSION: ${{ steps.release.outputs.version }}
         run: |
@@ -63,16 +63,64 @@ jobs:
           test -f "$QDB_DIR/QuestDB_Camelot.toc"
           test -f "$QDB_DIR/LibQuestDB-1.0.lua"
           test -f "$QDB_DIR/LICENSE"
-          mkdir -p dist/stage/QuestDB
-          cp -a "$QDB_DIR/." dist/stage/QuestDB/
-          cp "$QDB_DIR/QuestDB_Camelot.toc" dist/stage/QuestDB/QuestDB.toc
-          grep -q '^## Interface: 16001' dist/stage/QuestDB/QuestDB.toc
+          mkdir -p dist/stage/WildSpark/Libs/QuestDB
+          cp -a "$QDB_DIR/." dist/stage/WildSpark/Libs/QuestDB/
+
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/QuestieDB.zip" "https://www.curseforge.com/api/v1/mods/1696795/files/9602575/download"
+          mkdir -p "$RUNNER_TEMP/questiedb-package"
+          unzip -q "$RUNNER_TEMP/QuestieDB.zip" -d "$RUNNER_TEMP/questiedb-package"
+          QIE_DIR="$RUNNER_TEMP/questiedb-package/QuestieDB"
+          test -f "$QIE_DIR/QuestieDB_Forever.toc"
+          test -f "$QIE_DIR/QuestieDB_Camelot.toc"
+          test -f "$QIE_DIR/LICENSE.md"
+          grep -q '^## Version: 1.1.1$' "$QIE_DIR/QuestieDB_Forever.toc"
+          mkdir -p dist/stage/WildSpark/Libs/QuestieDB
+          cp -a "$QIE_DIR/." dist/stage/WildSpark/Libs/QuestieDB/
+
+          MAIN_TOC="dist/stage/WildSpark/WildSpark.toc"
+          META_FILE="$RUNNER_TEMP/questiedb-metadata.txt"
+          grep -E '^## X-[^:]+:' "$QIE_DIR/QuestieDB_Forever.toc" > "$META_FILE"
+          awk -v meta_file="$META_FILE" '
+            BEGIN {
+              while ((getline line < meta_file) > 0) metadata = metadata line "\n"
+              close(meta_file)
+            }
+            !inserted && NF && $0 !~ /^#/ {
+              printf "%s", metadata
+              inserted = 1
+            }
+            { print }
+          ' "$MAIN_TOC" > "$RUNNER_TEMP/WildSpark.toc"
+          mv "$RUNNER_TEMP/WildSpark.toc" "$MAIN_TOC"
+
+          append_toc_files() {
+            prefix="$1"
+            source_toc="$2"
+            while IFS= read -r line; do
+              case "$line" in ""|\#*) continue ;; esac
+              printf '%s%s\n' "$prefix" "$line" >> "$MAIN_TOC"
+            done < "$source_toc"
+          }
+          append_toc_files 'Libs\QuestDB\' "$QDB_DIR/QuestDB_Camelot.toc"
+          append_toc_files 'Libs\QuestieDB\' "$QIE_DIR/QuestieDB_Forever.toc"
+
+          grep -Fx '## Version: 2.2.33' "$MAIN_TOC"
+          grep -Fx '## X-Flavor: Forever' "$MAIN_TOC"
+          grep -Fq 'Libs\QuestDB\Data\Forever\_core\Drops.lua' "$MAIN_TOC"
+          grep -Fq 'Libs\QuestieDB\src\api.lua' "$MAIN_TOC"
           cd dist/stage
-          zip -qr "../WildSpark-$VERSION.zip" WildSpark QuestDB
+          zip -qr "../WildSpark-$VERSION.zip" WildSpark
           cd ../..
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/WildSpark.toc$'
-          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^QuestDB/QuestDB.toc$'
-          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^QuestDB/LICENSE$'
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Libs/QuestDB/LibQuestDB-1.0.lua$'
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Libs/QuestDB/LICENSE$'
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Libs/QuestieDB/QuestieDB_Forever.toc$'
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Libs/QuestieDB/LICENSE.md$'
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildDrops/QuestDropRates-LICENSE.txt$'
+          if unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -qE '^(QuestDB|QuestieDB)/'; then
+            echo "The install ZIP must contain only the WildSpark root folder."
+            exit 1
+          fi
 
       - name: Publish stable GitHub release
         env:

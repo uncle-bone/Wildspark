@@ -1,5 +1,10 @@
+WildSpark 2.2.33
+- Combine QuestDB, QuestieDB Forever v1.1.1, QuestDropRates v1.3.1, and the existing QuestionableDrops quest-starter database in WildInfo.
+- Show known quest objective and starter drops from the full quest database, including quests not currently in the player's log.
+- Embed QuestDB and QuestieDB files under WildSpark; the install ZIP now contains only the `WildSpark` addon folder.
+
 WildSpark 2.2.32
-- Bundle QuestDB v0.1.0 for WoW Forever as a required, automatically loaded dependency. WildDrops uses its broad quest-item drop table to show rates for active quest objectives; no separate addon toggle is needed.
+- Bundle QuestDB v0.1.0 for WoW Forever, automatically loaded with WildSpark.
 
 WildSpark 2.2.31
 - Add QuestDB integration for quest-objective item drop rates on creature tooltips. When QuestDB is installed, WildDrops checks active quest item objectives and shows the matching creature-specific chance; existing bundled rows remain available without QuestDB.

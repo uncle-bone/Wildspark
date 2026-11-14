@@ -1,20 +1,16 @@
 # WildSpark
 
-> **[Download WildSpark 2.2.32 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.32/WildSpark-2.2.32.zip)**
+> **[Download WildSpark 2.2.33 - Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.33/WildSpark-2.2.33.zip)**
 
-**Current stable release: 2.2.32 for WoW Forever 1.60.1.** The installable ZIP contains the `WildSpark` addon and its `QuestDB` dependency. QuestDB loads automatically when WildSpark is enabled.
+**Current stable release: 2.2.33 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder. QuestDB, the latest QuestieDB Forever data, and WildInfo's quest-drop datasets are embedded and load automatically with WildSpark.
 
 WildSpark is a modular WoW Forever utility suite for gathering highlights, quest-drop tooltips, buffs, creature leash tracking, WildFire camping, auctions, group finding, and layer hopping. Its major modules have dedicated settings tabs, and can be enabled or disabled independently.
 
-## What's new in 2.2.32
+## What's new in 2.2.33
 
-- Bundle QuestDB v0.1.0 for WoW Forever inside the ZIP as a required dependency. It loads automatically with WildSpark, and WildDrops uses it for active quest-item drop rates.
-- QuestDB covers shared Classic quest-item sources; newer Forever quests may not have drop-rate data yet.
-
-## What's new in 2.2.32
-
-- Bundle QuestDB v0.1.0 for WoW Forever in the same ZIP as WildSpark. The client loads it automatically when WildSpark is enabled, with no separate addon toggle.
-- WildDrops checks the bundled QuestDB database for drop chances on active quest-item objectives. Newer Forever-specific quests may not have data yet.
+- Embed QuestDB and QuestieDB v1.1.1 Forever data inside WildSpark's own folder; install and enable only WildSpark.
+- Expand WildInfo tooltips across known quests, including objective items even when the quest is not in your log.
+- Combine QuestionableDrops' quest-starter database, QuestDropRates' static item rates, QuestDB NPC drop rates, and the current QuestieDB quest/item links. Unknown rates remain labeled as unknown.
 
 ## What's new in 2.2.29
 
@@ -71,7 +67,7 @@ WildSpark is a modular WoW Forever utility suite for gathering highlights, quest
 - Use **WildAuctions** for auction-house tools, including selecting bag items while the auction house is open. It does not post auctions automatically.
 - Use **WildGroups** from its own tab in Blizzard's Looking For Group pane.
 - Use **WildLayer** from its own WildSpark tab or minimap button to request layer hops. Automatic invites for people requesting your layer are off by default.
-- Use **WildInfo** to see quest-starting item drop chances and locally or peer-learned NPC respawn estimates when mousing over creatures. Timer sharing uses the hidden Camping Kit addon channel, not visible world-chat messages.
+- Use **WildInfo** to see known quest-starter and quest-objective item drop chances, plus locally or peer-learned NPC respawn estimates, when mousing over creatures. Timer sharing uses the hidden Camping Kit addon channel, not visible world-chat messages.
 - Adjust Blizzard group-loot position, scale, and spacing from WildSpark's Wild Loot Rolls tab.
 - Open settings with `/wildspark` or `/ws`.
 
@@ -83,8 +79,8 @@ On WoW Forever, WildLayer reads the `zoneUID` field from nearby creature or vehi
 
 ## Install
 
-Download the ZIP, extract it, and place the included `WildSpark` folder in the Forever client's `Interface/AddOns` directory. Disable standalone copies of integrated modules such as WildBuffs, Camping Kit, WildAuctions, or LFGForever to avoid running duplicate copies.
+Download the ZIP, extract it, and place the included `WildSpark` folder in the Forever client's `Interface/AddOns` directory. Enable WildSpark; its embedded quest databases load with it. Disable standalone copies of integrated modules such as WildBuffs, Camping Kit, WildAuctions, or LFGForever to avoid running duplicate copies.
 
 ## Third-party notices
 
-WildSpark retains the license and attribution files for its embedded components in their respective folders. The original Camping Kit artwork is excluded; WildFire uses replacement artwork with its own license notice. WildInfo (formerly WildDrops) is included and modified with permission from the original Questionable Drops author; its quest database credits QuestieDB Forever and Wowhead. Respawn estimates use local and peer-shared observations first, then a clearly labeled Classic respawn reference table for ordinary NPCs and rares. Reference times are not verified for WoW Forever.
+WildSpark retains license and attribution files for its embedded components in their respective folders. The original Camping Kit artwork is excluded; WildFire uses replacement artwork with its own license notice. WildInfo (formerly WildDrops) is included and modified with permission from the Questionable Drops author. Its data combines QuestieDB Forever, QuestDropRates, QuestDB, Wowhead, and existing WildSpark rows. Respawn estimates use local and peer-shared observations first, then a clearly labeled Classic respawn reference table for ordinary NPCs and rares. Reference times are not verified for WoW Forever.
