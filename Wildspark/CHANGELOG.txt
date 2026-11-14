@@ -1,3 +1,6 @@
+WildSpark 2.2.30
+- Add the 10% quest-only Treshala's Pendant drop (item 5825) to Razorfen Handler (NPC 4530) while Mortality Wanes (quest 1142) is available, so WildDrops shows its chance on the tooltip.
+
 WildSpark 2.2.29
 - Replace the rare-only reference timers with Classic minimum/maximum respawn references for more than 7,000 ordinary NPC and rare creature IDs. Each reference is labeled Classic and unverified for WoW Forever; local and peer observations remain separate and take precedence.
 - Add a monthly GitHub refresh workflow for the generated NPC timer table.

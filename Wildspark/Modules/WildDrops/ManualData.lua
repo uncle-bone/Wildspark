@@ -22,6 +22,7 @@ local Items = {
     [271612] = "Head of Scaldaron", -- Wowhead 2026-11-10
     [271613] = "Head of Scaldaron", -- Wowhead 2026-11-10
     [278744] = "Mirage Mirror", -- Wowhead 2026-11-10
+    [5825] = "Treshala's Pendant", -- QuestCore Forever item 5825
 }
 
 -- [questID] = {name, requiredLevel, questLevel, races, classes, preQuestSingle, preQuestGroup, exclusiveTo, repeatable}
@@ -38,6 +39,7 @@ local Quests = {
     [95935] = {"Hail the Dragonslayer", 36, 43, 4294967373, 0, {}, {}, {}, false}, -- Wowhead 2026-11-10
     [95936] = {"Hail the Dragonslayer", 36, 43, 8589934770, 0, {}, {}, {}, false}, -- Wowhead 2026-11-10
     [97821] = {"Mirage Mirror", 37, 42, 0, 0, {}, {}, {}, false}, -- Wowhead 2026-11-10
+    [1142] = {"Mortality Wanes", 25, 30, 0, 0, {}, {}, {}, false}, -- QuestCore / Questing.wiki Forever quest data
 }
 
 -- [npcID] = {name, minLevel, maxLevel, zoneID or {zoneID, ...}}
@@ -104,6 +106,7 @@ local Drops = {
     [256952] = {{266427, 94885, 1.477}}, -- Wowhead 2026-11-10
     [263141] = {{271612, 95935, 42.857}, {271613, 95936, 28.571}}, -- Wowhead 2026-11-10
     [269756] = {{278744, 97821, 66.667}}, -- Wowhead 2026-11-10
+    [4530] = {{5825, 1142, 10}}, -- Razorfen Handler; quest-only 10% Forever drop (QuestCore)
 }
 
 -- Items left out on purpose (tools/data/ignored_items.json): /qd report doesn't report them.
