@@ -1,12 +1,12 @@
 # WildSpark
 
-> **[Download WildSpark 2.2.36 - Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.36/WildSpark-2.2.36.zip)**
+> **[Download WildSpark 2.2.37 - Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.37/WildSpark-2.2.37.zip)**
 
-**Current stable release: 2.2.36 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder. QuestDB, the latest QuestieDB Forever data, and WildInfo's quest-drop datasets are embedded and load automatically with WildSpark.
+**Current stable release: 2.2.37 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder. QuestDB, the latest QuestieDB Forever data, and WildInfo's quest-drop datasets are embedded and load automatically with WildSpark.
 
 WildSpark is a modular WoW Forever utility suite for gathering highlights, quest-drop tooltips, buffs, creature leash tracking, WildFire camping, auctions, group finding, and layer hopping. Its major modules have dedicated settings tabs, and can be enabled or disabled independently.
 
-## What's new in 2.2.36
+## What's new in 2.2.37
 
 - Embed QuestDB and QuestieDB v1.1.1 Forever data inside WildSpark's own folder; install and enable only WildSpark.
 - Expand WildInfo tooltips across known quests, including objective items even when the quest is not in your log.

@@ -1,3 +1,7 @@
+WildSpark 2.2.37
+- Show quest-only drops only for active quests or eligible quest starters; hide unrelated faction and inactive-quest links.
+- Keep ordinary drops separately controlled and remove irrelevant quest names from their rows.
+
 WildSpark 2.2.36
 - Repair the packaged Menu.lua file encoding so the settings panel loads normally.
 

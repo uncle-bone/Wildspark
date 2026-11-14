@@ -32,7 +32,7 @@ local function QuestDropRate(itemID, npcID, itemName, npcName)
     end
 end
 
-local function AddItemQuest(itemQuests, itemID, questID, questName)
+local function AddItemQuest(itemQuests, itemID, questID, questName, kind, requirements)
     itemID, questID = tonumber(itemID), tonumber(questID)
     if not itemID or itemID < 1 or not questID or questID < 1 then return end
     local quests = itemQuests[itemID]
@@ -43,9 +43,23 @@ local function AddItemQuest(itemQuests, itemID, questID, questName)
     local old = quests[questID]
     if old then
         if old.name == "" and type(questName) == "string" then old.name = questName end
+        if kind == "starter" then old.isStarter = true end
+        if kind == "objective" then old.isObjective = true end
+        if requirements then
+            old.requiredRaces = requirements.requiredRaces
+            old.requiredClasses = requirements.requiredClasses
+            old.requiredLevel = requirements.requiredLevel
+        end
         return
     end
-    quests[questID] = { name = type(questName) == "string" and questName or "" }
+    quests[questID] = {
+        name = type(questName) == "string" and questName or "",
+        isStarter = kind == "starter",
+        isObjective = kind == "objective",
+        requiredRaces = requirements and requirements.requiredRaces,
+        requiredClasses = requirements and requirements.requiredClasses,
+        requiredLevel = requirements and requirements.requiredLevel,
+    }
 end
 
 function ns.GetQuestItemDrops(npcID)
@@ -76,18 +90,18 @@ ns.OnLogin(function()
         end
     end
 
-    local function AddQuestItemSource(itemID, questID, questName)
-        AddItemQuest(itemQuests, itemID, questID, questName)
+    local function AddQuestItemSource(itemID, questID, questName, kind, requirements)
+        AddItemQuest(itemQuests, itemID, questID, questName, kind, requirements)
         AddItemID(itemID)
     end
 
-    local function AddGroupItems(questID, questName, items)
+    local function AddGroupItems(questID, questName, items, kind, requirements)
         if type(items) ~= "table" then return end
         for _, objective in pairs(items) do
             if type(objective) == "table" then
-                AddQuestItemSource(objective[1] or objective.id or objective.itemID, questID, questName)
+                AddQuestItemSource(objective[1] or objective.id or objective.itemID, questID, questName, kind, requirements)
             elseif type(objective) == "number" then
-                AddQuestItemSource(objective, questID, questName)
+                AddQuestItemSource(objective, questID, questName, kind, requirements)
             end
         end
     end
@@ -150,6 +164,11 @@ ns.OnLogin(function()
                             itemID = itemID,
                             questID = linkedQuestID,
                             questName = questName,
+                            isStarter = info.isStarter,
+                            isObjective = info.isObjective,
+                            requiredRaces = info.requiredRaces,
+                            requiredClasses = info.requiredClasses,
+                            requiredLevel = info.requiredLevel,
                             percent = rateInfo and rateInfo.percent or nil,
                             questOnly = rateInfo and rateInfo.questOnly or false,
                         }
@@ -184,10 +203,15 @@ ns.OnLogin(function()
                 questIndex = questIndex + 1
                 local questEntity = questieDB.Quest
                 local questName = SafeCall(questEntity.Get, questID, "name") or ""
+                local requirements = {
+                    requiredRaces = SafeCall(questEntity.Get, questID, "requiredRaces"),
+                    requiredClasses = SafeCall(questEntity.Get, questID, "requiredClasses"),
+                    requiredLevel = SafeCall(questEntity.Get, questID, "requiredLevel"),
+                }
                 local objectives = SafeCall(questEntity.Get, questID, "objectives")
-                if type(objectives) == "table" then AddGroupItems(questID, questName, objectives[3]) end
+                if type(objectives) == "table" then AddGroupItems(questID, questName, objectives[3], "objective", requirements) end
                 local startedBy = SafeCall(questEntity.Get, questID, "startedBy")
-                if type(startedBy) == "table" then AddGroupItems(questID, questName, startedBy[3]) end
+                if type(startedBy) == "table" then AddGroupItems(questID, questName, startedBy[3], "starter", requirements) end
             end
             if questIndex <= #questIDs then
                 C_Timer.After(0.02, BuildChunk)

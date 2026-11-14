@@ -28,15 +28,60 @@ function ns.RefreshRespawnTooltip()
     end
 end
 
--- Merge quest rows by item to keep creature tooltips readable when many quests
--- use the same common drops.
+local function IsQuestActive(questID)
+    if ns.questsInLog and ns.questsInLog[questID] then return true end
+    local isOnQuest = C_QuestLog and C_QuestLog.IsOnQuest
+    if not isOnQuest then return false end
+    local ok, active = pcall(isOnQuest, questID)
+    return ok and active == true
+end
+
+local function MaskOverlaps(a, b)
+    if type(a) ~= "number" or a == 0 then return true end
+    if type(b) ~= "number" then return false end
+    a, b = math.floor(a), math.floor(b)
+    while a > 0 and b > 0 do
+        if a % 2 == 1 and b % 2 == 1 then return true end
+        a, b = math.floor(a / 2), math.floor(b / 2)
+    end
+    return false
+end
+
+local function CanStartQuest(record)
+    if not record.isStarter or IsQuestActive(record.questID) then return false end
+    local completed = ns.IsQuestCompleted
+    if completed then
+        local ok, done = pcall(completed, record.questID)
+        if ok and done then return false end
+    end
+    local level = UnitLevel and UnitLevel("player") or 0
+    if type(record.requiredLevel) == "number" and record.requiredLevel > level then return false end
+
+    local db = _G.LibQuestieDB
+    local enums = db and db.Enum
+    local classToken
+    if UnitClass then local _, token = UnitClass("player"); classToken = token end
+    local classMask = enums and enums.classKeys and classToken and enums.classKeys[classToken]
+    if not MaskOverlaps(record.requiredClasses, classMask) then return false end
+
+    local raceID
+    if UnitRace then local _, _, id = UnitRace("player"); raceID = id end
+    local raceMask = enums and enums.raceMaskById and raceID and enums.raceMaskById[raceID]
+    if not MaskOverlaps(record.requiredRaces, raceMask) then return false end
+    return true
+end
+
+-- Merge identical items and keep quest names only when the player can act on them.
 local function AddQuestObjectiveDrops(rows, order, npcID)
     local records = ns.GetQuestItemDrops and ns.GetQuestItemDrops(npcID)
     if type(records) ~= "table" then return end
     for _, record in ipairs(records) do
         local id = tonumber(record.itemID)
-        local showRecord = record.questOnly and ns.db.showQuestDrops ~= false
-            or not record.questOnly and ns.db.showNormalDrops ~= false
+        local activeQuest = IsQuestActive(record.questID)
+        local startableQuest = CanStartQuest(record)
+        local questRelevant = activeQuest or startableQuest
+        local showRecord = (ns.db.showQuestDrops ~= false and questRelevant)
+            or (ns.db.showNormalDrops ~= false and not record.questOnly)
         if id and showRecord then
             local row = rows[id]
             if not row then
@@ -47,7 +92,7 @@ local function AddQuestObjectiveDrops(rows, order, npcID)
                 row.percent = record.percent
             end
             if record.questOnly then row.questOnly = true end
-            local name = record.questName
+            local name = questRelevant and record.questName
             if type(name) == "string" and name ~= "" and not row.questSet[name] then
                 row.questSet[name] = true
                 row.quests[#row.quests + 1] = name
