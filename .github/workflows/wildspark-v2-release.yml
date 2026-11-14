@@ -94,6 +94,7 @@ jobs:
           append_toc_files 'Libs\QuestDB\' "$QDB_DIR/QuestDB_Camelot.toc"
           append_toc_files 'Libs\QuestieDB\' "$QIE_DIR/QuestieDB_Forever.toc"
 
+          sed -i 's/\r$//' "$MAIN_TOC"
           grep -Fx '## Version: 2.2.33' "$MAIN_TOC"
           grep -Fx '## X-Flavor: Forever' "$MAIN_TOC"
           grep -Fq 'Libs\QuestDB\Data\Forever\_core\Drops.lua' "$MAIN_TOC"
@@ -128,4 +129,5 @@ jobs:
             --notes-file ".github/releases/$TAG.md" \
             --target "$GITHUB_SHA" \
             --latest
+
 
