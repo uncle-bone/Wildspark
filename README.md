@@ -10,7 +10,6 @@ WildSpark is a modular WoW Forever utility suite for gathering highlights, quest
 
 - Fix duplicate minimap profession rows, recolor the node name by gather-skill difficulty, and scan native WorldCursor tooltips after Blizzard and EllesmereUI finish building them.
 - Include Classic reference respawn ranges for 7,000+ ordinary NPCs and rares, with local and peer observations taking precedence. Classic references are labeled unverified for WoW Forever; a monthly workflow refreshes the source table.
-- Replace the rare-only reference list with Classic respawn ranges for more than 7,000 ordinary NPCs and rares, labeled unverified for WoW Forever.
 - Mark WildGroups listings with a green check after you ask to join, matching the newer upstream behavior.
 
 ## What's new in 2.2.9
@@ -78,4 +77,4 @@ Download the ZIP, extract it, and place the included `WildSpark` folder in the F
 
 ## Third-party notices
 
-WildSpark retains the license and attribution files for its embedded components in their respective folders. The original Camping Kit artwork is excluded; WildFire uses replacement artwork with its own license notice. WildInfo (formerly WildDrops) is included and modified with permission from the original Questionable Drops author; its quest database credits QuestieDB Forever and Wowhead. Respawn estimates combine local and peer-shared observations with a clearly labeled rare-spawn reference table that is not verified for WoW Forever.
+WildSpark retains the license and attribution files for its embedded components in their respective folders. The original Camping Kit artwork is excluded; WildFire uses replacement artwork with its own license notice. WildInfo (formerly WildDrops) is included and modified with permission from the original Questionable Drops author; its quest database credits QuestieDB Forever and Wowhead. Respawn estimates use local and peer-shared observations first, then a clearly labeled Classic respawn reference table for ordinary NPCs and rares. Reference times are not verified for WoW Forever.
