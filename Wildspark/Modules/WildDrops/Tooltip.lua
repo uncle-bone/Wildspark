@@ -28,26 +28,32 @@ function ns.RefreshRespawnTooltip()
     end
 end
 
--- Quest objective and starter drops are indexed across the full bundled database,
--- so the tooltip can show quests that are not currently in the player's quest log.
-local function AddQuestObjectiveDrops(tooltip, npcID, seen)
+-- Merge quest rows by item to keep creature tooltips readable when many quests
+-- use the same common drops.
+local function AddQuestObjectiveDrops(rows, order, npcID)
     local records = ns.GetQuestItemDrops and ns.GetQuestItemDrops(npcID)
-    if type(records) ~= "table" then return false end
-    local added = false
+    if type(records) ~= "table" then return end
     for _, record in ipairs(records) do
-        local key = tostring(record.itemID) .. ":" .. tostring(record.questID)
-        if not seen[key] then
-            local chance = ns.FormatChance(record.percent)
-            if record.questOnly then chance = chance .. " |cff808080(quest-only)|r" end
-            tooltip:AddDoubleLine(ns.GetItemName(record.itemID), chance)
-            if type(record.questName) == "string" and record.questName ~= "" then
-                tooltip:AddLine("    |cffffd100for: " .. record.questName .. "|r")
+        local id = tonumber(record.itemID)
+        local showRecord = record.questOnly and ns.db.showQuestDrops ~= false
+            or not record.questOnly and ns.db.showNormalDrops ~= false
+        if id and showRecord then
+            local row = rows[id]
+            if not row then
+                row = { itemID = id, percent = record.percent, questOnly = record.questOnly, quests = {}, questSet = {} }
+                rows[id] = row
+                order[#order + 1] = id
+            elseif not row.percent and record.percent then
+                row.percent = record.percent
             end
-            seen[key] = true
-            added = true
+            if record.questOnly then row.questOnly = true end
+            local name = record.questName
+            if type(name) == "string" and name ~= "" and not row.questSet[name] then
+                row.questSet[name] = true
+                row.quests[#row.quests + 1] = name
+            end
         end
     end
-    return added
 end
 
 local function AddTooltipLines(tooltip, guid)
@@ -55,19 +61,49 @@ local function AddTooltipLines(tooltip, guid)
     local npcID = ns.GetNpcID(guid) -- nil for players, game objects, or an unreadable GUID
     if not npcID then return end
 
-    local added = false
-    local seen = {}
-    local drops = ns.GetAvailableDrops(npcID)
+    local rows, order = {}, {}
+    local drops = ns.db.showQuestDrops ~= false and ns.GetAvailableDrops(npcID)
     if drops then
         for _, drop in ipairs(drops) do
-            local item, quest = ns.FormatDropParts(drop)
-            tooltip:AddDoubleLine(item, ns.FormatChance(drop[3]))
-            tooltip:AddLine(quest)
-            seen[tostring(drop[1]) .. ":" .. tostring(drop[2])] = true
-            added = true
+            local id = tonumber(drop[1])
+            if id then
+                local row = rows[id]
+                if not row then
+                    row = { itemID = id, percent = drop[3], quests = {}, questSet = {} }
+                    rows[id] = row
+                    order[#order + 1] = id
+                elseif not row.percent and drop[3] then
+                    row.percent = drop[3]
+                end
+                local _, quest = ns.FormatDropParts(drop)
+                if type(quest) == "string" and quest ~= "" and not row.questSet[quest] then
+                    row.questSet[quest] = true
+                    row.quests[#row.quests + 1] = quest
+                end
+            end
         end
     end
-    if AddQuestObjectiveDrops(tooltip, npcID, seen) then added = true end
+    AddQuestObjectiveDrops(rows, order, npcID)
+
+    local added = false
+    local maxRows = 8
+    local shown = math.min(#order, maxRows)
+    for i = 1, shown do
+        local row = rows[order[i]]
+        local chance = ns.FormatChance(row.percent)
+        if row.questOnly then chance = chance .. " |cff808080(quest-only)|r" end
+        tooltip:AddDoubleLine(ns.GetItemName(row.itemID), chance)
+        if #row.quests > 0 then
+            local questText = row.quests[1]
+            if #row.quests > 1 then questText = questText .. " |cffaaaaaa(+" .. (#row.quests - 1) .. " more quests)|r" end
+            tooltip:AddLine("    |cffffd100For: " .. questText .. "|r")
+        end
+        added = true
+    end
+    if #order > shown then
+        tooltip:AddLine("|cffaaaaaa…and " .. (#order - shown) .. " more unique drops|r")
+        added = true
+    end
 
     local respawnText = ns.GetRespawnText and ns.GetRespawnText(npcID)
     if respawnText then

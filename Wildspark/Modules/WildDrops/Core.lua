@@ -17,6 +17,8 @@ local QUEST_ICON = "Interface\\GossipFrame\\AvailableQuestIcon"
 ns.defaults = {
     enabled = true,
     tooltip = true,
+    showQuestDrops = true,
+    showNormalDrops = true,
     showRare = true, -- include low-probability drops by default
     respawnEnabled = true, -- show locally observed NPC respawn estimates when available
 }

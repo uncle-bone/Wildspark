@@ -35,6 +35,30 @@ function module.SetTooltipEnabled(enabled)
     if core and core.Refresh then core.Refresh() end
 end
 
+function module.GetQuestDropsEnabled()
+    local db = settings()
+    return db == nil or db.showQuestDrops ~= false
+end
+
+function module.SetQuestDropsEnabled(enabled)
+    local db = settings()
+    if not db then return end
+    db.showQuestDrops = enabled and true or false
+    if core and core.Refresh then core.Refresh() end
+end
+
+function module.GetNormalDropsEnabled()
+    local db = settings()
+    return db == nil or db.showNormalDrops ~= false
+end
+
+function module.SetNormalDropsEnabled(enabled)
+    local db = settings()
+    if not db then return end
+    db.showNormalDrops = enabled and true or false
+    if core and core.Refresh then core.Refresh() end
+end
+
 function module.GetShowRare()
     local db = settings()
     return db and db.showRare ~= false or false
