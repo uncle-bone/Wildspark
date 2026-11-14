@@ -1,15 +1,16 @@
 # WildSpark
 
-> **[Download WildSpark 2.2.28 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.28/WildSpark-2.2.28.zip)**
+> **[Download WildSpark 2.2.29 — Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.29/WildSpark-2.2.29.zip)**
 
-**Current stable release: 2.2.28 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
+**Current stable release: 2.2.29 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder.
 
 WildSpark is a modular WoW Forever utility suite for gathering highlights, quest-drop tooltips, buffs, creature leash tracking, WildFire camping, auctions, group finding, and layer hopping. Its major modules have dedicated settings tabs, and can be enabled or disabled independently.
 
-## What's new in 2.2.28
+## What's new in 2.2.29
 
-- Restore profession requirements on WildSpark's own minimap node icons, independent of Blizzard's native minimap hover callback. Remove the undefined tooltip rescan hook.
-- Add rare-spawn reference respawn ranges and event-spawn notes to WildInfo tooltips. These are explicitly marked unverified for WoW Forever; locally learned and peer-shared observations remain the primary estimate.
+- Fix duplicate minimap profession rows, recolor the node name by gather-skill difficulty, and scan native WorldCursor tooltips after Blizzard and EllesmereUI finish building them.
+- Include Classic reference respawn ranges for 7,000+ ordinary NPCs and rares, with local and peer observations taking precedence. Classic references are labeled unverified for WoW Forever; a monthly workflow refreshes the source table.
+- Replace the rare-only reference list with Classic respawn ranges for more than 7,000 ordinary NPCs and rares, labeled unverified for WoW Forever.
 - Mark WildGroups listings with a green check after you ask to join, matching the newer upstream behavior.
 
 ## What's new in 2.2.9
@@ -40,7 +41,7 @@ WildSpark is a modular WoW Forever utility suite for gathering highlights, quest
 
 ## What's new in 2.2.3
 
-- Originally bundled RareScanner's 75-entry respawn reference table in WildInfo; it was later removed and is restored in 2.2.28.
+- Originally bundled RareScanner's 75-entry respawn reference table in WildInfo; it was later removed and is restored in 2.2.29.
 
 ## What's new in 2.2.2
 
