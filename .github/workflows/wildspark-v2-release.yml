@@ -33,7 +33,7 @@ jobs:
       - name: Verify release metadata and notices
         id: release
         run: |
-          VERSION="$(sed -n 's/^## Version: //p' Wildspark/WildSpark.toc | head -n 1)"
+          VERSION="$(sed -n 's/^## Version: //p' Wildspark/WildSpark.toc | head -n 1 | tr -d '\r')"
           test -n "$VERSION"
           TAG="v$VERSION"
           grep -Fx "## Version: $VERSION" Wildspark/WildSpark.toc
@@ -129,3 +129,4 @@ jobs:
             --notes-file ".github/releases/$TAG.md" \
             --target "$GITHUB_SHA" \
             --latest
+
