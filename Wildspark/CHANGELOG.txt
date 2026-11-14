@@ -1,3 +1,6 @@
+WildSpark 2.2.39
+- Remove the WildFishing loot alert module and its settings tab. It could only alert after the bobber was clicked and could not detect the fish-bite splash.
+
 WildSpark 2.2.38
 - Add a WildFishing module with a large visual reminder and optional sound when fishing loot opens after a recent Fishing cast.
 - State the client limitation clearly: addons cannot observe the bobber bite itself, so the alert appears after the bobber is clicked.

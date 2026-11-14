@@ -1,14 +1,14 @@
 # WildSpark
 
-> **[Download WildSpark 2.2.38 - Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.38/WildSpark-2.2.38.zip)**
+> **[Download WildSpark 2.2.39 - Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.39/WildSpark-2.2.39.zip)**
 
-**Current stable release: 2.2.38 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder. QuestDB, the latest QuestieDB Forever data, and WildInfo's quest-drop datasets are embedded and load automatically with WildSpark.
+**Current stable release: 2.2.39 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder. QuestDB, the latest QuestieDB Forever data, and WildInfo's quest-drop datasets are embedded and load automatically with WildSpark.
 
-WildSpark is a modular WoW Forever utility suite for gathering highlights, quest-drop tooltips, fishing alerts, buffs, creature leash tracking, WildFire camping, auctions, group finding, and layer hopping. Its major modules have dedicated settings tabs, and can be enabled or disabled independently.
+WildSpark is a modular WoW Forever utility suite for gathering highlights, quest-drop tooltips, buffs, creature leash tracking, WildFire camping, auctions, group finding, and layer hopping. Its major modules have dedicated settings tabs, and can be enabled or disabled independently.
 
-## What's new in 2.2.38
+## What's new in 2.2.39
 
-- Add WildFishing with a large on-screen prompt and optional sound when fishing loot opens. WoW does not expose the bobber-bite event, so the alert appears after you click the bobber.
+- Remove WildFishing's post-loot reminder because WoW does not expose the bobber-bite event to addons.
 
 - Embed QuestDB and QuestieDB v1.1.1 Forever data inside WildSpark's own folder; install and enable only WildSpark.
 - Expand WildInfo tooltips across known quests, including objective items even when the quest is not in your log.
