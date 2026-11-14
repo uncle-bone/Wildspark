@@ -59,16 +59,20 @@ jobs:
           curl --fail --location --retry 3 --output "$RUNNER_TEMP/QuestDB.zip" "https://www.curseforge.com/api/v1/mods/1700352/files/9014639/download"
           mkdir -p "$RUNNER_TEMP/questdb-package"
           unzip -q "$RUNNER_TEMP/QuestDB.zip" -d "$RUNNER_TEMP/questdb-package"
-          QDB_TOC="$(grep -RIl --include='*.toc' '^## Interface:.*16001' "$RUNNER_TEMP/questdb-package" | head -n 1)"
+          echo "QuestDB archive contents:"
+          find "$RUNNER_TEMP/questdb-package" -maxdepth 4 -type f | sort | head -n 120
+          while IFS= read -r toc_file; do
+            echo "--- $toc_file"
+            sed -n '1,12p' "$toc_file"
+          done < <(find "$RUNNER_TEMP/questdb-package" -type f -iname '*.toc' | sort)
+          QDB_TOC="$(find "$RUNNER_TEMP/questdb-package" -type f -iname '*.toc' | while IFS= read -r candidate; do grep -q '16001' "$candidate" && { echo "$candidate"; break; }; done)"
           test -n "$QDB_TOC"
           QDB_DIR="$(dirname "$QDB_TOC")"
           mkdir -p dist/stage/QuestDB
           cp -a "$QDB_DIR/." dist/stage/QuestDB/
-          if [ ! -f dist/stage/QuestDB/QuestDB.toc ]; then
-            cp "$QDB_TOC" dist/stage/QuestDB/QuestDB.toc
-          fi
-          grep -q '^## Interface:.*16001' dist/stage/QuestDB/QuestDB.toc
-          test -f dist/stage/QuestDB/LibQuestDB-1.0.lua
+          cp "$QDB_TOC" dist/stage/QuestDB/QuestDB.toc
+          grep -q '16001' dist/stage/QuestDB/QuestDB.toc
+          find dist/stage/QuestDB -iname 'LibQuestDB-1.0.lua' -print -quit | grep -q .
           cd dist/stage
           zip -qr "../WildSpark-$VERSION.zip" WildSpark QuestDB
           cd ../..
