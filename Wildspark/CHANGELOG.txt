@@ -1,3 +1,8 @@
+WildSpark 2.2.29
+- Replace the rare-only reference timers with Classic minimum/maximum respawn references for more than 7,000 ordinary NPC and rare creature IDs. Each reference is labeled Classic and unverified for WoW Forever; local and peer observations remain separate and take precedence.
+- Add a monthly GitHub refresh workflow for the generated NPC timer table.
+- Fix duplicate profession rows on minimap node tooltips, color the node name by the player's gather skill, and add a safe deferred SetWorldCursor fallback for UI skins such as EllesmereUI.
+
 WildSpark 2.2.28
 - Restore profession requirements on WildSpark's own minimap node icons. The tooltip reads the requirement from the marker, independent of Blizzard's native minimap hover callback.
 
