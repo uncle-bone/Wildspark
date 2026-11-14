@@ -250,7 +250,7 @@ local function GetReferenceRespawnText(npcID)
         detail = Duration(record.min) .. "–" .. Duration(record.max)
     end
     if not detail then return end
-    return "Rare spawn reference: " .. detail .. " (not verified for WoW Forever)"
+    return "Classic reference respawn: " .. detail .. " (not verified for WoW Forever)"
 end
 
 function ns.GetRespawnText(npcID)
