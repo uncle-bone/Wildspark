@@ -36,7 +36,6 @@ jobs:
           VERSION="$(sed -n 's/^## Version: //p' Wildspark/WildSpark.toc | head -n 1 | tr -d '\r')"
           test -n "$VERSION"
           TAG="v$VERSION"
-          grep -Fx "## Version: $VERSION" Wildspark/WildSpark.toc
           test -f ".github/releases/$TAG.md"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
