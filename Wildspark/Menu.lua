@@ -51,7 +51,7 @@ local NODES_ICON = "INV_Misc_Map_01"
 local NODES_HEIGHT = 320      -- hauteur des deux panneaux de la page de la minimap
 
 -- Titre de chaque page sous la barre de titre ; celle des objets compose le sien (LookTitle)
-local PAGE_TITLES = { nodes = "NODES_PAGE", settings = "SETTINGS", leash = "LEASH_SETTINGS", buffs = "BUFFS_TAB", camping = "CAMPING_TAB", auctions = "WILDAUCTIONS_TAB", groups = "WILDGROUPS_TAB", layers = "WILDLAYER_TAB", info = "WILDINFO_TAB", lootrolls = "WILDLOOTROLLS_TAB" }
+local PAGE_TITLES = { nodes = "NODES_PAGE", settings = "SETTINGS", leash = "LEASH_SETTINGS", buffs = "BUFFS_TAB", camping = "CAMPING_TAB", auctions = "WILDAUCTIONS_TAB", groups = "WILDGROUPS_TAB", layers = "WILDLAYER_TAB", info = "WILDINFO_TAB", fishing = "WILDFISHING_TAB", lootrolls = "WILDLOOTROLLS_TAB" }
 
 -- Choix d'un réglage : { valeur, nom du texte } ; ou { valeur, nil, libellé } quand le libellé
 -- ne se traduit pas
@@ -733,6 +733,7 @@ local function CreateMenu()
 	if ns.WildGroups then list[#list + 1] = { "groups", ICONS .. "INV_SideTab_GroupFinder_c60", "WILDGROUPS_TAB" } end
 	if ns.WildLayer then list[#list + 1] = { "layers", MEDIA .. "WildLayerIcon", "WILDLAYER_TAB" } end
 	if ns.WildInfo then list[#list + 1] = { "info", MEDIA .. "icon.tga", "WILDINFO_TAB" } end
+	if ns.WildFishing then list[#list + 1] = { "fishing", ICONS .. "Trade_Fishing", "WILDFISHING_TAB" } end
 	if ns.WildLootRolls then list[#list + 1] = { "lootrolls", ICONS .. "INV_Misc_Dice_02", "WILDLOOTROLLS_TAB" } end
 	frame.tabs = {}
 	local previous
@@ -966,6 +967,22 @@ local function CreateMenu()
 		advanced:SetPoint("LEFT", open, "RIGHT", 8, 0)
 	end
 
+
+	page = pages.fishing
+	if page and ns.WildFishing then
+		local fishing = ns.WildFishing
+		column = NewCard(page, 0, 0, page:GetWidth(), height, "WILDFISHING_TAB")
+		local note = column.parent:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+		note:SetPoint("TOPLEFT", column.x, column.y)
+		note:SetWidth(column.width)
+		note:SetJustifyH("LEFT")
+		note:SetWordWrap(true)
+		note:SetText(L.WILDFISHING_NOTE)
+		column.y = column.y - 72
+		AddCheckbox(column, "WILDFISHING_ENABLED", fishing.IsEnabled, fishing.SetEnabled)
+		AddCheckbox(column, "WILDFISHING_VISUAL", fishing.GetVisualEnabled, fishing.SetVisualEnabled)
+		AddCheckbox(column, "WILDFISHING_SOUND", fishing.GetSoundEnabled, fishing.SetSoundEnabled)
+	end
 
 	page = pages.info
 	if page and ns.WildInfo then

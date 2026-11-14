@@ -1,3 +1,7 @@
+WildSpark 2.2.38
+- Add a WildFishing module with a large visual reminder and optional sound when fishing loot opens after a recent Fishing cast.
+- State the client limitation clearly: addons cannot observe the bobber bite itself, so the alert appears after the bobber is clicked.
+
 WildSpark 2.2.37
 - Show quest-only drops only for active quests or eligible quest starters; hide unrelated faction and inactive-quest links.
 - Keep ordinary drops separately controlled and remove irrelevant quest names from their rows.
