@@ -1,3 +1,6 @@
+WildSpark 2.2.36
+- Repair the packaged Menu.lua file encoding so the settings panel loads normally.
+
 WildSpark 2.2.35
 - Combine repeated drops by item so common loot such as Wool Cloth appears once, with related quests summarized.
 - Add separate default-on settings for quest drops and ordinary drops.
