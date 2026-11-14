@@ -1981,7 +1981,9 @@ local function QueueTooltipScan(tooltip)
 		if tooltip.IsShown and not tooltip:IsShown() then return end
 		ScanVisibleTooltip(tooltip)
 	end
-	if C_Timer and C_Timer.After then C_Timer.After(0, scan) else scan() end
+	-- EllesmereUI refreshes GameTooltip after its own ~0.2s update timer.
+	-- Wait past that rebuild so the skill color and requirement are applied last.
+	if C_Timer and C_Timer.After then C_Timer.After(0.3, scan) else scan() end
 end
 
 local function HookTooltipFrame(tooltip)
