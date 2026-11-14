@@ -1,0 +1,37 @@
+name: Refresh WildInfo Classic creature respawn references
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/scripts/generate_respawn_db.py"
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out WildSpark
+        uses: actions/checkout@v4
+      - name: Download the current CMaNGOS Classic SQLite database
+        run: |
+          curl --fail --location --retry 3 \
+            "https://github.com/cmangos/classic-db/releases/download/latest/classic-sqlite-db.zip" \
+            --output /tmp/classic-db.zip
+          mkdir -p /tmp/classic-db
+          unzip -q /tmp/classic-db.zip -d /tmp/classic-db
+      - name: Generate per-NPC reference timers
+        run: python3 .github/scripts/generate_respawn_db.py /tmp/classic-db
+      - name: Commit generated timer table
+        run: |
+          if git diff --quiet -- Wildspark/Modules/WildDrops/RespawnData.lua; then
+            echo "Respawn data already matches the current Classic database."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Wildspark/Modules/WildDrops/RespawnData.lua
+          git commit -m "Update WildInfo Classic NPC respawn references"
+          git push
