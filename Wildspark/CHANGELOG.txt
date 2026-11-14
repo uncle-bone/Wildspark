@@ -1,3 +1,6 @@
+WildSpark 2.2.31
+- Add QuestDB integration for quest-objective item drop rates on creature tooltips. When QuestDB is installed, WildDrops checks active quest item objectives and shows the matching creature-specific chance; existing bundled rows remain available without QuestDB.
+
 WildSpark 2.2.30
 - Add the 10% quest-only Treshala's Pendant drop (item 5825) to Razorfen Handler (NPC 4530) while Mortality Wanes (quest 1142) is available, so WildDrops shows its chance on the tooltip.
 

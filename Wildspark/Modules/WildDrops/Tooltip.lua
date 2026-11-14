@@ -28,21 +28,80 @@ function ns.RefreshRespawnTooltip()
     end
 end
 
+-- Full quest-objective drop rates come from the optional LibQuestDB database.
+-- Its Forever package covers the Classic quests shared with Era; WildSpark's local
+-- rows remain as a fallback for newer/custom Forever quest items.
+local function AddQuestObjectiveDrops(tooltip, npcID, seen)
+    if not (LibStub and C_QuestLog and C_QuestLog.GetNumQuestLogEntries and C_QuestLog.GetInfo) then return false end
+    local ok, questDB = pcall(LibStub, "LibQuestDB-1.0", true)
+    if not ok or not questDB or not questDB.GetQuest or not questDB.GetDropRate then return false end
+    if questDB.IsReady then
+        local readyOK, ready = pcall(questDB.IsReady, questDB)
+        if not readyOK or not ready then return false end
+    end
+
+    local added = false
+    local countOK, count = pcall(C_QuestLog.GetNumQuestLogEntries)
+    if not countOK or type(count) ~= "number" then return false end
+    for index = 1, count do
+        local infoOK, info = pcall(C_QuestLog.GetInfo, index)
+        local questID = infoOK and type(info) == "table" and not info.isHeader and info.questID
+        if type(questID) == "number" and not (C_QuestLog.IsComplete and C_QuestLog.IsComplete(questID)) then
+            local questOK, quest = pcall(questDB.GetQuest, questDB, questID)
+            local objectives = questOK and type(quest) == "table" and quest.objectives
+            local items = type(objectives) == "table" and objectives.items
+            if type(items) == "table" then
+                for _, objective in pairs(items) do
+                    if type(objective) == "table" then
+                        local itemID = objective.id or objective.itemID or objective.itemId or objective[1]
+                        if type(itemID) == "number" then
+                            local key = tostring(itemID) .. ":" .. tostring(questID)
+                            if not seen[key] then
+                                local dropOK, percent, questOnly = pcall(questDB.GetDropRate, questDB, itemID, npcID)
+                                if dropOK and type(percent) == "number" and percent > 0 then
+                                    local item = ns.GetItemName(itemID)
+                                    local chance = ns.FormatChance(percent)
+                                    if questOnly then chance = chance .. " |cff808080(quest-only)|r" end
+                                    tooltip:AddDoubleLine(item, chance)
+                                    local questName = quest.name or quest.title
+                                    if type(questName) ~= "string" and C_QuestLog.GetTitleForQuestID then
+                                        local titleOK, title = pcall(C_QuestLog.GetTitleForQuestID, questID)
+                                        if titleOK then questName = title end
+                                    end
+                                    if type(questName) == "string" and questName ~= "" then
+                                        tooltip:AddLine("    |cffffd100for: " .. questName .. "|r")
+                                    end
+                                    seen[key] = true
+                                    added = true
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return added
+end
+
 local function AddTooltipLines(tooltip, guid)
     if not ns.db or ns.db.enabled == false or ns.db.tooltip == false or tooltip ~= GameTooltip then return end
     local npcID = ns.GetNpcID(guid) -- nil for players, game objects, or an unreadable GUID
     if not npcID then return end
 
     local added = false
+    local seen = {}
     local drops = ns.GetAvailableDrops(npcID)
     if drops then
         for _, drop in ipairs(drops) do
             local item, quest = ns.FormatDropParts(drop)
             tooltip:AddDoubleLine(item, ns.FormatChance(drop[3]))
             tooltip:AddLine(quest)
+            seen[tostring(drop[1]) .. ":" .. tostring(drop[2])] = true
             added = true
         end
     end
+    if AddQuestObjectiveDrops(tooltip, npcID, seen) then added = true end
 
     local respawnText = ns.GetRespawnText and ns.GetRespawnText(npcID)
     if respawnText then
