@@ -1,6 +1,9 @@
 name: Refresh WildInfo Classic creature respawn references
 
 on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 1 * *"
   push:
     branches: [main]
     paths:
