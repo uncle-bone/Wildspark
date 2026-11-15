@@ -1,6 +1,6 @@
 WildMeter third-party source notice
 
-WildMeter adapts the Forever damage-meter category mapping and integration approach from Details! Damage Meter by Terciob, particularly core/parser_nocleu.lua.
+WildMeter adapts the Forever damage-meter category mapping and integration approach from Details! Damage Meter by Tercioo, particularly core/parser_nocleu.lua.
 
 Upstream source: https://github.com/Tercioo/Details-Damage-Meter
 Upstream license file: https://github.com/Tercioo/Details-Damage-Meter/blob/master/LICENSE
