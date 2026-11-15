@@ -1,23 +1,17 @@
-# Dungeon navigation companion
+# WildMaps dungeon navigation
 
-WildSpark's dungeon navigation bundle includes **HiddenMaps 1.2.2 by Lichdom** as a companion addon. HiddenMaps remains a separate addon folder so its own saved variables, namespace, and asset paths work as authored.
+WildMaps is an integrated WildSpark module adapted from HiddenMaps 1.2.2 by Lichdom with the author's permission. The original release media is fetched by the stable build workflow using the exact CurseForge file ID and a SHA-256 check; map code and the original asset notice are kept in this repository.
 
-## Install
+## In the WildSpark pane
 
-Install WildSpark and HiddenMaps as sibling folders directly under `Interface/AddOns`, then enable both at character select. You can use the combined WildSpark dungeon-navigation bundle or install HiddenMaps from the upstream release below. WildSpark declares HiddenMaps as an optional dependency for load ordering; WildSpark still loads if HiddenMaps is absent.
+Open `/wildspark` and select the **WildMaps** tab, identified by its map icon. The tab has an enable switch and an **Open World Map** button. In supported areas, WildMaps selects a map automatically and offers configured floor/wing controls, boss markers, entrance markers, and a room/subzone label when the client reports one.
 
-## Coverage
+## Coverage and location
 
-The supplied HiddenMaps release registers 40 map definitions: static maps for the classic dungeon set, their configured wings and floors, supported dungeon approaches, Blackrock Mountain interior, and Forever's Hall of Thanes, Ruins of Lordaeron, and Excavation Site: Wetlands. Open the World Map in a supported area to show the corresponding map and its configured floor selector, entrance markers, and boss markers.
+The supplied source registers 40 map definitions spanning the classic dungeon set, configured wings/floors, supported approaches, Blackrock Mountain interior, and the Forever maps Hall of Thanes, Ruins of Lordaeron, and Excavation Site: Wetlands.
 
-## Position limits
+Player positioning is best-effort and approximate. Supported approaches can show a player marker when Forever returns usable coordinates. Most dungeon interiors have static maps and no live player tracking. The room label is the client's reported subzone/minimap name; WildMaps does not turn that label into a guessed coordinate or claim exact GPS. Map selection, room labels, floor controls, markers, and any position marker need in-game verification on Forever 1.60.1.
 
-The player marker is best-effort and approximate. HiddenMaps documents live position and facing on supported outdoor approaches when the client returns usable coordinates. Most dungeon interiors have static artwork; the supplied release does not track player position inside them. WoW Forever may withhold dungeon coordinates, and encounter or room events do not provide a reliable substitute for continuous location. When coordinates are unavailable, the static map, floor or wing selection, entrance and boss markers, and detected dungeon name remain available. The addon does not claim exact live GPS.
+## Attribution
 
-Verify map detection, floor changes, markers, and any available player marker in a live Forever session. The upstream release notes identify several approach maps and the three Forever maps as needing in-game acceptance or locale confirmation.
-
-## Attribution and notices
-
-HiddenMaps is by **Lichdom** and is included in WildSpark with the author's permission. Preserve its `ASSET-NOTICES.md`, `README.md`, `CHANGELOG.md`, embedded Santiago Reyes watermarks, and displayed artwork credits. The three Forever map artworks Hall of Thanes, Ruins of Lordaeron, and Excavation Site: Wetlands credit **Santiago Reyes — Atlas de Azeroth: Forever**. Blizzard-derived imagery remains Blizzard's property. The upstream notice states that the package has no standalone code license and that some inherited asset permissions are undocumented; this inclusion does not grant additional rights to third-party artwork.
-
-Upstream release: [HiddenMaps 1.2.2 for WoW Forever](https://www.curseforge.com/wow/addons/hiddenmaps/files/9496110).
+Keep `Wildspark/Modules/WildMaps/ASSET-NOTICES.md`, upstream credits, displayed Santiago Reyes credits, and embedded artwork watermarks. Blizzard-derived imagery remains Blizzard's property. The upstream notice states that no standalone code license is supplied and some inherited asset permissions are undocumented; permission to adapt HiddenMaps for WildSpark does not grant additional rights to third-party artwork. See the module's `README.md` and `UPSTREAM-README.md` for retained detail.

@@ -476,6 +476,13 @@ L.WILDLAYER_MINIMAP_BUTTON = "Show WildLayer minimap button"
 L.WILDLAYER_OPEN = "Open Layer Hopper"
 L.WILDLAYER_SETTINGS = "Advanced WildLayer Options"
 
+L.WILDMAPS_TAB = "WildMaps"
+L.WILDMAPS_NOTE = "WildMaps adds maps and navigation markers for %d Forever dungeons, dungeon approaches, and related areas. Open the World Map in a supported area. When Forever provides a room name, WildMaps shows it; the player marker is approximate and may be unavailable inside dungeons."
+L.WILDMAPS_ENABLED = "Enable WildMaps"
+L.WILDMAPS_ENABLED_TIP = "Turn WildMaps dungeon-map detection and presentation on or off."
+L.WILDMAPS_OPEN = "Open World Map"
+L.WILDMAPS_OPEN_TIP = "Open the World Map. WildMaps selects a map automatically in a supported dungeon or approach."
+
 L.WILDDROPS_TAB = "WildDrops"
 L.WILDDROPS_NOTE = "Shows quest-starting items and their recorded drop chances on creature tooltips. Rare drops are shown by default. The tooltip only lists quests you can still pursue and items you do not already own."
 L.WILDDROPS_ENABLED = "Enable WildDrops"
