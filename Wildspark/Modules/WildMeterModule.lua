@@ -27,7 +27,6 @@ local METRICS = {
     { key = "Absorbs", enum = "Absorbs" },
     { key = "Interrupts", enum = "Interrupts" },
     { key = "Dispels", enum = "Dispels" },
-    { key = "Deaths", enum = "Deaths" },
 }
 
 local function db()
@@ -178,9 +177,9 @@ end
 function module.Open()
     if not apiReady() then return false end
     if DAMAGE_METER:IsShown() then
-        HideUIPanel(DAMAGE_METER)
+        DAMAGE_METER:Hide()
     else
-        ShowUIPanel(DAMAGE_METER)
+        DAMAGE_METER:Show()
     end
     return true
 end
