@@ -513,7 +513,7 @@ L.WILDINFO_RESPAWN_TIP = "Learn approximate respawn times after this character o
 
 
 L.WILDMETER_TAB = "WildMeter"
-L.WILDMETER_NOTE = "Customize Blizzard's live damage meter without replacing its data collection. Choose the metric and session for a new popout; adjust the built-in meter's style, numbers, class colors, icons, bar height, and spacing. Values are rendered by Blizzard's protected meter UI."
+L.WILDMETER_NOTE = "Customize Blizzard's live damage meter without replacing its data collection. Choose the metric and session for a new popout; adjust the built-in meter's style, numbers, class colors, icons, bar height, and spacing. Click a source row for Blizzard's spell breakdown where available. Blizzard renders the protected combat values."
 L.WILDMETER_READY = "Blizzard's damage-meter API is available. WildMeter does not switch off its collection setting."
 L.WILDMETER_UNAVAILABLE = "Blizzard's damage-meter API is not available in this client session. WildMeter cannot produce live readings without it."
 L.WILDMETER_METRIC = "Metric for the next popout"
