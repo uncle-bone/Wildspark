@@ -71,6 +71,7 @@ WildSpark is a modular WoW Forever utility suite for gathering highlights, quest
 - Use **WildGroups** from its own tab in Blizzard's Looking For Group pane.
 - Use **WildLayer** from its own WildSpark tab or minimap button to request layer hops. Automatic invites for people requesting your layer are off by default.
 - Use **WildInfo** to see known quest-starter and quest-objective item drop chances, plus locally or peer-learned NPC respawn estimates, when mousing over creatures. Timer sharing uses the hidden Camping Kit addon channel, not visible world-chat messages.
+- Use the separate **HiddenMaps** companion addon for dungeon and approach maps. It provides static maps, floor/wing controls, and boss/entrance markers; player location is best-effort on supported approaches, and most dungeon interiors do not expose live tracking. See [Dungeon Navigation](docs/DUNGEON-NAVIGATION.md) for installation, coverage, attribution, and limits.
 - Adjust Blizzard group-loot position, scale, and spacing from WildSpark's Wild Loot Rolls tab.
 - Open settings with `/wildspark` or `/ws`.
 
