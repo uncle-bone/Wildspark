@@ -62,7 +62,7 @@ function module.PlaceEntryMarker()
     local worldMap = ns.WildMaps and ns.WildMaps.WorldMap
     if not worldMap or not worldMap.BeginManualStartPlacement then return false end
     local ok = worldMap:BeginManualStartPlacement()
-    if ok then module.Open() end
+    if ok and not (WorldMapFrame and WorldMapFrame:IsShown()) then module.Open() end
     return ok
 end
 
