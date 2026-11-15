@@ -51,8 +51,6 @@ eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 eventFrame:RegisterEvent("ZONE_CHANGED")
 eventFrame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 eventFrame:RegisterEvent("ZONE_CHANGED_INDOORS")
-eventFrame:RegisterEvent("SUBZONE_CHANGED")
-eventFrame:RegisterEvent("MINIMAP_ZONE_CHANGED")
 
 eventFrame:SetScript("OnEvent", function(_, event, arg1)
     if event == "ADDON_LOADED" then
@@ -70,7 +68,7 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
     end
 
     if event == "PLAYER_ENTERING_WORLD" or event == "ZONE_CHANGED" or event == "ZONE_CHANGED_NEW_AREA"
-        or event == "ZONE_CHANGED_INDOORS" or event == "SUBZONE_CHANGED" or event == "MINIMAP_ZONE_CHANGED" then
+        or event == "ZONE_CHANGED_INDOORS" then
         HM:RefreshMap(event)
     end
 end)
@@ -108,6 +106,7 @@ eventFrame:SetScript("OnUpdate", function(_, elapsed)
         end
         if HM.WorldMap.initialized and WorldMapFrame and WorldMapFrame:IsShown() then
             HM.WorldMap:UpdateMarker()
+            HM.WorldMap:RefreshLocationHint()
         end
     end
 
