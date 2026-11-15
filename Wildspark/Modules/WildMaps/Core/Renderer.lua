@@ -492,6 +492,9 @@ function Renderer:UpdateMarker(frame, map)
     if u == nil and HM.WorldMap and HM.WorldMap.GetManualStartPosition then
         u, v = HM.WorldMap:GetManualStartPosition(map)
     end
+    if u == nil and map.entryPosition then
+        u, v = tonumber(map.entryPosition.u), tonumber(map.entryPosition.v)
+    end
     if u == nil or v == nil then
         frame.marker:Hide()
         return
