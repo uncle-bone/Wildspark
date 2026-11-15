@@ -31,7 +31,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Verify release metadata and notices
+      - name: Verify release metadata
         id: release
         run: |
           VERSION="$(sed -n 's/^## Version: //p' Wildspark/WildSpark.toc | head -n 1 | tr -d '\r')"
@@ -55,6 +55,7 @@ jobs:
           test -f "$HM_DIR/ASSET-NOTICES.md"
           test -f "$HM_DIR/Media/Decor/hiddenmaps_background.tga"
           cp -a "$HM_DIR/Media/." dist/stage/WildSpark/Modules/WildMaps/Media/
+
           curl --fail --location --retry 3 --output "$RUNNER_TEMP/QuestDB.zip" "https://www.curseforge.com/api/v1/mods/1700352/files/9014639/download"
           mkdir -p "$RUNNER_TEMP/questdb-package"
           unzip -q "$RUNNER_TEMP/QuestDB.zip" -d "$RUNNER_TEMP/questdb-package"
@@ -109,6 +110,7 @@ jobs:
           grep -Fx '## X-Flavor: Forever' "$MAIN_TOC"
           grep -Fq 'Libs\QuestDB\Data\Forever\_core\Drops.lua' "$MAIN_TOC"
           grep -Fq 'Libs\QuestieDB\src\api.lua' "$MAIN_TOC"
+
           cd dist/stage
           zip -qr "../WildSpark-$VERSION.zip" WildSpark
           cd ../..
@@ -117,81 +119,9 @@ jobs:
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Libs/QuestDB/LICENSE$'
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Libs/QuestieDB/QuestieDB_Forever.toc$'
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Libs/QuestieDB/LICENSE.md$'
-          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildDrops/QuestDropRates-LICENSE.txt          if unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -qE '^(QuestDB|QuestieDB)/'; then
-            echo "The install ZIP must contain only the WildSpark root folder."
-            exit 1
-          fi
-
-      - name: Publish stable GitHub release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.release.outputs.tag }}
-          VERSION: ${{ steps.release.outputs.version }}
-        run: |
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Release $TAG already exists; skipping duplicate publish."
-            exit 0
-          fi
-          gh release create "$TAG" "dist/WildSpark-$VERSION.zip" \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "WildSpark $VERSION — Stable release" \
-            --notes-file ".github/releases/$TAG.md" \
-            --target "$GITHUB_SHA" \
-            --latest
-
-
-
-
-          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildMaps/ASSET-NOTICES.md          if unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -qE '^(QuestDB|QuestieDB)/'; then
-            echo "The install ZIP must contain only the WildSpark root folder."
-            exit 1
-          fi
-
-      - name: Publish stable GitHub release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.release.outputs.tag }}
-          VERSION: ${{ steps.release.outputs.version }}
-        run: |
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Release $TAG already exists; skipping duplicate publish."
-            exit 0
-          fi
-          gh release create "$TAG" "dist/WildSpark-$VERSION.zip" \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "WildSpark $VERSION — Stable release" \
-            --notes-file ".github/releases/$TAG.md" \
-            --target "$GITHUB_SHA" \
-            --latest
-
-
-
-
-          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildMaps/Media/Decor/hiddenmaps_background.tga          if unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -qE '^(QuestDB|QuestieDB)/'; then
-            echo "The install ZIP must contain only the WildSpark root folder."
-            exit 1
-          fi
-
-      - name: Publish stable GitHub release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.release.outputs.tag }}
-          VERSION: ${{ steps.release.outputs.version }}
-        run: |
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Release $TAG already exists; skipping duplicate publish."
-            exit 0
-          fi
-          gh release create "$TAG" "dist/WildSpark-$VERSION.zip" \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "WildSpark $VERSION — Stable release" \
-            --notes-file ".github/releases/$TAG.md" \
-            --target "$GITHUB_SHA" \
-            --latest
-
-
-
-
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildDrops/QuestDropRates-LICENSE.txt$'
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildMaps/ASSET-NOTICES.md$'
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildMaps/Media/Decor/hiddenmaps_background.tga$'
           if unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -qE '^(QuestDB|QuestieDB)/'; then
             echo "The install ZIP must contain only the WildSpark root folder."
             exit 1
@@ -213,6 +143,3 @@ jobs:
             --notes-file ".github/releases/$TAG.md" \
             --target "$GITHUB_SHA" \
             --latest
-
-
-
