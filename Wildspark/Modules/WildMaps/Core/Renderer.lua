@@ -478,13 +478,21 @@ function Renderer:Layout(frame, map)
 end
 
 function Renderer:UpdateMarker(frame, map)
-    if not frame:IsShown() or not map or not map.render or not map.position then
+    if not frame:IsShown() or not map or not map.render then
         frame.marker:Hide()
         return
     end
 
-    local u, v = HM.Position:GetVisibleMapPosition(map, self.calibrationMap == map)
-    if u == nil then
+    local u, v
+    local isLivePosition = false
+    if map.position then
+        u, v = HM.Position:GetVisibleMapPosition(map, self.calibrationMap == map)
+        isLivePosition = u ~= nil
+    end
+    if u == nil and HM.WorldMap and HM.WorldMap.GetManualStartPosition then
+        u, v = HM.WorldMap:GetManualStartPosition(map)
+    end
+    if u == nil or v == nil then
         frame.marker:Hide()
         return
     end
@@ -493,12 +501,17 @@ function Renderer:UpdateMarker(frame, map)
     frame.marker:ClearAllPoints()
     frame.marker:SetPoint("CENTER", frame, "TOPLEFT", x, -y)
 
-    -- This behavior is confirmed correct in WC dev7 and is engine-level.
-    local facing = HM.Position:GetPlayerFacing(map)
-    if facing and frame.marker.arrow then
-        frame.marker.arrow:SetRotation(facing)
-    elseif frame.marker.arrow then
-        frame.marker.arrow:SetRotation(0)
+    -- Indoor saved points are explicitly amber and fixed at the player's
+    -- approximate entry location; only mapped outdoor points use a live arrow.
+    if frame.marker.arrow then
+        if isLivePosition then
+            frame.marker.arrow:SetVertexColor(1, 1, 1, 1)
+            local facing = HM.Position:GetPlayerFacing(map)
+            frame.marker.arrow:SetRotation(facing or 0)
+        else
+            frame.marker.arrow:SetVertexColor(1, 0.62, 0.12, 1)
+            frame.marker.arrow:SetRotation(0)
+        end
     end
 
     frame.marker:Show()
