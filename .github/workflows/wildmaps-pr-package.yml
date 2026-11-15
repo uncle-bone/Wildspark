@@ -125,7 +125,7 @@ jobs:
       - name: Upload installable pull request package
         uses: actions/upload-artifact@v4
         with:
-          name: WildSpark-${{ github.event.pull_request.number || github.ref_name }}-WildMaps
+          name: WildSpark-${{ github.event.pull_request.number || 'branch' }}-WildMaps
           path: ${{ steps.package.outputs.archive }}
           if-no-files-found: error
           retention-days: 14
