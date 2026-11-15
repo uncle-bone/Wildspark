@@ -477,7 +477,7 @@ L.WILDLAYER_OPEN = "Open Layer Hopper"
 L.WILDLAYER_SETTINGS = "Advanced WildLayer Options"
 
 L.WILDMAPS_TAB = "WildMaps"
-L.WILDMAPS_NOTE = "WildMaps adds maps and navigation markers for %d Forever dungeons, dungeon approaches, and related areas. Open the World Map in a supported area. When Forever provides a room name, WildMaps shows it; the player marker is approximate and may be unavailable inside dungeons."
+L.WILDMAPS_NOTE = "WildMaps adds maps for %d Forever dungeons, approaches, and related areas. It detects locations where the client provides reliable signals. If a dungeon wing cannot be identified, choose its map below. Static indoor maps have no live player coordinates; set an approximate entry marker once for a saved fixed reference."
 L.WILDMAPS_ENABLED = "Enable WildMaps"
 L.WILDMAPS_ENABLED_TIP = "Turn WildMaps dungeon-map detection and presentation on or off."
 L.WILDMAPS_OPEN = "Open World Map"
