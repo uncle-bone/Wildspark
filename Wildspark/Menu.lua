@@ -51,7 +51,7 @@ local NODES_ICON = "INV_Misc_Map_01"
 local NODES_HEIGHT = 320      -- hauteur des deux panneaux de la page de la minimap
 
 -- Titre de chaque page sous la barre de titre ; celle des objets compose le sien (LookTitle)
-local PAGE_TITLES = { nodes = "NODES_PAGE", settings = "SETTINGS", leash = "LEASH_SETTINGS", buffs = "BUFFS_TAB", camping = "CAMPING_TAB", auctions = "WILDAUCTIONS_TAB", groups = "WILDGROUPS_TAB", layers = "WILDLAYER_TAB", wildmaps = "WILDMAPS_TAB", info = "WILDINFO_TAB", lootrolls = "WILDLOOTROLLS_TAB" }
+local PAGE_TITLES = { nodes = "NODES_PAGE", settings = "SETTINGS", leash = "LEASH_SETTINGS", buffs = "BUFFS_TAB", camping = "CAMPING_TAB", auctions = "WILDAUCTIONS_TAB", groups = "WILDGROUPS_TAB", layers = "WILDLAYER_TAB", wildmaps = "WILDMAPS_TAB", wildmeter = "WILDMETER_TAB", info = "WILDINFO_TAB", lootrolls = "WILDLOOTROLLS_TAB" }
 
 -- Choix d'un réglage : { valeur, nom du texte } ; ou { valeur, nil, libellé } quand le libellé
 -- ne se traduit pas
@@ -733,6 +733,7 @@ local function CreateMenu()
 	if ns.WildGroups then list[#list + 1] = { "groups", ICONS .. "INV_SideTab_GroupFinder_c60", "WILDGROUPS_TAB" } end
 	if ns.WildLayer then list[#list + 1] = { "layers", MEDIA .. "WildLayerIcon", "WILDLAYER_TAB" } end
 	if ns.WildMapsModule then list[#list + 1] = { "wildmaps", ICONS .. "INV_Misc_Map_01", "WILDMAPS_TAB" } end
+	if ns.WildMeterModule then list[#list + 1] = { "wildmeter", ICONS .. "INV_Misc_Gear_01", "WILDMETER_TAB" } end
 	if ns.WildInfo then list[#list + 1] = { "info", MEDIA .. "icon.tga", "WILDINFO_TAB" } end
 	if ns.WildLootRolls then list[#list + 1] = { "lootrolls", ICONS .. "INV_Misc_Dice_02", "WILDLOOTROLLS_TAB" } end
 	frame.tabs = {}
@@ -1010,6 +1011,99 @@ local function CreateMenu()
 		setStart:SetPoint("TOPLEFT", column.x, column.y - 4)
 	end
 
+
+	page = pages.wildmeter
+	if page and ns.WildMeterModule then
+		local meter = ns.WildMeterModule
+		column = NewCard(page, 0, 0, page:GetWidth(), height, "WILDMETER_TAB")
+		local note = column.parent:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+		note:SetPoint("TOPLEFT", column.x, column.y)
+		note:SetWidth(column.width)
+		note:SetJustifyH("LEFT")
+		note:SetWordWrap(true)
+		note:SetText(L.WILDMETER_NOTE)
+		column.y = column.y - 66
+
+		local apiStatus = column.parent:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+		apiStatus:SetPoint("TOPLEFT", column.x, column.y)
+		apiStatus:SetWidth(column.width)
+		apiStatus:SetJustifyH("LEFT")
+		apiStatus:SetWordWrap(true)
+		local function RefreshMeterStatus()
+			apiStatus:SetText(meter.IsAvailable() and L.WILDMETER_READY or L.WILDMETER_UNAVAILABLE)
+			apiStatus:SetTextColor(meter.IsAvailable() and 0.45 or 1, meter.IsAvailable() and 1 or 0.55, 0.45)
+		end
+		refreshers[#refreshers + 1] = RefreshMeterStatus
+		RefreshMeterStatus()
+		column.y = column.y - 32
+
+		local function AddMeterDropdown(labelKey, width, choices, getter, setter)
+			local label = column.parent:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+			label:SetPoint("TOPLEFT", column.x, column.y)
+			Caption(label, labelKey)
+			local dropdown = CreateFrame("Frame", nil, column.parent, "UIDropDownMenuTemplate")
+			dropdown:SetPoint("TOPLEFT", column.x + 210, column.y + 5)
+			UIDropDownMenu_SetWidth(dropdown, width)
+			local function Refresh()
+				UIDropDownMenu_SetText(dropdown, getter())
+			end
+			UIDropDownMenu_Initialize(dropdown, function(_, level)
+				for _, choice in ipairs(choices()) do
+					local info = UIDropDownMenu_CreateInfo()
+					info.text = choice[2]
+					info.notCheckable = true
+					info.func = function()
+						setter(choice[1])
+						Refresh()
+					end
+					UIDropDownMenu_AddButton(info, level)
+				end
+			end)
+			refreshers[#refreshers + 1] = Refresh
+			column.y = column.y - 40
+		end
+
+		local function MetricChoices()
+			local choices = {}
+			for _, metric in ipairs(meter.GetMetrics()) do choices[#choices + 1] = { metric.key, L["WILDMETER_METRIC_" .. string.upper(metric.key)] or metric.key } end
+			return choices
+		end
+		local function SessionChoices()
+			return { { "Current", L.WILDMETER_CURRENT }, { "Overall", L.WILDMETER_OVERALL } }
+		end
+		local function StyleChoices()
+			return { { "Default", L.WILDMETER_STYLE_DEFAULT }, { "Bordered", L.WILDMETER_STYLE_BORDERED }, { "FullBackground", L.WILDMETER_STYLE_FULL }, { "Thin", L.WILDMETER_STYLE_THIN } }
+		end
+		local function NumberChoices()
+			return { { "Minimal", L.WILDMETER_NUM_MINIMAL }, { "Compact", L.WILDMETER_NUM_COMPACT }, { "Complete", L.WILDMETER_NUM_COMPLETE } }
+		end
+		AddMeterDropdown("WILDMETER_METRIC", 180, MetricChoices, function() return L["WILDMETER_METRIC_" .. string.upper(meter.GetSetting("metric"))] or meter.GetSetting("metric") end, meter.SetMetricChoice)
+		AddMeterDropdown("WILDMETER_SESSION", 180, SessionChoices, function() return meter.GetSetting("session") == "Overall" and L.WILDMETER_OVERALL or L.WILDMETER_CURRENT end, meter.SetSessionChoice)
+		AddMeterDropdown("WILDMETER_STYLE", 180, StyleChoices, function() return L["WILDMETER_STYLE_" .. string.upper(meter.GetSetting("style"))] end, function(value) meter.SetSetting("style", value) end)
+		AddMeterDropdown("WILDMETER_NUMBERS", 180, NumberChoices, function() return L["WILDMETER_NUM_" .. string.upper(meter.GetSetting("numbers"))] end, function(value) meter.SetSetting("numbers", value) end)
+
+		AddCheckbox(column, "WILDMETER_CLASS_COLOR", function() return meter.GetSetting("classColor") end, function(value) meter.SetSetting("classColor", value) end)
+		AddCheckbox(column, "WILDMETER_ICONS", function() return meter.GetSetting("icons") end, function(value) meter.SetSetting("icons", value) end)
+		local controls = CreateFrame("Frame", nil, column.parent)
+		controls:SetSize(column.width, 30)
+		controls:SetPoint("TOPLEFT", column.x, column.y)
+		local less = AddButton(column.parent, "WILDMETER_SMALLER", function() meter.SetSetting("barHeight", math.max(12, meter.GetSetting("barHeight") - 1)) end, 110)
+		less:SetPoint("TOPLEFT", column.x, column.y - 2)
+		local more = AddButton(column.parent, "WILDMETER_LARGER", function() meter.SetSetting("barHeight", math.min(36, meter.GetSetting("barHeight") + 1)) end, 110)
+		more:SetPoint("LEFT", less, "RIGHT", 8, 0)
+		local tighter = AddButton(column.parent, "WILDMETER_TIGHTER", function() meter.SetSetting("barSpacing", math.max(0, meter.GetSetting("barSpacing") - 1)) end, 110)
+		tighter:SetPoint("LEFT", more, "RIGHT", 8, 0)
+		local looser = AddButton(column.parent, "WILDMETER_LOOSER", function() meter.SetSetting("barSpacing", math.min(12, meter.GetSetting("barSpacing") + 1)) end, 110)
+		looser:SetPoint("LEFT", tighter, "RIGHT", 8, 0)
+		column.y = column.y - 38
+
+		local popout = AddButton(column.parent, "WILDMETER_POPOUT", function()
+			if not meter.OpenPopout() then print("|cff66ccffWildMeter|r: no free Blizzard meter popout is available.") end
+		end, 220)
+		popout:SetPoint("TOPLEFT", column.x, column.y - 2)
+		local showNative = AddButton(column.parent, "WILDMETER_SHOW_NATIVE", meter.Open, 220)
+		showNative:SetPoint("LEFT", popout, "RIGHT", 8, 0)
+	end
 
 	page = pages.info
 	if page and ns.WildInfo then
