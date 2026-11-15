@@ -4,7 +4,7 @@ WildSpark's dungeon navigation bundle includes **HiddenMaps 1.2.2 by Lichdom** a
 
 ## Install
 
-Extract the bundle into `Interface/AddOns` and enable both `WildSpark` and `HiddenMaps` at character select. WildSpark declares HiddenMaps as an optional dependency for load ordering; WildSpark still loads if HiddenMaps is absent.
+Install WildSpark and HiddenMaps as sibling folders directly under `Interface/AddOns`, then enable both at character select. You can use the combined WildSpark dungeon-navigation bundle or install HiddenMaps from the upstream release below. WildSpark declares HiddenMaps as an optional dependency for load ordering; WildSpark still loads if HiddenMaps is absent.
 
 ## Coverage
 
