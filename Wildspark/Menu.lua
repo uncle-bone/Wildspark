@@ -1022,7 +1022,7 @@ local function CreateMenu()
 		note:SetJustifyH("LEFT")
 		note:SetWordWrap(true)
 		note:SetText(L.WILDMETER_NOTE)
-		column.y = column.y - 66
+		column.y = column.y - 52
 
 		local apiStatus = column.parent:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
 		apiStatus:SetPoint("TOPLEFT", column.x, column.y)
@@ -1035,7 +1035,7 @@ local function CreateMenu()
 		end
 		refreshers[#refreshers + 1] = RefreshMeterStatus
 		RefreshMeterStatus()
-		column.y = column.y - 32
+		column.y = column.y - 25
 
 		local function AddMeterDropdown(labelKey, width, choices, getter, setter)
 			local label = column.parent:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
@@ -1060,7 +1060,7 @@ local function CreateMenu()
 				end
 			end)
 			refreshers[#refreshers + 1] = Refresh
-			column.y = column.y - 40
+			column.y = column.y - 34
 		end
 
 		local function MetricChoices()
@@ -1095,6 +1095,15 @@ local function CreateMenu()
 		tighter:SetPoint("LEFT", more, "RIGHT", 8, 0)
 		local looser = AddButton(column.parent, "WILDMETER_LOOSER", function() meter.SetSetting("barSpacing", math.min(12, meter.GetSetting("barSpacing") + 1)) end, 110)
 		looser:SetPoint("LEFT", tighter, "RIGHT", 8, 0)
+		column.y = column.y - 38
+		local textLess = AddButton(column.parent, "WILDMETER_TEXT_SMALLER", function() meter.SetSetting("textScale", math.max(0.7, meter.GetSetting("textScale") - 0.1)) end, 110)
+		textLess:SetPoint("TOPLEFT", column.x, column.y - 2)
+		local textMore = AddButton(column.parent, "WILDMETER_TEXT_LARGER", function() meter.SetSetting("textScale", math.min(1.5, meter.GetSetting("textScale") + 0.1)) end, 110)
+		textMore:SetPoint("LEFT", textLess, "RIGHT", 8, 0)
+		local fadeLess = AddButton(column.parent, "WILDMETER_MORE_TRANSPARENT", function() meter.SetSetting("windowAlpha", math.max(0.2, meter.GetSetting("windowAlpha") - 0.1)) end, 130)
+		fadeLess:SetPoint("LEFT", textMore, "RIGHT", 8, 0)
+		local fadeMore = AddButton(column.parent, "WILDMETER_LESS_TRANSPARENT", function() meter.SetSetting("windowAlpha", math.min(1, meter.GetSetting("windowAlpha") + 0.1)) end, 130)
+		fadeMore:SetPoint("LEFT", fadeLess, "RIGHT", 8, 0)
 		column.y = column.y - 38
 
 		local popout = AddButton(column.parent, "WILDMETER_POPOUT", function()
