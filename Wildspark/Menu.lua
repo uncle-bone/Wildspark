@@ -1084,7 +1084,7 @@ local function CreateMenu()
 
 		AddCheckbox(column, "WILDMETER_CLASS_COLOR", function() return meter.GetSetting("classColor") end, function(value) meter.SetSetting("classColor", value) end)
 		AddCheckbox(column, "WILDMETER_ICONS", function() return meter.GetSetting("icons") end, function(value) meter.SetSetting("icons", value) end)
-				local less = AddButton(column.parent, "WILDMETER_SMALLER", function() meter.SetSetting("barHeight", math.max(12, meter.GetSetting("barHeight") - 1)) end, 110)
+		local less = AddButton(column.parent, "WILDMETER_SMALLER", function() meter.SetSetting("barHeight", math.max(12, meter.GetSetting("barHeight") - 1)) end, 110)
 		less:SetPoint("TOPLEFT", column.x, column.y - 2)
 		local more = AddButton(column.parent, "WILDMETER_LARGER", function() meter.SetSetting("barHeight", math.min(36, meter.GetSetting("barHeight") + 1)) end, 110)
 		more:SetPoint("LEFT", less, "RIGHT", 8, 0)
@@ -1302,6 +1302,15 @@ function ns.ToggleMenu()
 		if keybindButton then keybindButton:EnableKeyboard(false) end
 	end
 	frame:SetShown(not frame:IsShown())
+end
+
+-- Open WildSpark directly on a module page, for module slash commands.
+function ns.OpenMenuPage(name)
+	local frame = menu or CreateMenu()
+	if not pages[name] then return false end
+	Open(name)
+	if not frame:IsShown() then ns.ToggleMenu() end
+	return true
 end
 
 ---------------------------------------------------------------------------
