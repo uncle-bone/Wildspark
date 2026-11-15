@@ -8,8 +8,14 @@ WildSpark is a modular WoW Forever utility suite for gathering highlights, quest
 
 ## What's new in 2.2.40
 
-- Remove WildFishing's post-loot reminder because WoW does not expose the bobber-bite event to addons.
+- Integrate HiddenMaps 1.2.2 as **WildMaps** inside WildSpark, with its own icon tab, enable switch, and Open World Map button.
+- Add dungeon and approach maps, floor/wing controls, and configured boss and entrance markers.
+- Show the client-reported room/subzone name where available. Player positioning is approximate and best-effort; most dungeon interiors do not expose coordinates.
+- Preserve upstream asset notices, credits, and watermarks.
 
+## What's new in 2.2.39
+
+- Remove WildFishing's post-loot reminder because WoW does not expose the bobber-bite event to addons.
 - Embed QuestDB and QuestieDB v1.1.1 Forever data inside WildSpark's own folder; install and enable only WildSpark.
 - Expand WildInfo tooltips across known quests, including objective items even when the quest is not in your log.
 - Combine repeated items into one tooltip row, cap the visible list at eight unique drops, and provide separate default-on switches for quest and ordinary drops.
@@ -72,7 +78,6 @@ WildSpark is a modular WoW Forever utility suite for gathering highlights, quest
 - Use **WildLayer** from its own WildSpark tab or minimap button to request layer hops. Automatic invites for people requesting your layer are off by default.
 - Use **WildInfo** to see known quest-starter and quest-objective item drop chances, plus locally or peer-learned NPC respawn estimates, when mousing over creatures. Timer sharing uses the hidden Camping Kit addon channel, not visible world-chat messages.
 - Use **WildMaps** from its own icon tab in the WildSpark pane to open Forever dungeon maps. The map shows a reported room name where available; player positioning is approximate and often unavailable inside instances. See [WildMaps details](Wildspark/Modules/WildMaps/README.md).
-- Use the separate **HiddenMaps** companion addon for dungeon and approach maps. It provides static maps, floor/wing controls, and boss/entrance markers; player location is best-effort on supported approaches, and most dungeon interiors do not expose live tracking. See [Dungeon Navigation](docs/DUNGEON-NAVIGATION.md) for installation, coverage, attribution, and limits.
 - Adjust Blizzard group-loot position, scale, and spacing from WildSpark's Wild Loot Rolls tab.
 - Open settings with `/wildspark` or `/ws`.
 
