@@ -8,7 +8,7 @@ local _, ns = ...
 local module = {}
 ns.WildMeterModule = module
 
-local DAMAGE_METER = _G.DamageMeter
+local DAMAGE_METER
 local API = _G.C_DamageMeter
 local ENUM = _G.Enum and Enum.DamageMeterType
 local STYLE = _G.Enum and Enum.DamageMeterStyle
@@ -51,6 +51,7 @@ local function db()
 end
 
 local function apiReady()
+    DAMAGE_METER = DAMAGE_METER or _G.DamageMeter
     return API and DAMAGE_METER and ENUM and STYLE and NUMBERS and SESSION
         and type(API.IsDamageMeterAvailable) == "function"
         and type(DAMAGE_METER.SetStyle) == "function"
@@ -186,12 +187,15 @@ end
 
 local slash = CreateFrame("Frame")
 slash:RegisterEvent("PLAYER_LOGIN")
+slash:RegisterEvent("ADDON_LOADED")
 slash:RegisterEvent("DAMAGE_METER_COMBAT_SESSION_UPDATED")
 slash:RegisterEvent("DAMAGE_METER_CURRENT_SESSION_UPDATED")
 slash:RegisterEvent("DAMAGE_METER_RESET")
 slash:SetScript("OnEvent", function(_, event)
     if event == "PLAYER_LOGIN" then
         C_Timer.After(1, apply)
+    elseif event == "ADDON_LOADED" then
+        C_Timer.After(0, apply)
     elseif apiReady() then
         -- The native window refreshes itself. Re-apply only presentation settings, never data state.
         apply()
