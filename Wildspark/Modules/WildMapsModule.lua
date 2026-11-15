@@ -32,10 +32,37 @@ function module.GetMapCount()
 end
 
 function module.Open()
-    if type(ToggleWorldMap) == "function" then
+    if WorldMapFrame and type(WorldMapFrame.IsShown) == "function" and not WorldMapFrame:IsShown()
+        and type(ShowUIPanel) == "function" then
+        ShowUIPanel(WorldMapFrame)
+    elseif type(ToggleWorldMap) == "function" then
         ToggleWorldMap()
     elseif WorldMapFrame and type(ShowUIPanel) == "function" then
         ShowUIPanel(WorldMapFrame)
     end
+end
+
+function module.GetMaps()
+    local registry = ns.WildMaps and ns.WildMaps.Registry
+    return registry and registry:GetMaps() or {}
+end
+
+function module.SelectMap(mapID)
+    local map = ns.WildMaps and ns.WildMaps.Registry and ns.WildMaps.Registry:GetMap(mapID)
+    if not map then return false end
+    if not module.IsEnabled() then module.SetEnabled(true) end
+    if ns.WildMaps.MapOverride then
+        ns.WildMaps.MapOverride:Apply(map)
+        return true
+    end
+    return false
+end
+
+function module.PlaceEntryMarker()
+    local worldMap = ns.WildMaps and ns.WildMaps.WorldMap
+    if not worldMap or not worldMap.BeginManualStartPlacement then return false end
+    local ok = worldMap:BeginManualStartPlacement()
+    if ok then module.Open() end
+    return ok
 end
 
