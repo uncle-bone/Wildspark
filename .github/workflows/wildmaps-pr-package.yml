@@ -1,6 +1,17 @@
 name: Build WildMaps pull request package
 
 on:
+  push:
+    branches: [feature/hiddenmaps-dungeon-navigation]
+    paths:
+      - ".github/workflows/wildmaps-pr-package.yml"
+      - "Wildspark/WildSpark.toc"
+      - "Wildspark/Modules/WildMaps/**"
+      - "Wildspark/Modules/WildMapsModule.lua"
+      - "Wildspark/Menu.lua"
+      - "Wildspark/Locales/**"
+      - "Wildspark/Libs/**"
+      - "Wildspark/Modules/WildDrops/**"
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened]
@@ -15,7 +26,7 @@ on:
       - "Wildspark/Modules/WildDrops/**"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   package:
@@ -109,11 +120,26 @@ jobs:
             exit 1
           fi
           echo "archive=dist/WildSpark-$VERSION-WildMaps-PR.zip" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Upload installable pull request package
         uses: actions/upload-artifact@v4
         with:
-          name: WildSpark-${{ github.event.pull_request.number }}-WildMaps
+          name: WildSpark-${{ github.event.pull_request.number || github.ref_name }}-WildMaps
           path: ${{ steps.package.outputs.archive }}
           if-no-files-found: error
           retention-days: 14
+
+      - name: Publish branch-only prerelease download
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.package.outputs.version }}
+        run: |
+          TAG="wildmaps-pr1-${GITHUB_SHA:0:12}"
+          gh release create "$TAG" "${{ steps.package.outputs.archive }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "WildSpark $VERSION — WildMaps review build" \
+            --notes "Review build from feature/hiddenmaps-dungeon-navigation at $GITHUB_SHA. This is a prerelease for testing and is not the stable main-branch release." \
+            --target "$GITHUB_SHA" \
+            --prerelease
