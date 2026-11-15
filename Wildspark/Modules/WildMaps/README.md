@@ -6,11 +6,15 @@ WildMaps is WildSpark's integrated dungeon-map module, adapted from HiddenMaps 1
 
 The source release registers 40 maps covering the classic dungeon set, configured wings and floors, supported dungeon approaches, Blackrock Mountain interior, and the Forever maps Hall of Thanes, Ruins of Lordaeron, and Excavation Site: Wetlands. Boss and entrance markers and floor selectors are included where configured.
 
-## Position limits
+## Position limits and manual fallback
 
-The player marker is best-effort and approximate. HiddenMaps documents position and facing on selected approaches when usable client coordinates are available. Most dungeon interiors have static maps and do not track the player. WildMaps also displays the current subzone or minimap area name when the client reports one, so room names remain useful where coordinates are unavailable. The room label is not converted into an invented map position; no exact live GPS is claimed.
+The player marker is best-effort and approximate. HiddenMaps documents position and facing on selected approaches when usable client coordinates are available. Most dungeon interiors have static maps: WoW Forever does not expose a usable player coordinate or room signal there, so WildMaps cannot track movement or claim exact live GPS.
 
-Map selection, floor controls, markers, and any available player marker still need in-game verification on WoW Forever 1.60.1.
+When automatic detection cannot identify a dungeon wing, choose its map from the WildMaps pane. On a static indoor map, click **Set Approximate Entry Marker**, then click the approximate point where you enter. WildMaps saves an amber fixed marker for that map as a starting reference; it does not move with the player. You can click the control again to replace it. The marker should be calibrated in game for each map where it is needed.
+
+When available, the client-reported subzone or minimap area name remains descriptive text; it is never converted into a guessed coordinate.
+
+Manual selection, entry-marker placement, floor controls, artwork, and any live player marker still need in-game verification on WoW Forever 1.60.1.
 
 ## Attribution
 
