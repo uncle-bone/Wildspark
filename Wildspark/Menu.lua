@@ -981,6 +981,33 @@ local function CreateMenu()
 		AddCheckbox(column, "WILDMAPS_ENABLED", wildMaps.IsEnabled, wildMaps.SetEnabled)
 		local open = AddButton(column.parent, "WILDMAPS_OPEN", wildMaps.Open, 190)
 		open:SetPoint("TOPLEFT", column.x, column.y - 4)
+		column.y = column.y - 34
+
+		local picker = CreateFrame("Frame", nil, column.parent, "UIDropDownMenuTemplate")
+		picker:SetPoint("TOPLEFT", column.x - 16, column.y - 2)
+		UIDropDownMenu_SetWidth(picker, 230)
+		UIDropDownMenu_SetText(picker, L.WILDMAPS_CHOOSE_MAP)
+		UIDropDownMenu_Initialize(picker, function(_, level)
+			local maps = {}
+			for _, map in ipairs(wildMaps.GetMaps()) do maps[#maps + 1] = map end
+			table.sort(maps, function(left, right) return left.name < right.name end)
+			for _, map in ipairs(maps) do
+				local info = UIDropDownMenu_CreateInfo()
+				info.text = map.name
+				info.notCheckable = true
+				info.func = function()
+					if wildMaps.SelectMap(map.id) then
+						UIDropDownMenu_SetText(picker, map.name)
+					end
+				end
+				UIDropDownMenu_AddButton(info, level)
+			end
+		end)
+		SetTooltip(picker, "WILDMAPS_CHOOSE_MAP")
+		column.y = column.y - 40
+
+		local setStart = AddButton(column.parent, "WILDMAPS_SET_START", wildMaps.PlaceEntryMarker, 230)
+		setStart:SetPoint("TOPLEFT", column.x, column.y - 4)
 	end
 
 
