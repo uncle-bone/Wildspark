@@ -1022,7 +1022,7 @@ local function CreateMenu()
 		note:SetJustifyH("LEFT")
 		note:SetWordWrap(true)
 		note:SetText(L.WILDMETER_NOTE)
-		column.y = column.y - 52
+		column.y = column.y - 45
 
 		local apiStatus = column.parent:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
 		apiStatus:SetPoint("TOPLEFT", column.x, column.y)
@@ -1035,7 +1035,7 @@ local function CreateMenu()
 		end
 		refreshers[#refreshers + 1] = RefreshMeterStatus
 		RefreshMeterStatus()
-		column.y = column.y - 25
+		column.y = column.y - 22
 
 		local function AddMeterDropdown(labelKey, width, choices, getter, setter)
 			local label = column.parent:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
@@ -1060,7 +1060,7 @@ local function CreateMenu()
 				end
 			end)
 			refreshers[#refreshers + 1] = Refresh
-			column.y = column.y - 34
+			column.y = column.y - 30
 		end
 
 		local function MetricChoices()
@@ -1084,10 +1084,7 @@ local function CreateMenu()
 
 		AddCheckbox(column, "WILDMETER_CLASS_COLOR", function() return meter.GetSetting("classColor") end, function(value) meter.SetSetting("classColor", value) end)
 		AddCheckbox(column, "WILDMETER_ICONS", function() return meter.GetSetting("icons") end, function(value) meter.SetSetting("icons", value) end)
-		local controls = CreateFrame("Frame", nil, column.parent)
-		controls:SetSize(column.width, 30)
-		controls:SetPoint("TOPLEFT", column.x, column.y)
-		local less = AddButton(column.parent, "WILDMETER_SMALLER", function() meter.SetSetting("barHeight", math.max(12, meter.GetSetting("barHeight") - 1)) end, 110)
+				local less = AddButton(column.parent, "WILDMETER_SMALLER", function() meter.SetSetting("barHeight", math.max(12, meter.GetSetting("barHeight") - 1)) end, 110)
 		less:SetPoint("TOPLEFT", column.x, column.y - 2)
 		local more = AddButton(column.parent, "WILDMETER_LARGER", function() meter.SetSetting("barHeight", math.min(36, meter.GetSetting("barHeight") + 1)) end, 110)
 		more:SetPoint("LEFT", less, "RIGHT", 8, 0)
@@ -1095,7 +1092,7 @@ local function CreateMenu()
 		tighter:SetPoint("LEFT", more, "RIGHT", 8, 0)
 		local looser = AddButton(column.parent, "WILDMETER_LOOSER", function() meter.SetSetting("barSpacing", math.min(12, meter.GetSetting("barSpacing") + 1)) end, 110)
 		looser:SetPoint("LEFT", tighter, "RIGHT", 8, 0)
-		column.y = column.y - 38
+		column.y = column.y - 34
 		local textLess = AddButton(column.parent, "WILDMETER_TEXT_SMALLER", function() meter.SetSetting("textScale", math.max(0.7, meter.GetSetting("textScale") - 0.1)) end, 110)
 		textLess:SetPoint("TOPLEFT", column.x, column.y - 2)
 		local textMore = AddButton(column.parent, "WILDMETER_TEXT_LARGER", function() meter.SetSetting("textScale", math.min(1.5, meter.GetSetting("textScale") + 0.1)) end, 110)
@@ -1104,7 +1101,7 @@ local function CreateMenu()
 		fadeLess:SetPoint("LEFT", textMore, "RIGHT", 8, 0)
 		local fadeMore = AddButton(column.parent, "WILDMETER_LESS_TRANSPARENT", function() meter.SetSetting("windowAlpha", math.min(1, meter.GetSetting("windowAlpha") + 0.1)) end, 130)
 		fadeMore:SetPoint("LEFT", fadeLess, "RIGHT", 8, 0)
-		column.y = column.y - 38
+		column.y = column.y - 34
 
 		local popout = AddButton(column.parent, "WILDMETER_POPOUT", function()
 			if not meter.OpenPopout() then print("|cff66ccffWildMeter|r: no free Blizzard meter popout is available.") end
