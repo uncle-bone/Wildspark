@@ -12,7 +12,9 @@ HM.Registry:RegisterMap({
                 34
             }
         },
-    -- Forever hides indoor player coordinates; this fixed point is an approximate entry reference.\n    entryPosition = { u = 0.50, v = 0.88 },\n    source = {
+    -- Forever hides indoor player coordinates; this fixed point is an approximate entry reference.
+    entryPosition = { u = 0.50, v = 0.88 },
+    source = {
         sourceType = "blizzard_worldmap",
         folder = "TheStockade",
     },
