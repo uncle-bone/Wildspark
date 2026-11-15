@@ -9,6 +9,57 @@ WorldMap.map = nil
 WorldMap.floorSelections = {}
 -- Display-only, never saved and never substituted for the detected map.
 WorldMap.bypassUntilClose = false
+WorldMap.awaitingStartPlacement = false
+
+function WorldMap:GetManualStartPosition(map)
+    map = map or self.map
+    local positions = type(WildMapsDB) == "table" and WildMapsDB.manualStartPositions
+    local point = map and type(positions) == "table" and positions[map.id]
+    if type(point) ~= "table" then return nil end
+    local u, v = tonumber(point.u), tonumber(point.v)
+    if not u or not v or u < 0 or u > 1 or v < 0 or v > 1 then return nil end
+    return u, v
+end
+
+function WorldMap:BeginManualStartPlacement()
+    if not self.map then
+        HM:Print("choose a dungeon map first, then set its approximate entry marker.")
+        return false
+    end
+    if not self:Ensure() or not self.interactionLayer then
+        HM:Print("the World Map is not ready; open it and try again.")
+        return false
+    end
+    self.awaitingStartPlacement = true
+    HM:Print("click your approximate entry point on the dungeon map; this saved marker does not track movement.")
+    return true
+end
+
+function WorldMap:PlaceManualStartAtCursor()
+    if not self.awaitingStartPlacement then return false end
+    local canvas = WorldMapFrame and WorldMapFrame.ScrollContainer
+    if not canvas or not GetCursorPosition then return false end
+    local cursorX, cursorY = GetCursorPosition()
+    local scale = canvas:GetEffectiveScale()
+    local left, top = canvas:GetLeft(), canvas:GetTop()
+    local width, height = canvas:GetSize()
+    if not cursorX or not cursorY or not scale or scale <= 0
+        or not left or not top or not width or not height or width <= 0 or height <= 0 then
+        HM:Print("could not read the map position; try again.")
+        return false
+    end
+    local u = (cursorX / scale - left) / width
+    local v = (top - cursorY / scale) / height
+    if u < 0 or u > 1 or v < 0 or v > 1 then return false end
+
+    WildMapsDB = WildMapsDB or {}
+    WildMapsDB.manualStartPositions = WildMapsDB.manualStartPositions or {}
+    WildMapsDB.manualStartPositions[self.map.id] = { u = u, v = v }
+    self.awaitingStartPlacement = false
+    HM:Print("saved approximate entry marker for", self.map.name, "- it will remain fixed because indoor GPS is unavailable.")
+    self:RefreshMap()
+    return true
+end
 
 local function readableMapID(value)
     if type(issecretvalue) == "function" and issecretvalue(value) then return nil end
@@ -354,7 +405,12 @@ function WorldMap:CreateAdaptivePresentationHost()
     interactionLayer:SetFrameLevel(frame:GetFrameLevel() + 200)
     interactionLayer:EnableMouse(true)
     interactionLayer:SetScript("OnMouseUp", function(frame, button)
-        if frame:IsMouseOver() then WorldMap:ForwardParentNavigation(button) end
+        if not frame:IsMouseOver() then return end
+        if button == "LeftButton" and WorldMap.awaitingStartPlacement then
+            WorldMap:PlaceManualStartAtCursor()
+        else
+            WorldMap:ForwardParentNavigation(button)
+        end
     end)
     interactionLayer:Hide()
     self.interactionLayer = interactionLayer
