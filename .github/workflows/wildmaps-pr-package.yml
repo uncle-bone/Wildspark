@@ -1,0 +1,119 @@
+name: Build WildMaps pull request package
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+    paths:
+      - ".github/workflows/wildmaps-pr-package.yml"
+      - "Wildspark/WildSpark.toc"
+      - "Wildspark/Modules/WildMaps/**"
+      - "Wildspark/Modules/WildMapsModule.lua"
+      - "Wildspark/Menu.lua"
+      - "Wildspark/Locales/**"
+      - "Wildspark/Libs/**"
+      - "Wildspark/Modules/WildDrops/**"
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out pull request source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Package complete single-folder WildSpark
+        id: package
+        run: |
+          VERSION="$(sed -n 's/^## Version: //p' Wildspark/WildSpark.toc | head -n 1 | tr -d '\r')"
+          test -n "$VERSION"
+          mkdir -p dist/stage/WildSpark
+          cp -a Wildspark/. dist/stage/WildSpark/
+
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/HiddenMaps_v1.2.2.zip" "https://www.curseforge.com/api/v1/mods/1731539/files/9496110/download"
+          printf '%s  %s\n' '522DEBF5D983E138EF9C91DC61BE612D07EBB6E11795378929B8A53D06435F7F' "$RUNNER_TEMP/HiddenMaps_v1.2.2.zip" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/hiddenmaps-package" dist/stage/WildSpark/Modules/WildMaps/Media
+          unzip -q "$RUNNER_TEMP/HiddenMaps_v1.2.2.zip" -d "$RUNNER_TEMP/hiddenmaps-package"
+          HM_DIR="$RUNNER_TEMP/hiddenmaps-package/HiddenMaps"
+          test -f "$HM_DIR/ASSET-NOTICES.md"
+          test -f "$HM_DIR/Media/Decor/hiddenmaps_background.tga"
+          cp -a "$HM_DIR/Media/." dist/stage/WildSpark/Modules/WildMaps/Media/
+
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/QuestDB.zip" "https://www.curseforge.com/api/v1/mods/1700352/files/9014639/download"
+          mkdir -p "$RUNNER_TEMP/questdb-package"
+          unzip -q "$RUNNER_TEMP/QuestDB.zip" -d "$RUNNER_TEMP/questdb-package"
+          QDB_DIR="$RUNNER_TEMP/questdb-package/QuestDB"
+          test -f "$QDB_DIR/QuestDB_Camelot.toc"
+          test -f "$QDB_DIR/LibQuestDB-1.0.lua"
+          test -f "$QDB_DIR/LICENSE"
+          mkdir -p dist/stage/WildSpark/Libs/QuestDB
+          cp -a "$QDB_DIR/." dist/stage/WildSpark/Libs/QuestDB/
+
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/QuestieDB.zip" "https://www.curseforge.com/api/v1/mods/1696795/files/9602575/download"
+          mkdir -p "$RUNNER_TEMP/questiedb-package"
+          unzip -q "$RUNNER_TEMP/QuestieDB.zip" -d "$RUNNER_TEMP/questiedb-package"
+          QIE_DIR="$RUNNER_TEMP/questiedb-package/QuestieDB"
+          test -f "$QIE_DIR/QuestieDB_Forever.toc"
+          test -f "$QIE_DIR/QuestieDB_Camelot.toc"
+          test -f "$QIE_DIR/LICENSE.md"
+          grep -q '^## Version: 1.1.1$' "$QIE_DIR/QuestieDB_Forever.toc"
+          mkdir -p dist/stage/WildSpark/Libs/QuestieDB
+          cp -a "$QIE_DIR/." dist/stage/WildSpark/Libs/QuestieDB/
+
+          MAIN_TOC="dist/stage/WildSpark/WildSpark.toc"
+          META_FILE="$RUNNER_TEMP/questiedb-metadata.txt"
+          grep -E '^## X-[^:]+:' "$QIE_DIR/QuestieDB_Forever.toc" > "$META_FILE"
+          awk -v meta_file="$META_FILE" '
+            BEGIN {
+              while ((getline line < meta_file) > 0) metadata = metadata line "\n"
+              close(meta_file)
+            }
+            !inserted && NF && $0 !~ /^#/ {
+              printf "%s", metadata
+              inserted = 1
+            }
+            { print }
+          ' "$MAIN_TOC" > "$RUNNER_TEMP/WildSpark.toc"
+          mv "$RUNNER_TEMP/WildSpark.toc" "$MAIN_TOC"
+
+          append_toc_files() {
+            prefix="$1"
+            source_toc="$2"
+            while IFS= read -r line || [ -n "$line" ]; do
+              line=${line%$'\r'}
+              case "$line" in ""|\#*) continue ;; esac
+              printf '%s%s\n' "$prefix" "$line" >> "$MAIN_TOC"
+            done < "$source_toc"
+          }
+          append_toc_files 'Libs\QuestDB\' "$QDB_DIR/QuestDB_Camelot.toc"
+          append_toc_files 'Libs\QuestieDB\' "$QIE_DIR/QuestieDB_Forever.toc"
+
+          sed -i 's/\r$//' "$MAIN_TOC"
+          grep -Fx "## Version: $VERSION" "$MAIN_TOC"
+          grep -Fx '## X-Flavor: Forever' "$MAIN_TOC"
+          grep -Fq 'Libs\QuestDB\Data\Forever\_core\Drops.lua' "$MAIN_TOC"
+          grep -Fq 'Libs\QuestieDB\src\api.lua' "$MAIN_TOC"
+          cd dist/stage
+          zip -qr "../WildSpark-$VERSION-WildMaps-PR.zip" WildSpark
+          cd ../..
+          unzip -Z1 "dist/WildSpark-$VERSION-WildMaps-PR.zip" | grep -q '^WildSpark/WildSpark.toc$'
+          unzip -Z1 "dist/WildSpark-$VERSION-WildMaps-PR.zip" | grep -q '^WildSpark/Modules/WildMaps/ASSET-NOTICES.md$'
+          unzip -Z1 "dist/WildSpark-$VERSION-WildMaps-PR.zip" | grep -q '^WildSpark/Modules/WildMaps/Media/Decor/hiddenmaps_background.tga$'
+          unzip -Z1 "dist/WildSpark-$VERSION-WildMaps-PR.zip" | grep -q '^WildSpark/Modules/WildMapsModule.lua$'
+          if unzip -Z1 "dist/WildSpark-$VERSION-WildMaps-PR.zip" | grep -qE '^(QuestDB|QuestieDB)/'; then
+            echo "The install ZIP must contain only the WildSpark root folder."
+            exit 1
+          fi
+          echo "archive=dist/WildSpark-$VERSION-WildMaps-PR.zip" >> "$GITHUB_OUTPUT"
+
+      - name: Upload installable pull request package
+        uses: actions/upload-artifact@v4
+        with:
+          name: WildSpark-${{ github.event.pull_request.number }}-WildMaps
+          path: ${{ steps.package.outputs.archive }}
+          if-no-files-found: error
+          retention-days: 14
