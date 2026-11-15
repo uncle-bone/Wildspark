@@ -8,6 +8,7 @@ on:
       - ".github/releases/v*.md"
       - "README.md"
       - "Wildspark/WildSpark.toc"
+      - "Wildspark/Modules/WildMaps/**"
       - "Wildspark/CHANGELOG.txt"
       - "Wildspark/Media/WildFire/tent_*.tga"
       - "Wildspark/Media/WildFire/circle_mask.tga"
@@ -30,7 +31,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Verify release metadata and notices
+      - name: Verify release metadata
         id: release
         run: |
           VERSION="$(sed -n 's/^## Version: //p' Wildspark/WildSpark.toc | head -n 1 | tr -d '\r')"
@@ -46,6 +47,15 @@ jobs:
         run: |
           mkdir -p dist/stage/WildSpark
           cp -a Wildspark/. dist/stage/WildSpark/
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/HiddenMaps_v1.2.2.zip" "https://www.curseforge.com/api/v1/mods/1731539/files/9496110/download"
+          printf '%s  %s\n' '522DEBF5D983E138EF9C91DC61BE612D07EBB6E11795378929B8A53D06435F7F' "$RUNNER_TEMP/HiddenMaps_v1.2.2.zip" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/hiddenmaps-package" dist/stage/WildSpark/Modules/WildMaps/Media
+          unzip -q "$RUNNER_TEMP/HiddenMaps_v1.2.2.zip" -d "$RUNNER_TEMP/hiddenmaps-package"
+          HM_DIR="$RUNNER_TEMP/hiddenmaps-package/HiddenMaps"
+          test -f "$HM_DIR/ASSET-NOTICES.md"
+          test -f "$HM_DIR/Media/Decor/hiddenmaps_background.tga"
+          cp -a "$HM_DIR/Media/." dist/stage/WildSpark/Modules/WildMaps/Media/
+
           curl --fail --location --retry 3 --output "$RUNNER_TEMP/QuestDB.zip" "https://www.curseforge.com/api/v1/mods/1700352/files/9014639/download"
           mkdir -p "$RUNNER_TEMP/questdb-package"
           unzip -q "$RUNNER_TEMP/QuestDB.zip" -d "$RUNNER_TEMP/questdb-package"
@@ -100,6 +110,7 @@ jobs:
           grep -Fx '## X-Flavor: Forever' "$MAIN_TOC"
           grep -Fq 'Libs\QuestDB\Data\Forever\_core\Drops.lua' "$MAIN_TOC"
           grep -Fq 'Libs\QuestieDB\src\api.lua' "$MAIN_TOC"
+
           cd dist/stage
           zip -qr "../WildSpark-$VERSION.zip" WildSpark
           cd ../..
@@ -109,6 +120,8 @@ jobs:
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Libs/QuestieDB/QuestieDB_Forever.toc$'
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Libs/QuestieDB/LICENSE.md$'
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildDrops/QuestDropRates-LICENSE.txt$'
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildMaps/ASSET-NOTICES.md$'
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildMaps/Media/Decor/hiddenmaps_background.tga$'
           if unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -qE '^(QuestDB|QuestieDB)/'; then
             echo "The install ZIP must contain only the WildSpark root folder."
             exit 1
@@ -130,6 +143,3 @@ jobs:
             --notes-file ".github/releases/$TAG.md" \
             --target "$GITHUB_SHA" \
             --latest
-
-
-

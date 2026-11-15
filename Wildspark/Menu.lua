@@ -51,7 +51,7 @@ local NODES_ICON = "INV_Misc_Map_01"
 local NODES_HEIGHT = 320      -- hauteur des deux panneaux de la page de la minimap
 
 -- Titre de chaque page sous la barre de titre ; celle des objets compose le sien (LookTitle)
-local PAGE_TITLES = { nodes = "NODES_PAGE", settings = "SETTINGS", leash = "LEASH_SETTINGS", buffs = "BUFFS_TAB", camping = "CAMPING_TAB", auctions = "WILDAUCTIONS_TAB", groups = "WILDGROUPS_TAB", layers = "WILDLAYER_TAB", info = "WILDINFO_TAB", lootrolls = "WILDLOOTROLLS_TAB" }
+local PAGE_TITLES = { nodes = "NODES_PAGE", settings = "SETTINGS", leash = "LEASH_SETTINGS", buffs = "BUFFS_TAB", camping = "CAMPING_TAB", auctions = "WILDAUCTIONS_TAB", groups = "WILDGROUPS_TAB", layers = "WILDLAYER_TAB", wildmaps = "WILDMAPS_TAB", info = "WILDINFO_TAB", lootrolls = "WILDLOOTROLLS_TAB" }
 
 -- Choix d'un réglage : { valeur, nom du texte } ; ou { valeur, nil, libellé } quand le libellé
 -- ne se traduit pas
@@ -732,6 +732,7 @@ local function CreateMenu()
 	if _G.WildAuctions then list[#list + 1] = { "auctions", ICONS .. "INV_Misc_Coin_01", "WILDAUCTIONS_TAB" } end
 	if ns.WildGroups then list[#list + 1] = { "groups", ICONS .. "INV_SideTab_GroupFinder_c60", "WILDGROUPS_TAB" } end
 	if ns.WildLayer then list[#list + 1] = { "layers", MEDIA .. "WildLayerIcon", "WILDLAYER_TAB" } end
+	if ns.WildMapsModule then list[#list + 1] = { "wildmaps", ICONS .. "INV_Misc_Map_01", "WILDMAPS_TAB" } end
 	if ns.WildInfo then list[#list + 1] = { "info", MEDIA .. "icon.tga", "WILDINFO_TAB" } end
 	if ns.WildLootRolls then list[#list + 1] = { "lootrolls", ICONS .. "INV_Misc_Dice_02", "WILDLOOTROLLS_TAB" } end
 	frame.tabs = {}
@@ -964,6 +965,49 @@ local function CreateMenu()
 		open:SetPoint("TOPLEFT", column.x, column.y - 4)
 		local advanced = AddButton(column.parent, "WILDLAYER_SETTINGS", function() layers.OpenSettings() end, 190)
 		advanced:SetPoint("LEFT", open, "RIGHT", 8, 0)
+	end
+
+	page = pages.wildmaps
+	if page and ns.WildMapsModule then
+		local wildMaps = ns.WildMapsModule
+		column = NewCard(page, 0, 0, page:GetWidth(), height, "WILDMAPS_TAB")
+		local note = column.parent:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+		note:SetPoint("TOPLEFT", column.x, column.y)
+		note:SetWidth(column.width)
+		note:SetJustifyH("LEFT")
+		note:SetWordWrap(true)
+		note:SetText(L.WILDMAPS_NOTE:format(wildMaps.GetMapCount()))
+		column.y = column.y - 74
+		AddCheckbox(column, "WILDMAPS_ENABLED", wildMaps.IsEnabled, wildMaps.SetEnabled)
+		local open = AddButton(column.parent, "WILDMAPS_OPEN", wildMaps.Open, 190)
+		open:SetPoint("TOPLEFT", column.x, column.y - 4)
+		column.y = column.y - 34
+
+		local picker = CreateFrame("Frame", nil, column.parent, "UIDropDownMenuTemplate")
+		picker:SetPoint("TOPLEFT", column.x - 16, column.y - 2)
+		UIDropDownMenu_SetWidth(picker, 230)
+		UIDropDownMenu_SetText(picker, L.WILDMAPS_CHOOSE_MAP)
+		UIDropDownMenu_Initialize(picker, function(_, level)
+			local maps = {}
+			for _, map in ipairs(wildMaps.GetMaps()) do maps[#maps + 1] = map end
+			table.sort(maps, function(left, right) return left.name < right.name end)
+			for _, map in ipairs(maps) do
+				local info = UIDropDownMenu_CreateInfo()
+				info.text = map.name
+				info.notCheckable = true
+				info.func = function()
+					if wildMaps.SelectMap(map.id) then
+						UIDropDownMenu_SetText(picker, map.name)
+					end
+				end
+				UIDropDownMenu_AddButton(info, level)
+			end
+		end)
+		SetTooltip(picker, "WILDMAPS_CHOOSE_MAP")
+		column.y = column.y - 40
+
+		local setStart = AddButton(column.parent, "WILDMAPS_SET_START", wildMaps.PlaceEntryMarker, 230)
+		setStart:SetPoint("TOPLEFT", column.x, column.y - 4)
 	end
 
 
