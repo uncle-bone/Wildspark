@@ -1,3 +1,7 @@
+WildSpark 2.2.43
+- Fix WildGroups crashing when opening the group finder: the whisper-log source existed in the repository but was missing from the main TOC load list.
+- Add release packaging checks for the whisper-log manifest entry and packaged file.
+
 WildSpark 2.2.39
 - Remove the WildFishing loot alert module and its settings tab. It could only alert after the bobber was clicked and could not detect the fish-bite splash.
 

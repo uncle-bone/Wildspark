@@ -1,10 +1,14 @@
 # WildSpark
 
-> **[Download WildSpark 2.2.39 - Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.39/WildSpark-2.2.39.zip)**
+> **[Download WildSpark 2.2.43 - Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.43/WildSpark-2.2.43.zip)**
 
-**Current stable release: 2.2.39 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder. QuestDB, the latest QuestieDB Forever data, and WildInfo's quest-drop datasets are embedded and load automatically with WildSpark.
+**Current stable release: 2.2.43 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder. QuestDB, the latest QuestieDB Forever data, and WildInfo's quest-drop datasets are embedded and load automatically with WildSpark.
 
 WildSpark is a modular WoW Forever utility suite for gathering highlights, quest-drop tooltips, buffs, creature leash tracking, WildFire camping, auctions, group finding, and layer hopping. Its major modules have dedicated settings tabs, and can be enabled or disabled independently.
+
+## What's new in 2.2.43
+
+- Fix WildGroups crashing when opening the group finder: load the bundled whisper-log file from the addon manifest and verify it is included in the release ZIP.
 
 ## What's new in 2.2.39
 

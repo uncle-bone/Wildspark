@@ -2,7 +2,7 @@ name: Build and publish WildSpark stable release
 
 on:
   push:
-    branches: [main]
+    branches: [main, "release/**"]
     paths:
       - ".github/workflows/wildspark-v2-release.yml"
       - ".github/releases/v*.md"
@@ -109,6 +109,32 @@ jobs:
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Libs/QuestieDB/QuestieDB_Forever.toc$'
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Libs/QuestieDB/LICENSE.md$'
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildDrops/QuestDropRates-LICENSE.txt$'
+          grep -Fqx 'Modules\WildGroups\core\whisperlog.lua' "$MAIN_TOC"
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildGroups/core/whisperlog.lua          if unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -qE '^(QuestDB|QuestieDB)/'; then
+            echo "The install ZIP must contain only the WildSpark root folder."
+            exit 1
+          fi
+
+      - name: Publish stable GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; skipping duplicate publish."
+            exit 0
+          fi
+          gh release create "$TAG" "dist/WildSpark-$VERSION.zip" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "WildSpark $VERSION — Stable release" \
+            --notes-file ".github/releases/$TAG.md" \
+            --target "$GITHUB_SHA" \
+            --latest
+
+
+
+
           if unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -qE '^(QuestDB|QuestieDB)/'; then
             echo "The install ZIP must contain only the WildSpark root folder."
             exit 1
