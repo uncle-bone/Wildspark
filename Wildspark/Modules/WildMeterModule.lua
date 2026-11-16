@@ -42,7 +42,8 @@ local function db()
     if value.windowAlpha == nil then value.windowAlpha = 1 end
     if value.backgroundAlpha == nil then value.backgroundAlpha = 0.85 end
     if value.classColor == nil then value.classColor = true end
-    if value.icons == nil then value.icons = true end
+    -- Forever can expose specialization icon IDs as secret values; displaying them can taint Blizzard refreshes.
+    value.icons = false
     if value.session == nil then value.session = "Current" end
     if value.metric == nil then value.metric = "DamageDone" end
     return value
@@ -84,10 +85,11 @@ local function apply()
     if not value then return false end
     local style = STYLE[value.style]
     local numbers = NUMBERS[value.numbers]
+    -- Keep icon rendering disabled before any layout or presentation refresh.
+    DAMAGE_METER:SetShowBarIcons(false)
     if style ~= nil then DAMAGE_METER:SetStyle(style) end
     if numbers ~= nil then DAMAGE_METER:SetNumberDisplayType(numbers) end
     DAMAGE_METER:SetUseClassColor(value.classColor == true)
-    DAMAGE_METER:SetShowBarIcons(value.icons == true)
     DAMAGE_METER:SetBarSpacing(value.barSpacing)
     DAMAGE_METER:SetTextScale(value.textScale)
     DAMAGE_METER:SetWindowAlpha(value.windowAlpha)
