@@ -738,13 +738,14 @@ local function CreateMenu()
 	local previous
 	local tab_top, tab_bottom = 56, 12
 	local tab_slot = (HEIGHT - tab_top - tab_bottom) / #list
+	local tab_gap = 6
 	local tab_index = 0
 	for _, tab in ipairs(list) do
 		tab_index = tab_index + 1
 		local name, text = tab[1], tab[3]
 		local button = Skin.SideTab(frame, previous, tab[2], function() Open(name) end)
 		local tab_height = button.GetHeight and button:GetHeight() or 32
-		button:SetScale(math.min(1, tab_slot / math.max(1, tab_height)))
+		button:SetScale(math.min(1, math.max(0, tab_slot - tab_gap) / math.max(1, tab_height)))
 		button:ClearAllPoints()
 		button:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -3, -tab_top - (tab_index - 1) * tab_slot)
 		captions[#captions + 1] = function() button.tooltipText = L[text] end
@@ -778,7 +779,13 @@ local function CreateMenu()
 	note:SetWidth(column.width)
 	note:SetJustifyH("LEFT")
 	note:SetTextColor(0.75, 0.75, 0.75)
-	column.y = column.y - 28
+	note:SetWordWrap(true)
+	note:SetText(L.SCOPE_ALL_TIP)
+	local noteHeight = note:GetStringHeight()
+	note:SetText(L.SCOPE_ONE_TIP)
+	noteHeight = math.max(noteHeight, note:GetStringHeight())
+	note:SetText(L.SCOPE_ALL_TIP)
+	column.y = column.y - noteHeight - 12
 	local shared = AddButton(frame, "SHARED", function() ns.ClearOwnSettings(ScopeCategory()) end, 190)
 	shared:SetPoint("TOPRIGHT", -EDGE - 2, -30)
 	refreshers[#refreshers + 1] = function()
@@ -826,7 +833,7 @@ local function CreateMenu()
 		note:SetJustifyH("LEFT")
 		note:SetWordWrap(true)
 		note:SetText(L.LEASH_NOTE)
-		column.y = column.y - 50
+		column.y = column.y - note:GetStringHeight() - 12
 		AddCheckbox(column, "LEASH_ENABLED", function() return leash.db and leash.db.enabled end, function(value)
 			if leash.db then leash.db.enabled = value; leash.OnOptionChanged("enabled") end
 		end)
@@ -856,7 +863,7 @@ local function CreateMenu()
 		note:SetJustifyH("LEFT")
 		note:SetWordWrap(true)
 		note:SetText(L.BUFFS_NOTE)
-		column.y = column.y - 58
+		column.y = column.y - note:GetStringHeight() - 12
 		if buffs.supported then
 			AddCheckbox(column, "BUFFS_SHOW_BUTTON", function() return buffs.GetOption("hidden") ~= true end, function(value)
 				buffs.SetOption("hidden", not value)
@@ -895,7 +902,7 @@ local function CreateMenu()
 		note:SetJustifyH("LEFT")
 		note:SetWordWrap(true)
 		note:SetText(L.CAMPING_NOTE)
-		column.y = column.y - 58
+		column.y = column.y - note:GetStringHeight() - 12
 		AddCheckbox(column, "CAMPING_SHOW_KIT", function() return kit.db and kit.db.shown ~= false end, function(value)
 			if kit.SetShownKit then kit:SetShownKit(value) end
 		end)
@@ -924,7 +931,7 @@ local function CreateMenu()
 		note:SetJustifyH("LEFT")
 		note:SetWordWrap(true)
 		note:SetText(L.WILDAUCTIONS_NOTE)
-		column.y = column.y - 58
+		column.y = column.y - note:GetStringHeight() - 12
 		AddCheckbox(column, "WILDAUCTIONS_ENABLED", function() return _G.WildAuctions.IsEnabled() end, function(v) _G.WildAuctions.SetEnabled(v) end)
 		local open = AddButton(column.parent, "WILDAUCTIONS_OPEN", function() _G.WildAuctions.Open() end, 190)
 		open:SetPoint("TOPLEFT", column.x, column.y - 4)
@@ -940,7 +947,7 @@ local function CreateMenu()
 		note:SetJustifyH("LEFT")
 		note:SetWordWrap(true)
 		note:SetText(L.WILDGROUPS_NOTE)
-		column.y = column.y - 58
+		column.y = column.y - note:GetStringHeight() - 12
 		AddCheckbox(column, "WILDGROUPS_ENABLED", function() return groups.IsEnabled() end, function(value) groups.SetEnabled(value) end)
 		local open = AddButton(column.parent, "WILDGROUPS_OPEN", function() groups.Open() end, 190)
 		open:SetPoint("TOPLEFT", column.x, column.y - 4)
@@ -956,7 +963,7 @@ local function CreateMenu()
 		note:SetJustifyH("LEFT")
 		note:SetWordWrap(true)
 		note:SetText(L.WILDLAYER_NOTE)
-		column.y = column.y - 58
+		column.y = column.y - note:GetStringHeight() - 12
 		AddCheckbox(column, "WILDLAYER_ENABLED", function() return layers.IsEnabled() end, function(v) layers.SetEnabled(v) end)
 		AddCheckbox(column, "WILDLAYER_AUTO_INVITES", function() return layers.GetAutoInvites() end, function(v) layers.SetAutoInvites(v) end)
 		AddCheckbox(column, "WILDLAYER_MINIMAP_BUTTON", function() return layers.GetMinimapButton() end, function(v) layers.SetMinimapButton(v) end)
@@ -977,7 +984,7 @@ local function CreateMenu()
 		note:SetJustifyH("LEFT")
 		note:SetWordWrap(true)
 		note:SetText(L.WILDINFO_NOTE)
-		column.y = column.y - 58
+		column.y = column.y - note:GetStringHeight() - 12
 		AddCheckbox(column, "WILDINFO_ENABLED", info.IsEnabled, info.SetEnabled)
 		AddCheckbox(column, "WILDINFO_TOOLTIP", info.IsTooltipEnabled, info.SetTooltipEnabled)
 		AddCheckbox(column, "WILDINFO_QUEST_DROPS", info.GetQuestDropsEnabled, info.SetQuestDropsEnabled)
@@ -996,7 +1003,7 @@ local function CreateMenu()
 		note:SetJustifyH("LEFT")
 		note:SetWordWrap(true)
 		note:SetText(L.WILDLOOTROLLS_NOTE)
-		column.y = column.y - 58
+		column.y = column.y - note:GetStringHeight() - 12
 		AddCheckbox(column, "WILDLOOTROLLS_ENABLED", rolls.IsEnabled, rolls.SetEnabled)
 		local place = AddButton(column.parent, "WILDLOOTROLLS_PLACE", rolls.TogglePlacement, 210)
 		place:SetPoint("TOPLEFT", column.x, column.y - 4)
