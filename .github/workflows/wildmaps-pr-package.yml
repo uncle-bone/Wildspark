@@ -1,154 +1,118 @@
-name: Build WildMaps pull request package
+name: Build WildSpark rollback stable package
 
 on:
   push:
-    branches: [feature/hiddenmaps-dungeon-navigation, feature/wildmeter-details-presentation]
+    branches: [fix/wildmeter-secret-value-taint]
     paths:
       - ".github/workflows/wildmaps-pr-package.yml"
+      - ".github/releases/**"
       - "Wildspark/WildSpark.toc"
-      - "Wildspark/Modules/WildMaps/**"
-      - "Wildspark/Modules/WildMapsModule.lua"
-      - "Wildspark/Modules/WildMeterModule.lua"
-      - "Wildspark/Modules/WildMeter-THIRD-PARTY-NOTICE.md"
       - "Wildspark/Menu.lua"
       - "Wildspark/Locales/**"
       - "Wildspark/Libs/**"
-      - "Wildspark/Modules/WildDrops/**"
+      - "Wildspark/Modules/**"
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened]
     paths:
       - ".github/workflows/wildmaps-pr-package.yml"
+      - ".github/releases/**"
       - "Wildspark/WildSpark.toc"
-      - "Wildspark/Modules/WildMaps/**"
-      - "Wildspark/Modules/WildMapsModule.lua"
-      - "Wildspark/Modules/WildMeterModule.lua"
-      - "Wildspark/Modules/WildMeter-THIRD-PARTY-NOTICE.md"
       - "Wildspark/Menu.lua"
       - "Wildspark/Locales/**"
       - "Wildspark/Libs/**"
-      - "Wildspark/Modules/WildDrops/**"
-
+      - "Wildspark/Modules/**"
 permissions:
   contents: write
-
 jobs:
   package:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out pull request source
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
-
-      - name: Package complete single-folder WildSpark
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Build and verify install ZIP
         id: package
-        env:
-          PACKAGE_BRANCH: ${{ github.head_ref || github.ref_name }}
         run: |
           VERSION="$(sed -n 's/^## Version: //p' Wildspark/WildSpark.toc | head -n 1 | tr -d '\r')"
           test -n "$VERSION"
           mkdir -p dist/stage/WildSpark
           cp -a Wildspark/. dist/stage/WildSpark/
-
-          curl --fail --location --retry 3 --output "$RUNNER_TEMP/HiddenMaps_v1.2.2.zip" "https://www.curseforge.com/api/v1/mods/1731539/files/9496110/download"
-          printf '%s  %s\n' '522DEBF5D983E138EF9C91DC61BE612D07EBB6E11795378929B8A53D06435F7F' "$RUNNER_TEMP/HiddenMaps_v1.2.2.zip" | sha256sum --check
-          mkdir -p "$RUNNER_TEMP/hiddenmaps-package" dist/stage/WildSpark/Modules/WildMaps/Media
-          unzip -q "$RUNNER_TEMP/HiddenMaps_v1.2.2.zip" -d "$RUNNER_TEMP/hiddenmaps-package"
-          HM_DIR="$RUNNER_TEMP/hiddenmaps-package/HiddenMaps"
-          test -f "$HM_DIR/ASSET-NOTICES.md"
-          test -f "$HM_DIR/Media/Decor/hiddenmaps_background.tga"
-          cp -a "$HM_DIR/Media/." dist/stage/WildSpark/Modules/WildMaps/Media/
-
           curl --fail --location --retry 3 --output "$RUNNER_TEMP/QuestDB.zip" "https://www.curseforge.com/api/v1/mods/1700352/files/9014639/download"
-          mkdir -p "$RUNNER_TEMP/questdb-package"
-          unzip -q "$RUNNER_TEMP/QuestDB.zip" -d "$RUNNER_TEMP/questdb-package"
-          QDB_DIR="$RUNNER_TEMP/questdb-package/QuestDB"
-          test -f "$QDB_DIR/QuestDB_Camelot.toc"
-          test -f "$QDB_DIR/LibQuestDB-1.0.lua"
-          test -f "$QDB_DIR/LICENSE"
+          mkdir -p "$RUNNER_TEMP/qdb"
+          unzip -q "$RUNNER_TEMP/QuestDB.zip" -d "$RUNNER_TEMP/qdb"
+          QDB="$RUNNER_TEMP/qdb/QuestDB"
+          test -f "$QDB/QuestDB_Camelot.toc"
+          test -f "$QDB/LibQuestDB-1.0.lua"
+          test -f "$QDB/LICENSE"
           mkdir -p dist/stage/WildSpark/Libs/QuestDB
-          cp -a "$QDB_DIR/." dist/stage/WildSpark/Libs/QuestDB/
-
+          cp -a "$QDB/." dist/stage/WildSpark/Libs/QuestDB/
           curl --fail --location --retry 3 --output "$RUNNER_TEMP/QuestieDB.zip" "https://www.curseforge.com/api/v1/mods/1696795/files/9602575/download"
-          mkdir -p "$RUNNER_TEMP/questiedb-package"
-          unzip -q "$RUNNER_TEMP/QuestieDB.zip" -d "$RUNNER_TEMP/questiedb-package"
-          QIE_DIR="$RUNNER_TEMP/questiedb-package/QuestieDB"
-          test -f "$QIE_DIR/QuestieDB_Forever.toc"
-          test -f "$QIE_DIR/QuestieDB_Camelot.toc"
-          test -f "$QIE_DIR/LICENSE.md"
-          grep -q '^## Version: 1.1.1$' "$QIE_DIR/QuestieDB_Forever.toc"
+          mkdir -p "$RUNNER_TEMP/qie"
+          unzip -q "$RUNNER_TEMP/QuestieDB.zip" -d "$RUNNER_TEMP/qie"
+          QIE="$RUNNER_TEMP/qie/QuestieDB"
+          test -f "$QIE/QuestieDB_Forever.toc"
+          test -f "$QIE/QuestieDB_Camelot.toc"
+          test -f "$QIE/LICENSE.md"
+          grep -q '^## Version: 1.1.1$' "$QIE/QuestieDB_Forever.toc"
           mkdir -p dist/stage/WildSpark/Libs/QuestieDB
-          cp -a "$QIE_DIR/." dist/stage/WildSpark/Libs/QuestieDB/
-
+          cp -a "$QIE/." dist/stage/WildSpark/Libs/QuestieDB/
           MAIN_TOC="dist/stage/WildSpark/WildSpark.toc"
-          META_FILE="$RUNNER_TEMP/questiedb-metadata.txt"
-          grep -E '^## X-[^:]+:' "$QIE_DIR/QuestieDB_Forever.toc" > "$META_FILE"
-          awk -v meta_file="$META_FILE" '
-            BEGIN {
-              while ((getline line < meta_file) > 0) metadata = metadata line "\n"
-              close(meta_file)
-            }
-            !inserted && NF && $0 !~ /^#/ {
-              printf "%s", metadata
-              inserted = 1
-            }
+          META="$RUNNER_TEMP/qie-metadata.txt"
+          grep -E '^## X-[^:]+' "$QIE/QuestieDB_Forever.toc" > "$META"
+          awk -v meta_file="$META" '
+            BEGIN { while ((getline line < meta_file) > 0) metadata = metadata line "\n"; close(meta_file) }
+            !inserted && NF && $0 !~ /^#/ { printf "%s", metadata; inserted = 1 }
             { print }
           ' "$MAIN_TOC" > "$RUNNER_TEMP/WildSpark.toc"
           mv "$RUNNER_TEMP/WildSpark.toc" "$MAIN_TOC"
-
           append_toc_files() {
-            prefix="$1"
-            source_toc="$2"
+            prefix="$1"; source_toc="$2"
             while IFS= read -r line || [ -n "$line" ]; do
               line=${line%$'\r'}
               case "$line" in ""|\#*) continue ;; esac
               printf '%s%s\n' "$prefix" "$line" >> "$MAIN_TOC"
             done < "$source_toc"
           }
-          append_toc_files 'Libs\QuestDB\' "$QDB_DIR/QuestDB_Camelot.toc"
-          append_toc_files 'Libs\QuestieDB\' "$QIE_DIR/QuestieDB_Forever.toc"
-
+          append_toc_files 'Libs\QuestDB\' "$QDB/QuestDB_Camelot.toc"
+          append_toc_files 'Libs\QuestieDB\' "$QIE/QuestieDB_Forever.toc"
           sed -i 's/\r$//' "$MAIN_TOC"
           grep -Fx "## Version: $VERSION" "$MAIN_TOC"
           grep -Fx '## X-Flavor: Forever' "$MAIN_TOC"
+          test -f Wildspark/Modules/WildAuctions/gui/buy_bar.lua
+          test -f Wildspark/Modules/WildAuctions/gui/item_listing.lua
+          grep -Fq 'Modules\WildAuctions\gui\buy_bar.lua' Wildspark/WildSpark.toc
+          grep -Fq 'Modules\WildAuctions\gui\item_listing.lua' Wildspark/WildSpark.toc
           grep -Fq 'Libs\QuestDB\Data\Forever\_core\Drops.lua' "$MAIN_TOC"
           grep -Fq 'Libs\QuestieDB\src\api.lua' "$MAIN_TOC"
-          if [ "$PACKAGE_BRANCH" = "feature/wildmeter-details-presentation" ]; then PACKAGE_LABEL="WildMeter"; else PACKAGE_LABEL="WildMaps"; fi
+          if grep -Eqi 'WildMaps|HiddenMaps|WildMeter' "$MAIN_TOC"; then echo "Rollback TOC must not load maps or meter."; exit 1; fi
           cd dist/stage
-          zip -qr "../WildSpark-$VERSION-$PACKAGE_LABEL-PR.zip" WildSpark
+          zip -qr "../WildSpark-$VERSION.zip" WildSpark
           cd ../..
-          unzip -Z1 "dist/WildSpark-$VERSION-$PACKAGE_LABEL-PR.zip" | grep -q '^WildSpark/WildSpark.toc$'
-          unzip -Z1 "dist/WildSpark-$VERSION-$PACKAGE_LABEL-PR.zip" | grep -q '^WildSpark/Modules/WildMaps/ASSET-NOTICES.md$'
-          unzip -Z1 "dist/WildSpark-$VERSION-$PACKAGE_LABEL-PR.zip" | grep -q '^WildSpark/Modules/WildMaps/Media/Decor/hiddenmaps_background.tga$'
-          unzip -Z1 "dist/WildSpark-$VERSION-$PACKAGE_LABEL-PR.zip" | grep -q '^WildSpark/Modules/WildMapsModule.lua$'
-          if unzip -Z1 "dist/WildSpark-$VERSION-$PACKAGE_LABEL-PR.zip" | grep -qE '^(QuestDB|QuestieDB)/'; then
-            echo "The install ZIP must contain only the WildSpark root folder."
-            exit 1
-          fi
-          echo "archive=dist/WildSpark-$VERSION-$PACKAGE_LABEL-PR.zip" >> "$GITHUB_OUTPUT"
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" > "$RUNNER_TEMP/files.txt"
+          grep -q '^WildSpark/WildSpark.toc$' "$RUNNER_TEMP/files.txt"
+          grep -Fxq 'WildSpark/Modules/WildAuctions/gui/buy_bar.lua' "$RUNNER_TEMP/files.txt"
+          grep -Fxq 'WildSpark/Modules/WildAuctions/gui/item_listing.lua' "$RUNNER_TEMP/files.txt"
+          if grep -Eqi 'WildMaps|HiddenMaps|WildMeter' "$RUNNER_TEMP/files.txt"; then echo "Rollback ZIP contains removed modules."; exit 1; fi
+          if grep -qE '^(QuestDB|QuestieDB)/' "$RUNNER_TEMP/files.txt"; then echo "ZIP must contain only the WildSpark folder."; exit 1; fi
+          echo "archive=dist/WildSpark-$VERSION.zip" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-
-      - name: Upload installable pull request package
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: WildSpark-${{ github.event.pull_request.number || 'branch' }}-${{ (github.head_ref || github.ref_name) == 'feature/wildmeter-details-presentation' && 'WildMeter' || 'WildMaps' }}
+          name: WildSpark-${{ github.run_id }}-Rollback
           path: ${{ steps.package.outputs.archive }}
           if-no-files-found: error
           retention-days: 14
-
-      - name: Publish branch-only prerelease download
-        if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.number == 2)
+      - name: Publish stable GitHub release
+        if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.package.outputs.version }}
-          PACKAGE_BRANCH: ${{ github.head_ref || github.ref_name }}
         run: |
-          if [ "$PACKAGE_BRANCH" = "feature/wildmeter-details-presentation" ]; then RELEASE_CHANNEL="wildmeter-pr2"; else RELEASE_CHANNEL="wildmaps-pr1"; fi
-          TAG="$RELEASE_CHANNEL-${GITHUB_SHA:0:12}"
+          TAG="v$VERSION"
           gh release create "$TAG" "${{ steps.package.outputs.archive }}" \
             --repo "$GITHUB_REPOSITORY" \
-            --title "WildSpark $VERSION — $RELEASE_CHANNEL review build" \
-            --notes "Review build from $PACKAGE_BRANCH at $GITHUB_SHA. This is a prerelease for testing and is not the stable main-branch release." \
+            --title "WildSpark $VERSION — Stable release" \
+            --notes-file ".github/releases/$TAG.md" \
             --target "$GITHUB_SHA" \
-            --prerelease
+            --latest

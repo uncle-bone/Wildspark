@@ -1,8 +1,0 @@
-<Ui xmlns="http://www.blizzard.com/wow/ui/">
-  <!-- Archived diagnostic only: enabled explicitly with the legacy WC WMO map. -->
-  <Script file="Experiment_WCCurrentArea.lua"/>
-
-  <!-- Retired/paused experiments are preserved in the separate Era R&D archive, not this addon ZIP. -->
-  <!-- <Script file="Experiment_WCEnvironmentalAnchors.lua"/> -->
-  <!-- <Script file="Experiment_MinimapInternalsProbe.lua"/> -->
-</Ui>
