@@ -15,6 +15,75 @@ local STYLE = _G.Enum and Enum.DamageMeterStyle
 local NUMBERS = _G.Enum and Enum.DamageMeterNumbers
 local SESSION = _G.Enum and Enum.DamageMeterSessionType
 
+-- Forever declares damage-meter specIconID fields as secret values. Its stock
+-- entry getters compare those fields to 0 without an issecretvalue guard.
+-- Guard only those getters; keep Blizzard's native entries and live data.
+local function installSecretSafeIconGetters()
+    local issecretvalue = _G.issecretvalue
+    local base = _G.DamageMeterEntryMixin
+    local source = _G.DamageMeterSourceEntryMixin
+    local spell = _G.DamageMeterSpellEntryMixin
+    if type(issecretvalue) ~= "function" or not base or not source or not spell then
+        return false
+    end
+
+    if not base.__wildSparkSecretIconGuard then
+        base.GetIconTexture = function(self)
+            local specIconID = self.specIconID
+            if issecretvalue(specIconID) then
+                return nil
+            end
+            if specIconID == 0 then
+                return nil
+            end
+            return specIconID
+        end
+        base.__wildSparkSecretIconGuard = true
+    end
+
+    if not source.__wildSparkSecretIconGuard then
+        source.GetIconAtlasElement = function(self)
+            local specIconID = self.specIconID
+            if not issecretvalue(specIconID) and specIconID and specIconID ~= 0 then
+                return nil
+            end
+            local classFilename = self.classFilename
+            if not classFilename or #classFilename == 0 then
+                return nil
+            end
+            return GetClassAtlas(classFilename)
+        end
+        source.__wildSparkSecretIconGuard = true
+    end
+
+    if not spell.__wildSparkSecretIconGuard then
+        spell.GetIconAtlasElement = function(self)
+            local specIconID = self.specIconID
+            if not issecretvalue(specIconID) and specIconID and specIconID ~= 0 then
+                return nil
+            end
+            local classFilename = self.unitClassFilename
+            if not classFilename or #classFilename == 0 then
+                return nil
+            end
+            return GetClassAtlas(classFilename)
+        end
+        spell.GetIconTexture = function(self)
+            local specIconID = self.specIconID
+            if not issecretvalue(specIconID) and specIconID and specIconID ~= 0 then
+                return specIconID
+            end
+            if not self.spellID then
+                return nil
+            end
+            return C_Spell.GetSpellTexture(self.spellID)
+        end
+        spell.__wildSparkSecretIconGuard = true
+    end
+
+    return true
+end
+
 -- Categories correspond to the Forever C_DamageMeter types used by Details' no-combat-log parser.
 local METRICS = {
     { key = "DamageDone", enum = "DamageDone" },
@@ -51,7 +120,8 @@ end
 
 local function apiReady()
     DAMAGE_METER = DAMAGE_METER or _G.DamageMeter
-    return API and DAMAGE_METER and ENUM and STYLE and NUMBERS and SESSION
+    local iconGuardReady = installSecretSafeIconGetters()
+    return API and DAMAGE_METER and ENUM and STYLE and NUMBERS and SESSION and iconGuardReady
         and type(API.IsDamageMeterAvailable) == "function"
         and type(DAMAGE_METER.SetStyle) == "function"
 end

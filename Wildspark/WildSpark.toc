@@ -1,6 +1,5 @@
 ## Interface: 11509, 16001
 ## OptionalDeps: Questie
-## X-WildMaps-Version: 1.2.2
 ## Title: WildSpark
 ## Author: Uncle Bone
 ## Notes: Makes ore veins, herbs, quest objects and chests glow as you approach them, with a choice of light effects, and shows herbs and veins on the minimap as their own icons (uses Blizzard's soft targeting).
@@ -18,7 +17,6 @@
 ## AddonCompartmentFunc: Wildspark_WildGroups_OnAddonCompartmentClick
 ## AddonCompartmentFuncOnEnter: Wildspark_WildGroups_OnAddonCompartmentEnter
 ## AddonCompartmentFuncOnLeave: Wildspark_WildGroups_OnAddonCompartmentLeave
-## SavedVariables: WildsparkDB, LeashHelperDB, ForeverBuffs_DB, CampingKitDB, KitDockDB, WildAuctionsDB, aux, LFGForeverDB, AutoLayerDB, WildLootRollDB, WildDropsDB, HiddenMapsDB, WildMapsDB
 ## SavedVariablesPerCharacter: WildsparkCharDB, ForeverBuffs_CharDB, CampingKitCharDB, LFGForeverCharDB
 ## AllowLoadGameType: mainline
 
@@ -138,22 +136,3 @@ Modules\WildDrops\Respawn.lua
 Modules\WildDrops\QuestIndex.lua
 Modules\WildDrops\Tooltip.lua
 Modules\WildDrops\WildDropsModule.lua
-# WildMaps (adapted from HiddenMaps 1.2.2 by Lichdom)
-Modules\WildMapsModule.lua
-Modules\WildMaps\Core\Bootstrap.lua
-Modules\WildMaps\Core\Registry.lua
-Modules\WildMaps\Maps\Maps.xml
-Modules\WildMaps\Core\Detection.lua
-Modules\WildMaps\Core\Position.lua
-Modules\WildMaps\Core\MapCoordinates.lua
-Modules\WildMaps\Core\Renderer.lua
-Modules\WildMaps\Core\WorldMap.lua
-Modules\WildMaps\Overlays\MapMarkers.lua
-Modules\WildMaps\Overlays\MapCredits.lua
-Modules\WildMaps\Core\Dev.lua
-Modules\WildMaps\Core\Engine.lua
-Modules\WildMaps\Diagnostics\MapOverride.lua
-Modules\WildMaps\Diagnostics\CropCalibration.lua
-Modules\WildMaps\Diagnostics\EntranceCalibration.lua
-Modules\WildMaps\Experiments\Experiments.xml
-Modules\WildMaps\Core\Compatibility.lua
