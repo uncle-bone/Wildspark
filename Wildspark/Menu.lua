@@ -1014,96 +1014,13 @@ local function CreateMenu()
 
 	page = pages.wildmeter
 	if page and ns.WildMeterModule then
-		local meter = ns.WildMeterModule
 		column = NewCard(page, 0, 0, page:GetWidth(), height, "WILDMETER_TAB")
-		local note = column.parent:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-		note:SetPoint("TOPLEFT", column.x, column.y)
-		note:SetWidth(column.width)
-		note:SetJustifyH("LEFT")
-		note:SetWordWrap(true)
-		note:SetText(L.WILDMETER_NOTE .. "\n\nSpecialization icons are disabled because this Forever client exposes secret icon IDs that can error during meter refresh.")
-		column.y = column.y - 45
-
-		local apiStatus = column.parent:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-		apiStatus:SetPoint("TOPLEFT", column.x, column.y)
-		apiStatus:SetWidth(column.width)
-		apiStatus:SetJustifyH("LEFT")
-		apiStatus:SetWordWrap(true)
-		local function RefreshMeterStatus()
-			apiStatus:SetText(meter.IsAvailable() and L.WILDMETER_READY or L.WILDMETER_UNAVAILABLE)
-			apiStatus:SetTextColor(meter.IsAvailable() and 0.45 or 1, meter.IsAvailable() and 1 or 0.55, 0.45)
-		end
-		refreshers[#refreshers + 1] = RefreshMeterStatus
-		RefreshMeterStatus()
-		column.y = column.y - 22
-
-		local function AddMeterDropdown(labelKey, width, choices, getter, setter)
-			local label = column.parent:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-			label:SetPoint("TOPLEFT", column.x, column.y)
-			Caption(label, labelKey)
-			local dropdown = CreateFrame("Frame", nil, column.parent, "UIDropDownMenuTemplate")
-			dropdown:SetPoint("TOPLEFT", column.x + 210, column.y + 5)
-			UIDropDownMenu_SetWidth(dropdown, width)
-			local function Refresh()
-				UIDropDownMenu_SetText(dropdown, getter())
-			end
-			UIDropDownMenu_Initialize(dropdown, function(_, level)
-				for _, choice in ipairs(choices()) do
-					local info = UIDropDownMenu_CreateInfo()
-					info.text = choice[2]
-					info.notCheckable = true
-					info.func = function()
-						setter(choice[1])
-						Refresh()
-					end
-					UIDropDownMenu_AddButton(info, level)
-				end
-			end)
-			refreshers[#refreshers + 1] = Refresh
-			column.y = column.y - 30
-		end
-
-		local function MetricChoices()
-			local choices = {}
-			for _, metric in ipairs(meter.GetMetrics()) do choices[#choices + 1] = { metric.key, L["WILDMETER_METRIC_" .. string.upper(metric.key)] or metric.key } end
-			return choices
-		end
-		local function SessionChoices()
-			return { { "Current", L.WILDMETER_CURRENT }, { "Overall", L.WILDMETER_OVERALL } }
-		end
-		local function StyleChoices()
-			return { { "Default", L.WILDMETER_STYLE_DEFAULT }, { "Bordered", L.WILDMETER_STYLE_BORDERED }, { "FullBackground", L.WILDMETER_STYLE_FULL }, { "Thin", L.WILDMETER_STYLE_THIN } }
-		end
-		local function NumberChoices()
-			return { { "Minimal", L.WILDMETER_NUM_MINIMAL }, { "Compact", L.WILDMETER_NUM_COMPACT }, { "Complete", L.WILDMETER_NUM_COMPLETE } }
-		end
-		AddMeterDropdown("WILDMETER_METRIC", 180, MetricChoices, function() return L["WILDMETER_METRIC_" .. string.upper(meter.GetSetting("metric"))] or meter.GetSetting("metric") end, meter.SetMetricChoice)
-		AddMeterDropdown("WILDMETER_SESSION", 180, SessionChoices, function() return meter.GetSetting("session") == "Overall" and L.WILDMETER_OVERALL or L.WILDMETER_CURRENT end, meter.SetSessionChoice)
-		AddMeterDropdown("WILDMETER_STYLE", 180, StyleChoices, function() return L["WILDMETER_STYLE_" .. string.upper(meter.GetSetting("style"))] end, function(value) meter.SetSetting("style", value) end)
-		AddMeterDropdown("WILDMETER_NUMBERS", 180, NumberChoices, function() return L["WILDMETER_NUM_" .. string.upper(meter.GetSetting("numbers"))] end, function(value) meter.SetSetting("numbers", value) end)
-
-		AddCheckbox(column, "WILDMETER_CLASS_COLOR", function() return meter.GetSetting("classColor") end, function(value) meter.SetSetting("classColor", value) end)
-		local tighter = AddButton(column.parent, "WILDMETER_TIGHTER", function() meter.SetSetting("barSpacing", math.max(0, meter.GetSetting("barSpacing") - 1)) end, 110)
-		tighter:SetPoint("TOPLEFT", column.x, column.y - 2)
-		local looser = AddButton(column.parent, "WILDMETER_LOOSER", function() meter.SetSetting("barSpacing", math.min(12, meter.GetSetting("barSpacing") + 1)) end, 110)
-		looser:SetPoint("LEFT", tighter, "RIGHT", 8, 0)
-		column.y = column.y - 34
-		local textLess = AddButton(column.parent, "WILDMETER_TEXT_SMALLER", function() meter.SetSetting("textScale", math.max(0.7, meter.GetSetting("textScale") - 0.1)) end, 110)
-		textLess:SetPoint("TOPLEFT", column.x, column.y - 2)
-		local textMore = AddButton(column.parent, "WILDMETER_TEXT_LARGER", function() meter.SetSetting("textScale", math.min(1.5, meter.GetSetting("textScale") + 0.1)) end, 110)
-		textMore:SetPoint("LEFT", textLess, "RIGHT", 8, 0)
-		local fadeLess = AddButton(column.parent, "WILDMETER_MORE_TRANSPARENT", function() meter.SetSetting("windowAlpha", math.max(0.2, meter.GetSetting("windowAlpha") - 0.1)) end, 130)
-		fadeLess:SetPoint("LEFT", textMore, "RIGHT", 8, 0)
-		local fadeMore = AddButton(column.parent, "WILDMETER_LESS_TRANSPARENT", function() meter.SetSetting("windowAlpha", math.min(1, meter.GetSetting("windowAlpha") + 0.1)) end, 130)
-		fadeMore:SetPoint("LEFT", fadeLess, "RIGHT", 8, 0)
-		column.y = column.y - 34
-
-		local popout = AddButton(column.parent, "WILDMETER_POPOUT", function()
-			if not meter.OpenPopout() then print("|cff66ccffWildMeter|r: no free Blizzard meter popout is available.") end
-		end, 220)
-		popout:SetPoint("TOPLEFT", column.x, column.y - 2)
-		local showNative = AddButton(column.parent, "WILDMETER_SHOW_NATIVE", meter.Open, 220)
-		showNative:SetPoint("LEFT", popout, "RIGHT", 8, 0)
+		local status = column.parent:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+		status:SetPoint("TOPLEFT", column.x, column.y)
+		status:SetWidth(column.width)
+		status:SetJustifyH("LEFT")
+		status:SetWordWrap(true)
+		status:SetText("Forever marks specialization icon IDs as secret values. Any addon-driven Blizzard meter refresh can compare those values while WildSpark is tainted and produce the Lua error you reported. WildMeter therefore leaves Blizzard's live meter windows and display settings untouched on this client. Open and configure the meter with Blizzard's own controls; live data collection remains Blizzard's responsibility.")
 	end
 
 	page = pages.info
