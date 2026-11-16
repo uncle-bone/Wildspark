@@ -340,7 +340,7 @@ end
 function M.value(item_key)
 	-- WildAuctions: an item without any history needs no unpacking and no cache entry (the Sniper asks
 	-- about every item on the auction house)
-	if not data[item_key] then
+	if type(data) ~= 'table' or not data[item_key] then
 		return
 	end
 	return cached(item_key).value
@@ -349,7 +349,7 @@ end
 -- WildAuctions: the usual price and how many days of history it rests on, from the same cache (the
 -- Sniper used to unpack the saved history again just to count its days)
 function M.value_and_days(item_key)
-	if not data[item_key] then
+	if type(data) ~= 'table' or not data[item_key] then
 		return nil, 0
 	end
 	local entry = cached(item_key)
@@ -360,7 +360,7 @@ end
 -- Sniper counts only those: Fading Echo's usual of 79s came from two 0.4 days that only kept the
 -- lowest asking price, while a complete look yesterday saw it at 1s (Tyler, build 5).
 function M.value_and_complete_days(item_key)
-	if not data[item_key] then
+	if type(data) ~= 'table' or not data[item_key] then
 		return nil, 0
 	end
 	local entry = cached(item_key)
@@ -369,7 +369,7 @@ end
 
 -- WildAuctions (0.5): the usual price and how many days ago aux last saw the item (0: today), or nil
 function M.value_and_age(item_key)
-	if not data[item_key] then
+	if type(data) ~= 'table' or not data[item_key] then
 		return
 	end
 	local entry = cached(item_key)
@@ -382,7 +382,7 @@ end
 -- auction house they just saw (Tyler, 2026-10-07). The multi-day usual price (value) stays for
 -- finding deals: the Sniper, the search % column and the percentage filters.
 function M.latest(item_key)
-	if not data[item_key] then
+	if type(data) ~= 'table' or not data[item_key] then
 		return
 	end
 	local entry = cached(item_key)
@@ -405,7 +405,7 @@ function M.age_text(age)
 end
 
 function M.market_value(item_key)
-	if not data[item_key] then
+	if type(data) ~= 'table' or not data[item_key] then
 		return
 	end
 	return read_record(item_key).low
@@ -413,7 +413,7 @@ end
 
 -- today's market price and the units it was worked out from, if a complete view was seen today
 function M.today_market(item_key)
-	if not data[item_key] then
+	if type(data) ~= 'table' or not data[item_key] then
 		return
 	end
 	local record = read_record(item_key)
@@ -477,7 +477,7 @@ end
 -- WildAuctions (0.5): /wa price <item>. What aux keeps for an item, in plain words, so a price that
 -- looks wrong can be checked against what was recorded (Tyler, build 1). money_text formats copper.
 function M.report(item_key, money_text)
-	if not data[item_key] then
+	if type(data) ~= 'table' or not data[item_key] then
 		return {'No price history for this item yet.'}
 	end
 	local record = read_record(item_key)
