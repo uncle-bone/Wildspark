@@ -37,7 +37,6 @@ local function db()
     local value = root.modules.wildMeter
     if value.style == nil then value.style = "Default" end
     if value.numbers == nil then value.numbers = "Compact" end
-    if value.barHeight == nil then value.barHeight = 18 end
     if value.barSpacing == nil then value.barSpacing = 2 end
     if value.textScale == nil then value.textScale = 1 end
     if value.windowAlpha == nil then value.windowAlpha = 1 end
@@ -89,7 +88,6 @@ local function apply()
     if numbers ~= nil then DAMAGE_METER:SetNumberDisplayType(numbers) end
     DAMAGE_METER:SetUseClassColor(value.classColor == true)
     DAMAGE_METER:SetShowBarIcons(value.icons == true)
-    DAMAGE_METER:SetBarHeight(value.barHeight)
     DAMAGE_METER:SetBarSpacing(value.barSpacing)
     DAMAGE_METER:SetTextScale(value.textScale)
     DAMAGE_METER:SetWindowAlpha(value.windowAlpha)
