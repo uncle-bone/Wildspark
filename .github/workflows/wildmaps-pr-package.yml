@@ -1,0 +1,110 @@
+name: Build WildSpark rollback stable package
+
+on:
+  push:
+    branches: [fix/wildmeter-secret-value-taint]
+    paths:
+      - ".github/workflows/wildmaps-pr-package.yml"
+      - "Wildspark/WildSpark.toc"
+      - "Wildspark/Menu.lua"
+      - "Wildspark/Locales/**"
+      - "Wildspark/Libs/**"
+      - "Wildspark/Modules/**"
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+    paths:
+      - ".github/workflows/wildmaps-pr-package.yml"
+      - "Wildspark/WildSpark.toc"
+      - "Wildspark/Menu.lua"
+      - "Wildspark/Locales/**"
+      - "Wildspark/Libs/**"
+      - "Wildspark/Modules/**"
+permissions:
+  contents: write
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Build and verify install ZIP
+        id: package
+        run: |
+          VERSION="$(sed -n 's/^## Version: //p' Wildspark/WildSpark.toc | head -n 1 | tr -d '\r')"
+          test -n "$VERSION"
+          mkdir -p dist/stage/WildSpark
+          cp -a Wildspark/. dist/stage/WildSpark/
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/QuestDB.zip" "https://www.curseforge.com/api/v1/mods/1700352/files/9014639/download"
+          mkdir -p "$RUNNER_TEMP/qdb"
+          unzip -q "$RUNNER_TEMP/QuestDB.zip" -d "$RUNNER_TEMP/qdb"
+          QDB="$RUNNER_TEMP/qdb/QuestDB"
+          test -f "$QDB/QuestDB_Camelot.toc"
+          test -f "$QDB/LibQuestDB-1.0.lua"
+          test -f "$QDB/LICENSE"
+          mkdir -p dist/stage/WildSpark/Libs/QuestDB
+          cp -a "$QDB/." dist/stage/WildSpark/Libs/QuestDB/
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/QuestieDB.zip" "https://www.curseforge.com/api/v1/mods/1696795/files/9602575/download"
+          mkdir -p "$RUNNER_TEMP/qie"
+          unzip -q "$RUNNER_TEMP/QuestieDB.zip" -d "$RUNNER_TEMP/qie"
+          QIE="$RUNNER_TEMP/qie/QuestieDB"
+          test -f "$QIE/QuestieDB_Forever.toc"
+          test -f "$QIE/QuestieDB_Camelot.toc"
+          test -f "$QIE/LICENSE.md"
+          grep -q '^## Version: 1.1.1$' "$QIE/QuestieDB_Forever.toc"
+          mkdir -p dist/stage/WildSpark/Libs/QuestieDB
+          cp -a "$QIE/." dist/stage/WildSpark/Libs/QuestieDB/
+          MAIN_TOC="dist/stage/WildSpark/WildSpark.toc"
+          META="$RUNNER_TEMP/qie-metadata.txt"
+          grep -E '^## X-[^:]+' "$QIE/QuestieDB_Forever.toc" > "$META"
+          awk -v meta_file="$META" '
+            BEGIN { while ((getline line < meta_file) > 0) metadata = metadata line "\n"; close(meta_file) }
+            !inserted && NF && $0 !~ /^#/ { printf "%s", metadata; inserted = 1 }
+            { print }
+          ' "$MAIN_TOC" > "$RUNNER_TEMP/WildSpark.toc"
+          mv "$RUNNER_TEMP/WildSpark.toc" "$MAIN_TOC"
+          append_toc_files() {
+            prefix="$1"; source_toc="$2"
+            while IFS= read -r line || [ -n "$line" ]; do
+              line=${line%$'\r'}
+              case "$line" in ""|\#*) continue ;; esac
+              printf '%s%s\n' "$prefix" "$line" >> "$MAIN_TOC"
+            done < "$source_toc"
+          }
+          append_toc_files 'Libs\QuestDB\' "$QDB/QuestDB_Camelot.toc"
+          append_toc_files 'Libs\QuestieDB\' "$QIE/QuestieDB_Forever.toc"
+          sed -i 's/\r$//' "$MAIN_TOC"
+          grep -Fx "## Version: $VERSION" "$MAIN_TOC"
+          grep -Fx '## X-Flavor: Forever' "$MAIN_TOC"
+          grep -Fq 'Libs\QuestDB\Data\Forever\_core\Drops.lua' "$MAIN_TOC"
+          grep -Fq 'Libs\QuestieDB\src\api.lua' "$MAIN_TOC"
+          if grep -Eqi 'WildMaps|HiddenMaps|WildMeter' "$MAIN_TOC"; then echo "Rollback TOC must not load maps or meter."; exit 1; fi
+          cd dist/stage
+          zip -qr "../WildSpark-$VERSION.zip" WildSpark
+          cd ../..
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" > "$RUNNER_TEMP/files.txt"
+          grep -q '^WildSpark/WildSpark.toc$' "$RUNNER_TEMP/files.txt"
+          if grep -Eqi 'WildMaps|HiddenMaps|WildMeter' "$RUNNER_TEMP/files.txt"; then echo "Rollback ZIP contains removed modules."; exit 1; fi
+          if grep -qE '^(QuestDB|QuestieDB)/' "$RUNNER_TEMP/files.txt"; then echo "ZIP must contain only the WildSpark folder."; exit 1; fi
+          echo "archive=dist/WildSpark-$VERSION.zip" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WildSpark-${{ github.run_id }}-Rollback
+          path: ${{ steps.package.outputs.archive }}
+          if-no-files-found: error
+          retention-days: 14
+      - name: Publish stable GitHub release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.package.outputs.version }}
+        run: |
+          TAG="v$VERSION"
+          gh release create "$TAG" "${{ steps.package.outputs.archive }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "WildSpark $VERSION — Stable release" \
+            --notes-file ".github/releases/$TAG.md" \
+            --target "$GITHUB_SHA" \
+            --latest
