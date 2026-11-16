@@ -2,7 +2,7 @@ name: Build WildMaps pull request package
 
 on:
   push:
-    branches: [feature/hiddenmaps-dungeon-navigation, feature/wildmeter-details-presentation]
+    branches: [feature/hiddenmaps-dungeon-navigation, feature/wildmeter-details-presentation, fix/wildmeter-secret-value-taint]
     paths:
       - ".github/workflows/wildmaps-pr-package.yml"
       - "Wildspark/WildSpark.toc"
@@ -114,7 +114,7 @@ jobs:
           grep -Fx '## X-Flavor: Forever' "$MAIN_TOC"
           grep -Fq 'Libs\QuestDB\Data\Forever\_core\Drops.lua' "$MAIN_TOC"
           grep -Fq 'Libs\QuestieDB\src\api.lua' "$MAIN_TOC"
-          if [ "$PACKAGE_BRANCH" = "feature/wildmeter-details-presentation" ]; then PACKAGE_LABEL="WildMeter"; else PACKAGE_LABEL="WildMaps"; fi
+          case "$PACKAGE_BRANCH" in *wildmeter*) PACKAGE_LABEL="WildMeter" ;; *) PACKAGE_LABEL="WildMaps" ;; esac
           cd dist/stage
           zip -qr "../WildSpark-$VERSION-$PACKAGE_LABEL-PR.zip" WildSpark
           cd ../..
@@ -132,19 +132,19 @@ jobs:
       - name: Upload installable pull request package
         uses: actions/upload-artifact@v4
         with:
-          name: WildSpark-${{ github.event.pull_request.number || 'branch' }}-${{ (github.head_ref || github.ref_name) == 'feature/wildmeter-details-presentation' && 'WildMeter' || 'WildMaps' }}
+          name: WildSpark-${{ github.event.pull_request.number || 'branch' }}-${{ contains(github.head_ref || github.ref_name, 'wildmeter') && 'WildMeter' || 'WildMaps' }}
           path: ${{ steps.package.outputs.archive }}
           if-no-files-found: error
           retention-days: 14
 
       - name: Publish branch-only prerelease download
-        if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.number == 2)
+        if: github.event_name == 'push' || (github.event_name == 'pull_request' && contains(github.event.pull_request.head.ref, 'wildmeter'))
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.package.outputs.version }}
           PACKAGE_BRANCH: ${{ github.head_ref || github.ref_name }}
         run: |
-          if [ "$PACKAGE_BRANCH" = "feature/wildmeter-details-presentation" ]; then RELEASE_CHANNEL="wildmeter-pr2"; else RELEASE_CHANNEL="wildmaps-pr1"; fi
+          case "$PACKAGE_BRANCH" in *wildmeter*) RELEASE_CHANNEL="wildmeter-review" ;; *) RELEASE_CHANNEL="wildmaps-pr1" ;; esac
           TAG="$RELEASE_CHANNEL-${GITHUB_SHA:0:12}"
           gh release create "$TAG" "${{ steps.package.outputs.archive }}" \
             --repo "$GITHUB_REPOSITORY" \
