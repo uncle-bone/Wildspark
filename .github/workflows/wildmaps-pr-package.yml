@@ -1,13 +1,11 @@
-name: Build WildMaps pull request package
+name: Build WildSpark rollback package
 
 on:
   push:
-    branches: [feature/hiddenmaps-dungeon-navigation, feature/wildmeter-details-presentation]
+    branches: [feature/hiddenmaps-dungeon-navigation, feature/wildmeter-details-presentation, fix/wildmeter-secret-value-taint]
     paths:
       - ".github/workflows/wildmaps-pr-package.yml"
       - "Wildspark/WildSpark.toc"
-      - "Wildspark/Modules/WildMaps/**"
-      - "Wildspark/Modules/WildMapsModule.lua"
       - "Wildspark/Modules/WildMeterModule.lua"
       - "Wildspark/Modules/WildMeter-THIRD-PARTY-NOTICE.md"
       - "Wildspark/Menu.lua"
@@ -50,15 +48,6 @@ jobs:
           test -n "$VERSION"
           mkdir -p dist/stage/WildSpark
           cp -a Wildspark/. dist/stage/WildSpark/
-
-          curl --fail --location --retry 3 --output "$RUNNER_TEMP/HiddenMaps_v1.2.2.zip" "https://www.curseforge.com/api/v1/mods/1731539/files/9496110/download"
-          printf '%s  %s\n' '522DEBF5D983E138EF9C91DC61BE612D07EBB6E11795378929B8A53D06435F7F' "$RUNNER_TEMP/HiddenMaps_v1.2.2.zip" | sha256sum --check
-          mkdir -p "$RUNNER_TEMP/hiddenmaps-package" dist/stage/WildSpark/Modules/WildMaps/Media
-          unzip -q "$RUNNER_TEMP/HiddenMaps_v1.2.2.zip" -d "$RUNNER_TEMP/hiddenmaps-package"
-          HM_DIR="$RUNNER_TEMP/hiddenmaps-package/HiddenMaps"
-          test -f "$HM_DIR/ASSET-NOTICES.md"
-          test -f "$HM_DIR/Media/Decor/hiddenmaps_background.tga"
-          cp -a "$HM_DIR/Media/." dist/stage/WildSpark/Modules/WildMaps/Media/
 
           curl --fail --location --retry 3 --output "$RUNNER_TEMP/QuestDB.zip" "https://www.curseforge.com/api/v1/mods/1700352/files/9014639/download"
           mkdir -p "$RUNNER_TEMP/questdb-package"
@@ -114,14 +103,19 @@ jobs:
           grep -Fx '## X-Flavor: Forever' "$MAIN_TOC"
           grep -Fq 'Libs\QuestDB\Data\Forever\_core\Drops.lua' "$MAIN_TOC"
           grep -Fq 'Libs\QuestieDB\src\api.lua' "$MAIN_TOC"
-          if [ "$PACKAGE_BRANCH" = "feature/wildmeter-details-presentation" ]; then PACKAGE_LABEL="WildMeter"; else PACKAGE_LABEL="WildMaps"; fi
+          if grep -Eqi 'WildMaps|HiddenMaps' "$MAIN_TOC"; then
+            echo "The WildSpark TOC must not load the archived dungeon map feature."
+            exit 1
+          fi
+          PACKAGE_LABEL="Rollback"
           cd dist/stage
           zip -qr "../WildSpark-$VERSION-$PACKAGE_LABEL-PR.zip" WildSpark
           cd ../..
           unzip -Z1 "dist/WildSpark-$VERSION-$PACKAGE_LABEL-PR.zip" | grep -q '^WildSpark/WildSpark.toc$'
-          unzip -Z1 "dist/WildSpark-$VERSION-$PACKAGE_LABEL-PR.zip" | grep -q '^WildSpark/Modules/WildMaps/ASSET-NOTICES.md$'
-          unzip -Z1 "dist/WildSpark-$VERSION-$PACKAGE_LABEL-PR.zip" | grep -q '^WildSpark/Modules/WildMaps/Media/Decor/hiddenmaps_background.tga$'
-          unzip -Z1 "dist/WildSpark-$VERSION-$PACKAGE_LABEL-PR.zip" | grep -q '^WildSpark/Modules/WildMapsModule.lua$'
+          if unzip -Z1 "dist/WildSpark-$VERSION-$PACKAGE_LABEL-PR.zip" | grep -Eqi 'WildMaps|HiddenMaps'; then
+            echo "The review ZIP must not contain the archived dungeon map feature."
+            exit 1
+          fi
           if unzip -Z1 "dist/WildSpark-$VERSION-$PACKAGE_LABEL-PR.zip" | grep -qE '^(QuestDB|QuestieDB)/'; then
             echo "The install ZIP must contain only the WildSpark root folder."
             exit 1
@@ -132,23 +126,58 @@ jobs:
       - name: Upload installable pull request package
         uses: actions/upload-artifact@v4
         with:
-          name: WildSpark-${{ github.event.pull_request.number || 'branch' }}-${{ (github.head_ref || github.ref_name) == 'feature/wildmeter-details-presentation' && 'WildMeter' || 'WildMaps' }}
+          name: WildSpark-${{ github.event.pull_request.number || 'branch' }}-Rollback
           path: ${{ steps.package.outputs.archive }}
           if-no-files-found: error
           retention-days: 14
 
       - name: Publish branch-only prerelease download
-        if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.number == 2)
+        if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.number == 3)
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.package.outputs.version }}
           PACKAGE_BRANCH: ${{ github.head_ref || github.ref_name }}
         run: |
-          if [ "$PACKAGE_BRANCH" = "feature/wildmeter-details-presentation" ]; then RELEASE_CHANNEL="wildmeter-pr2"; else RELEASE_CHANNEL="wildmaps-pr1"; fi
+          RELEASE_CHANNEL="wildspark-rollback"
           TAG="$RELEASE_CHANNEL-${GITHUB_SHA:0:12}"
           gh release create "$TAG" "${{ steps.package.outputs.archive }}" \
             --repo "$GITHUB_REPOSITORY" \
-            --title "WildSpark $VERSION — $RELEASE_CHANNEL review build" \
-            --notes "Review build from $PACKAGE_BRANCH at $GITHUB_SHA. This is a prerelease for testing and is not the stable main-branch release." \
+            --title "WildSpark $VERSION — rollback review build" \
+            --notes "WildSpark rollback package based on the pre-WildMaps addon state at $GITHUB_SHA. Prerelease for review; not a stable main-branch release." \
+            --target "$GITHUB_SHA" \
+            --prerelease
+
+          if unzip -Z1 "dist/WildSpark-$VERSION-$PACKAGE_LABEL-PR.zip" | grep -Eqi 'WildMaps|HiddenMaps'; then
+            echo "The review ZIP must not contain the archived dungeon map feature."
+            exit 1
+          fi
+          if unzip -Z1 "dist/WildSpark-$VERSION-$PACKAGE_LABEL-PR.zip" | grep -qE '^(QuestDB|QuestieDB)/'; then
+            echo "The install ZIP must contain only the WildSpark root folder."
+            exit 1
+          fi
+          echo "archive=dist/WildSpark-$VERSION-$PACKAGE_LABEL-PR.zip" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Upload installable pull request package
+        uses: actions/upload-artifact@v4
+        with:
+          name: WildSpark-${{ github.event.pull_request.number || 'branch' }}-Rollback
+          path: ${{ steps.package.outputs.archive }}
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish branch-only prerelease download
+        if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.number == 3)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.package.outputs.version }}
+          PACKAGE_BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: |
+          RELEASE_CHANNEL="wildspark-rollback"
+          TAG="$RELEASE_CHANNEL-${GITHUB_SHA:0:12}"
+          gh release create "$TAG" "${{ steps.package.outputs.archive }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "WildSpark $VERSION — rollback review build" \
+            --notes "WildSpark rollback package based on the pre-WildMaps addon state at $GITHUB_SHA. Prerelease for review; not a stable main-branch release." \
             --target "$GITHUB_SHA" \
             --prerelease

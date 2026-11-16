@@ -1,8 +1,3 @@
-WildSpark 2.2.40
-- Add WildMaps as a dungeon-navigation module in the WildSpark pane, with its own map icon, enable switch, and World Map button.
-- Bundle HiddenMaps 1.2.2 map registrations and artwork under WildSpark/Modules/WildMaps while retaining attribution, notices, credits, and watermarks.
-- Show the client-reported room or subzone name where available. The player marker remains best-effort and approximate; most dungeon interiors have no live tracking.
-
 WildSpark 2.2.39
 - Remove the WildFishing loot alert module and its settings tab. It could only alert after the bobber was clicked and could not detect the fish-bite splash.
 
