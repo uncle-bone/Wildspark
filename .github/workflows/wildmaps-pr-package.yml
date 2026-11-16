@@ -2,12 +2,14 @@ name: Build WildMaps pull request package
 
 on:
   push:
-    branches: [feature/hiddenmaps-dungeon-navigation]
+    branches: [feature/hiddenmaps-dungeon-navigation, feature/wildmeter-details-presentation]
     paths:
       - ".github/workflows/wildmaps-pr-package.yml"
       - "Wildspark/WildSpark.toc"
       - "Wildspark/Modules/WildMaps/**"
       - "Wildspark/Modules/WildMapsModule.lua"
+      - "Wildspark/Modules/WildMeterModule.lua"
+      - "Wildspark/Modules/WildMeter-THIRD-PARTY-NOTICE.md"
       - "Wildspark/Menu.lua"
       - "Wildspark/Locales/**"
       - "Wildspark/Libs/**"
@@ -108,8 +110,9 @@ jobs:
           grep -Fx '## X-Flavor: Forever' "$MAIN_TOC"
           grep -Fq 'Libs\QuestDB\Data\Forever\_core\Drops.lua' "$MAIN_TOC"
           grep -Fq 'Libs\QuestieDB\src\api.lua' "$MAIN_TOC"
+          if [ "$GITHUB_REF_NAME" = "feature/wildmeter-details-presentation" ]; then PACKAGE_LABEL="WildMeter"; else PACKAGE_LABEL="WildMaps"; fi
           cd dist/stage
-          zip -qr "../WildSpark-$VERSION-WildMaps-PR.zip" WildSpark
+          zip -qr "../WildSpark-$VERSION-$PACKAGE_LABEL-PR.zip" WildSpark
           cd ../..
           unzip -Z1 "dist/WildSpark-$VERSION-WildMaps-PR.zip" | grep -q '^WildSpark/WildSpark.toc$'
           unzip -Z1 "dist/WildSpark-$VERSION-WildMaps-PR.zip" | grep -q '^WildSpark/Modules/WildMaps/ASSET-NOTICES.md$'
@@ -119,7 +122,7 @@ jobs:
             echo "The install ZIP must contain only the WildSpark root folder."
             exit 1
           fi
-          echo "archive=dist/WildSpark-$VERSION-WildMaps-PR.zip" >> "$GITHUB_OUTPUT"
+          echo "archive=dist/WildSpark-$VERSION-$PACKAGE_LABEL-PR.zip" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Upload installable pull request package
@@ -136,10 +139,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.package.outputs.version }}
         run: |
-          TAG="wildmaps-pr1-${GITHUB_SHA:0:12}"
+          if [ "$GITHUB_REF_NAME" = "feature/wildmeter-details-presentation" ]; then RELEASE_CHANNEL="wildmeter-pr2"; else RELEASE_CHANNEL="wildmaps-pr1"; fi
+          TAG="$RELEASE_CHANNEL-${GITHUB_SHA:0:12}"
           gh release create "$TAG" "${{ steps.package.outputs.archive }}" \
             --repo "$GITHUB_REPOSITORY" \
-            --title "WildSpark $VERSION — WildMaps review build" \
-            --notes "Review build from feature/hiddenmaps-dungeon-navigation at $GITHUB_SHA. This is a prerelease for testing and is not the stable main-branch release." \
+            --title "WildSpark $VERSION — $RELEASE_CHANNEL review build" \
+            --notes "Review build from $GITHUB_REF_NAME at $GITHUB_SHA. This is a prerelease for testing and is not the stable main-branch release." \
             --target "$GITHUB_SHA" \
             --prerelease
