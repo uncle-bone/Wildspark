@@ -51,7 +51,7 @@ local NODES_ICON = "INV_Misc_Map_01"
 local NODES_HEIGHT = 320      -- hauteur des deux panneaux de la page de la minimap
 
 -- Titre de chaque page sous la barre de titre ; celle des objets compose le sien (LookTitle)
-local PAGE_TITLES = { nodes = "NODES_PAGE", settings = "SETTINGS", leash = "LEASH_SETTINGS", buffs = "BUFFS_TAB", camping = "CAMPING_TAB", auctions = "WILDAUCTIONS_TAB", groups = "WILDGROUPS_TAB", layers = "WILDLAYER_TAB", wildmaps = "WILDMAPS_TAB", wildmeter = "WILDMETER_TAB", info = "WILDINFO_TAB", lootrolls = "WILDLOOTROLLS_TAB" }
+local PAGE_TITLES = { nodes = "NODES_PAGE", settings = "SETTINGS", leash = "LEASH_SETTINGS", buffs = "BUFFS_TAB", camping = "CAMPING_TAB", auctions = "WILDAUCTIONS_TAB", groups = "WILDGROUPS_TAB", layers = "WILDLAYER_TAB", wildmeter = "WILDMETER_TAB", info = "WILDINFO_TAB", lootrolls = "WILDLOOTROLLS_TAB" }
 
 -- Choix d'un réglage : { valeur, nom du texte } ; ou { valeur, nil, libellé } quand le libellé
 -- ne se traduit pas
@@ -732,7 +732,6 @@ local function CreateMenu()
 	if _G.WildAuctions then list[#list + 1] = { "auctions", ICONS .. "INV_Misc_Coin_01", "WILDAUCTIONS_TAB" } end
 	if ns.WildGroups then list[#list + 1] = { "groups", ICONS .. "INV_SideTab_GroupFinder_c60", "WILDGROUPS_TAB" } end
 	if ns.WildLayer then list[#list + 1] = { "layers", MEDIA .. "WildLayerIcon", "WILDLAYER_TAB" } end
-	if ns.WildMapsModule then list[#list + 1] = { "wildmaps", ICONS .. "INV_Misc_Map_01", "WILDMAPS_TAB" } end
 	if ns.WildMeterModule then list[#list + 1] = { "wildmeter", ICONS .. "INV_Misc_Gear_01", "WILDMETER_TAB" } end
 	if ns.WildInfo then list[#list + 1] = { "info", MEDIA .. "icon.tga", "WILDINFO_TAB" } end
 	if ns.WildLootRolls then list[#list + 1] = { "lootrolls", ICONS .. "INV_Misc_Dice_02", "WILDLOOTROLLS_TAB" } end
@@ -828,7 +827,7 @@ local function CreateMenu()
 		note:SetJustifyH("LEFT")
 		note:SetWordWrap(true)
 		note:SetText(L.LEASH_NOTE)
-		column.y = column.y - 50
+		column.y = column.y - note:GetStringHeight() - 12
 		AddCheckbox(column, "LEASH_ENABLED", function() return leash.db and leash.db.enabled end, function(value)
 			if leash.db then leash.db.enabled = value; leash.OnOptionChanged("enabled") end
 		end)
@@ -858,7 +857,7 @@ local function CreateMenu()
 		note:SetJustifyH("LEFT")
 		note:SetWordWrap(true)
 		note:SetText(L.BUFFS_NOTE)
-		column.y = column.y - 58
+		column.y = column.y - note:GetStringHeight() - 12
 		if buffs.supported then
 			AddCheckbox(column, "BUFFS_SHOW_BUTTON", function() return buffs.GetOption("hidden") ~= true end, function(value)
 				buffs.SetOption("hidden", not value)
@@ -897,7 +896,7 @@ local function CreateMenu()
 		note:SetJustifyH("LEFT")
 		note:SetWordWrap(true)
 		note:SetText(L.CAMPING_NOTE)
-		column.y = column.y - 58
+		column.y = column.y - note:GetStringHeight() - 12
 		AddCheckbox(column, "CAMPING_SHOW_KIT", function() return kit.db and kit.db.shown ~= false end, function(value)
 			if kit.SetShownKit then kit:SetShownKit(value) end
 		end)
@@ -926,7 +925,7 @@ local function CreateMenu()
 		note:SetJustifyH("LEFT")
 		note:SetWordWrap(true)
 		note:SetText(L.WILDAUCTIONS_NOTE)
-		column.y = column.y - 58
+		column.y = column.y - note:GetStringHeight() - 12
 		AddCheckbox(column, "WILDAUCTIONS_ENABLED", function() return _G.WildAuctions.IsEnabled() end, function(v) _G.WildAuctions.SetEnabled(v) end)
 		local open = AddButton(column.parent, "WILDAUCTIONS_OPEN", function() _G.WildAuctions.Open() end, 190)
 		open:SetPoint("TOPLEFT", column.x, column.y - 4)
@@ -942,7 +941,7 @@ local function CreateMenu()
 		note:SetJustifyH("LEFT")
 		note:SetWordWrap(true)
 		note:SetText(L.WILDGROUPS_NOTE)
-		column.y = column.y - 58
+		column.y = column.y - note:GetStringHeight() - 12
 		AddCheckbox(column, "WILDGROUPS_ENABLED", function() return groups.IsEnabled() end, function(value) groups.SetEnabled(value) end)
 		local open = AddButton(column.parent, "WILDGROUPS_OPEN", function() groups.Open() end, 190)
 		open:SetPoint("TOPLEFT", column.x, column.y - 4)
@@ -958,7 +957,7 @@ local function CreateMenu()
 		note:SetJustifyH("LEFT")
 		note:SetWordWrap(true)
 		note:SetText(L.WILDLAYER_NOTE)
-		column.y = column.y - 58
+		column.y = column.y - note:GetStringHeight() - 12
 		AddCheckbox(column, "WILDLAYER_ENABLED", function() return layers.IsEnabled() end, function(v) layers.SetEnabled(v) end)
 		AddCheckbox(column, "WILDLAYER_AUTO_INVITES", function() return layers.GetAutoInvites() end, function(v) layers.SetAutoInvites(v) end)
 		AddCheckbox(column, "WILDLAYER_MINIMAP_BUTTON", function() return layers.GetMinimapButton() end, function(v) layers.SetMinimapButton(v) end)
@@ -967,50 +966,6 @@ local function CreateMenu()
 		local advanced = AddButton(column.parent, "WILDLAYER_SETTINGS", function() layers.OpenSettings() end, 190)
 		advanced:SetPoint("LEFT", open, "RIGHT", 8, 0)
 	end
-
-	page = pages.wildmaps
-	if page and ns.WildMapsModule then
-		local wildMaps = ns.WildMapsModule
-		column = NewCard(page, 0, 0, page:GetWidth(), height, "WILDMAPS_TAB")
-		local note = column.parent:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-		note:SetPoint("TOPLEFT", column.x, column.y)
-		note:SetWidth(column.width)
-		note:SetJustifyH("LEFT")
-		note:SetWordWrap(true)
-		note:SetText(L.WILDMAPS_NOTE:format(wildMaps.GetMapCount()))
-		column.y = column.y - 74
-		AddCheckbox(column, "WILDMAPS_ENABLED", wildMaps.IsEnabled, wildMaps.SetEnabled)
-		local open = AddButton(column.parent, "WILDMAPS_OPEN", wildMaps.Open, 190)
-		open:SetPoint("TOPLEFT", column.x, column.y - 4)
-		column.y = column.y - 34
-
-		local picker = CreateFrame("Frame", nil, column.parent, "UIDropDownMenuTemplate")
-		picker:SetPoint("TOPLEFT", column.x - 16, column.y - 2)
-		UIDropDownMenu_SetWidth(picker, 230)
-		UIDropDownMenu_SetText(picker, L.WILDMAPS_CHOOSE_MAP)
-		UIDropDownMenu_Initialize(picker, function(_, level)
-			local maps = {}
-			for _, map in ipairs(wildMaps.GetMaps()) do maps[#maps + 1] = map end
-			table.sort(maps, function(left, right) return left.name < right.name end)
-			for _, map in ipairs(maps) do
-				local info = UIDropDownMenu_CreateInfo()
-				info.text = map.name
-				info.notCheckable = true
-				info.func = function()
-					if wildMaps.SelectMap(map.id) then
-						UIDropDownMenu_SetText(picker, map.name)
-					end
-				end
-				UIDropDownMenu_AddButton(info, level)
-			end
-		end)
-		SetTooltip(picker, "WILDMAPS_CHOOSE_MAP")
-		column.y = column.y - 40
-
-		local setStart = AddButton(column.parent, "WILDMAPS_SET_START", wildMaps.PlaceEntryMarker, 230)
-		setStart:SetPoint("TOPLEFT", column.x, column.y - 4)
-	end
-
 
 	page = pages.wildmeter
 	if page and ns.WildMeterModule then
@@ -1022,7 +977,7 @@ local function CreateMenu()
 		note:SetJustifyH("LEFT")
 		note:SetWordWrap(true)
 		note:SetText(L.WILDMETER_NOTE)
-		column.y = column.y - 45
+		column.y = column.y - note:GetStringHeight() - 12
 
 		local apiStatus = column.parent:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
 		apiStatus:SetPoint("TOPLEFT", column.x, column.y)
@@ -1035,7 +990,7 @@ local function CreateMenu()
 		end
 		refreshers[#refreshers + 1] = RefreshMeterStatus
 		RefreshMeterStatus()
-		column.y = column.y - 22
+		column.y = column.y - apiStatus:GetStringHeight() - 12
 
 		local function AddMeterDropdown(labelKey, width, choices, getter, setter)
 			local label = column.parent:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
@@ -1121,7 +1076,7 @@ local function CreateMenu()
 		note:SetJustifyH("LEFT")
 		note:SetWordWrap(true)
 		note:SetText(L.WILDINFO_NOTE)
-		column.y = column.y - 58
+		column.y = column.y - note:GetStringHeight() - 12
 		AddCheckbox(column, "WILDINFO_ENABLED", info.IsEnabled, info.SetEnabled)
 		AddCheckbox(column, "WILDINFO_TOOLTIP", info.IsTooltipEnabled, info.SetTooltipEnabled)
 		AddCheckbox(column, "WILDINFO_QUEST_DROPS", info.GetQuestDropsEnabled, info.SetQuestDropsEnabled)
@@ -1140,7 +1095,7 @@ local function CreateMenu()
 		note:SetJustifyH("LEFT")
 		note:SetWordWrap(true)
 		note:SetText(L.WILDLOOTROLLS_NOTE)
-		column.y = column.y - 58
+		column.y = column.y - note:GetStringHeight() - 12
 		AddCheckbox(column, "WILDLOOTROLLS_ENABLED", rolls.IsEnabled, rolls.SetEnabled)
 		local place = AddButton(column.parent, "WILDLOOTROLLS_PLACE", rolls.TogglePlacement, 210)
 		place:SetPoint("TOPLEFT", column.x, column.y - 4)
