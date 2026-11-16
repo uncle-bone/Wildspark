@@ -5,6 +5,7 @@ on:
     branches: [fix/wildmeter-secret-value-taint]
     paths:
       - ".github/workflows/wildmaps-pr-package.yml"
+      - ".github/releases/**"
       - "Wildspark/WildSpark.toc"
       - "Wildspark/Menu.lua"
       - "Wildspark/Locales/**"
@@ -77,6 +78,10 @@ jobs:
           sed -i 's/\r$//' "$MAIN_TOC"
           grep -Fx "## Version: $VERSION" "$MAIN_TOC"
           grep -Fx '## X-Flavor: Forever' "$MAIN_TOC"
+          test -f Wildspark/Modules/WildAuctions/gui/buy_bar.lua
+          test -f Wildspark/Modules/WildAuctions/gui/item_listing.lua
+          grep -Fq 'Modules\\WildAuctions\\gui\\buy_bar.lua' Wildspark/WildSpark.toc
+          grep -Fq 'Modules\\WildAuctions\\gui\\item_listing.lua' Wildspark/WildSpark.toc
           grep -Fq 'Libs\QuestDB\Data\Forever\_core\Drops.lua' "$MAIN_TOC"
           grep -Fq 'Libs\QuestieDB\src\api.lua' "$MAIN_TOC"
           if grep -Eqi 'WildMaps|HiddenMaps|WildMeter' "$MAIN_TOC"; then echo "Rollback TOC must not load maps or meter."; exit 1; fi
@@ -84,7 +89,32 @@ jobs:
           zip -qr "../WildSpark-$VERSION.zip" WildSpark
           cd ../..
           unzip -Z1 "dist/WildSpark-$VERSION.zip" > "$RUNNER_TEMP/files.txt"
-          grep -q '^WildSpark/WildSpark.toc$' "$RUNNER_TEMP/files.txt"
+          grep -q '^WildSpark/WildSpark.toc          if grep -Eqi 'WildMaps|HiddenMaps|WildMeter' "$RUNNER_TEMP/files.txt"; then echo "Rollback ZIP contains removed modules."; exit 1; fi
+          if grep -qE '^(QuestDB|QuestieDB)/' "$RUNNER_TEMP/files.txt"; then echo "ZIP must contain only the WildSpark folder."; exit 1; fi
+          echo "archive=dist/WildSpark-$VERSION.zip" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WildSpark-${{ github.run_id }}-Rollback
+          path: ${{ steps.package.outputs.archive }}
+          if-no-files-found: error
+          retention-days: 14
+      - name: Publish stable GitHub release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.package.outputs.version }}
+        run: |
+          TAG="v$VERSION"
+          gh release create "$TAG" "${{ steps.package.outputs.archive }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "WildSpark $VERSION — Stable release" \
+            --notes-file ".github/releases/$TAG.md" \
+            --target "$GITHUB_SHA" \
+            --latest
+ "$RUNNER_TEMP/files.txt"
+          grep -Fxq 'WildSpark/Modules/WildAuctions/gui/buy_bar.lua' "$RUNNER_TEMP/files.txt"
+          grep -Fxq 'WildSpark/Modules/WildAuctions/gui/item_listing.lua' "$RUNNER_TEMP/files.txt"
           if grep -Eqi 'WildMaps|HiddenMaps|WildMeter' "$RUNNER_TEMP/files.txt"; then echo "Rollback ZIP contains removed modules."; exit 1; fi
           if grep -qE '^(QuestDB|QuestieDB)/' "$RUNNER_TEMP/files.txt"; then echo "ZIP must contain only the WildSpark folder."; exit 1; fi
           echo "archive=dist/WildSpark-$VERSION.zip" >> "$GITHUB_OUTPUT"
