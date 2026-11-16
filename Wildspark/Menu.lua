@@ -1021,7 +1021,7 @@ local function CreateMenu()
 		note:SetWidth(column.width)
 		note:SetJustifyH("LEFT")
 		note:SetWordWrap(true)
-		note:SetText(L.WILDMETER_NOTE)
+		note:SetText(L.WILDMETER_NOTE .. "\n\nSpecialization icons are disabled because this Forever client exposes secret icon IDs that can error during meter refresh.")
 		column.y = column.y - 45
 
 		local apiStatus = column.parent:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
@@ -1083,7 +1083,6 @@ local function CreateMenu()
 		AddMeterDropdown("WILDMETER_NUMBERS", 180, NumberChoices, function() return L["WILDMETER_NUM_" .. string.upper(meter.GetSetting("numbers"))] end, function(value) meter.SetSetting("numbers", value) end)
 
 		AddCheckbox(column, "WILDMETER_CLASS_COLOR", function() return meter.GetSetting("classColor") end, function(value) meter.SetSetting("classColor", value) end)
-		AddCheckbox(column, "WILDMETER_ICONS", function() return meter.GetSetting("icons") end, function(value) meter.SetSetting("icons", value) end)
 		local tighter = AddButton(column.parent, "WILDMETER_TIGHTER", function() meter.SetSetting("barSpacing", math.max(0, meter.GetSetting("barSpacing") - 1)) end, 110)
 		tighter:SetPoint("TOPLEFT", column.x, column.y - 2)
 		local looser = AddButton(column.parent, "WILDMETER_LOOSER", function() meter.SetSetting("barSpacing", math.min(12, meter.GetSetting("barSpacing") + 1)) end, 110)
