@@ -111,7 +111,12 @@ jobs:
           cd dist/stage
           zip -qr "../WildSpark-$VERSION-$PACKAGE_LABEL-PR.zip" WildSpark
           cd ../..
-          unzip -Z1 "dist/WildSpark-$VERSION-$PACKAGE_LABEL-PR.zip" | grep -q '^WildSpark/WildSpark.toc          if unzip -Z1 "dist/WildSpark-$VERSION-$PACKAGE_LABEL-PR.zip" | grep -qE '^(QuestDB|QuestieDB)/'; then
+          unzip -Z1 "dist/WildSpark-$VERSION-$PACKAGE_LABEL-PR.zip" | grep -q '^WildSpark/WildSpark.toc$'
+          if unzip -Z1 "dist/WildSpark-$VERSION-$PACKAGE_LABEL-PR.zip" | grep -Eqi 'WildMaps|HiddenMaps'; then
+            echo "The review ZIP must not contain the archived dungeon map feature."
+            exit 1
+          fi
+          if unzip -Z1 "dist/WildSpark-$VERSION-$PACKAGE_LABEL-PR.zip" | grep -qE '^(QuestDB|QuestieDB)/'; then
             echo "The install ZIP must contain only the WildSpark root folder."
             exit 1
           fi
