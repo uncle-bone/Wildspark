@@ -1,4 +1,4 @@
-name: Build WildMaps pull request package
+name: Build WildSpark pull request package
 
 on:
   push:
@@ -6,8 +6,6 @@ on:
     paths:
       - ".github/workflows/wildmaps-pr-package.yml"
       - "Wildspark/WildSpark.toc"
-      - "Wildspark/Modules/WildMaps/**"
-      - "Wildspark/Modules/WildMapsModule.lua"
       - "Wildspark/Modules/WildMeterModule.lua"
       - "Wildspark/Modules/WildMeter-THIRD-PARTY-NOTICE.md"
       - "Wildspark/Menu.lua"
@@ -50,15 +48,6 @@ jobs:
           test -n "$VERSION"
           mkdir -p dist/stage/WildSpark
           cp -a Wildspark/. dist/stage/WildSpark/
-
-          curl --fail --location --retry 3 --output "$RUNNER_TEMP/HiddenMaps_v1.2.2.zip" "https://www.curseforge.com/api/v1/mods/1731539/files/9496110/download"
-          printf '%s  %s\n' '522DEBF5D983E138EF9C91DC61BE612D07EBB6E11795378929B8A53D06435F7F' "$RUNNER_TEMP/HiddenMaps_v1.2.2.zip" | sha256sum --check
-          mkdir -p "$RUNNER_TEMP/hiddenmaps-package" dist/stage/WildSpark/Modules/WildMaps/Media
-          unzip -q "$RUNNER_TEMP/HiddenMaps_v1.2.2.zip" -d "$RUNNER_TEMP/hiddenmaps-package"
-          HM_DIR="$RUNNER_TEMP/hiddenmaps-package/HiddenMaps"
-          test -f "$HM_DIR/ASSET-NOTICES.md"
-          test -f "$HM_DIR/Media/Decor/hiddenmaps_background.tga"
-          cp -a "$HM_DIR/Media/." dist/stage/WildSpark/Modules/WildMaps/Media/
 
           curl --fail --location --retry 3 --output "$RUNNER_TEMP/QuestDB.zip" "https://www.curseforge.com/api/v1/mods/1700352/files/9014639/download"
           mkdir -p "$RUNNER_TEMP/questdb-package"
@@ -119,9 +108,6 @@ jobs:
           zip -qr "../WildSpark-$VERSION-$PACKAGE_LABEL-PR.zip" WildSpark
           cd ../..
           unzip -Z1 "dist/WildSpark-$VERSION-$PACKAGE_LABEL-PR.zip" | grep -q '^WildSpark/WildSpark.toc$'
-          unzip -Z1 "dist/WildSpark-$VERSION-$PACKAGE_LABEL-PR.zip" | grep -q '^WildSpark/Modules/WildMaps/ASSET-NOTICES.md$'
-          unzip -Z1 "dist/WildSpark-$VERSION-$PACKAGE_LABEL-PR.zip" | grep -q '^WildSpark/Modules/WildMaps/Media/Decor/hiddenmaps_background.tga$'
-          unzip -Z1 "dist/WildSpark-$VERSION-$PACKAGE_LABEL-PR.zip" | grep -q '^WildSpark/Modules/WildMapsModule.lua$'
           if unzip -Z1 "dist/WildSpark-$VERSION-$PACKAGE_LABEL-PR.zip" | grep -qE '^(QuestDB|QuestieDB)/'; then
             echo "The install ZIP must contain only the WildSpark root folder."
             exit 1
