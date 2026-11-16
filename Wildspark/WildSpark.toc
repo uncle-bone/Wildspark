@@ -8,7 +8,7 @@
 ## Notes-esES: Hace brillar los filones, las hierbas, los objetos de misión y los cofres cuando te acercas, con varios efectos de luz a elegir, y muestra hierbas y filones en el minimapa con su propio icono (usa el soft targeting de Blizzard).
 ## Notes-esMX: Hace brillar los filones, las hierbas, los objetos de misión y los cofres cuando te acercas, con varios efectos de luz a elegir, y muestra hierbas y filones en el minimapa con su propio icono (usa el soft targeting de Blizzard).
 ## Notes-ruRU: ???????????? ?????? ????, ?????, ????????? ??????? ? ??????? ??? ??????????? ? ???, ? ??????? ???????? ????????, ? ?????????? ????? ? ???? ?? ????????? ?? ???????????? ???????? (?????????? soft targeting ?? Blizzard).
-## Version: 2.2.39
+## Version: 2.2.41
 ## X-WildLayer-Version: 1.9.14
 ## X-WildLayer-Display-Name: WildLayer
 ## IconTexture: Interface\AddOns\WildSpark\Media\icon.tga
@@ -71,8 +71,6 @@ Modules\WildAuctions\core\tooltip.lua
 Modules\WildAuctions\core\shortcut.lua
 Modules\WildAuctions\gui\listing.lua
 Modules\WildAuctions\gui\auction_listing.lua
-Modules\WildAuctions\gui\item_listing.lua
-Modules\WildAuctions\gui\buy_bar.lua
 Modules\WildAuctions\tabs\search\core.lua
 Modules\WildAuctions\tabs\search\results.lua
 Modules\WildAuctions\tabs\search\saved.lua
@@ -101,7 +99,6 @@ Modules\WildGroups\core\talents.lua
 Modules\WildGroups\core\settings.lua
 Modules\WildGroups\core\settings.xml
 Modules\WildGroups\core\listpanel.lua
-Modules\WildGroups\core\whisperlog.lua
 Modules\WildGroups\core\filterpanel_shared.lua
 Modules\WildGroups\core\filterpanel_miscellaneous.lua
 Modules\WildGroups\core\filterpanel_groupclasses.lua
@@ -131,7 +128,6 @@ Modules\WildDrops\ManualData.lua
 Modules\WildDrops\QuestDropRatesData.lua
 Modules\WildDrops\Core.lua
 Modules\WildDrops\RespawnData.lua
-Modules\WildDrops\Respawn.lua
 Modules\WildDrops\QuestIndex.lua
 Modules\WildDrops\Tooltip.lua
 Modules\WildDrops\WildDropsModule.lua
