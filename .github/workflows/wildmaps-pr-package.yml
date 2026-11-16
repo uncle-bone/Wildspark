@@ -22,6 +22,8 @@ on:
       - "Wildspark/WildSpark.toc"
       - "Wildspark/Modules/WildMaps/**"
       - "Wildspark/Modules/WildMapsModule.lua"
+      - "Wildspark/Modules/WildMeterModule.lua"
+      - "Wildspark/Modules/WildMeter-THIRD-PARTY-NOTICE.md"
       - "Wildspark/Menu.lua"
       - "Wildspark/Locales/**"
       - "Wildspark/Libs/**"
@@ -114,11 +116,11 @@ jobs:
           cd dist/stage
           zip -qr "../WildSpark-$VERSION-$PACKAGE_LABEL-PR.zip" WildSpark
           cd ../..
-          unzip -Z1 "dist/WildSpark-$VERSION-WildMaps-PR.zip" | grep -q '^WildSpark/WildSpark.toc$'
-          unzip -Z1 "dist/WildSpark-$VERSION-WildMaps-PR.zip" | grep -q '^WildSpark/Modules/WildMaps/ASSET-NOTICES.md$'
-          unzip -Z1 "dist/WildSpark-$VERSION-WildMaps-PR.zip" | grep -q '^WildSpark/Modules/WildMaps/Media/Decor/hiddenmaps_background.tga$'
-          unzip -Z1 "dist/WildSpark-$VERSION-WildMaps-PR.zip" | grep -q '^WildSpark/Modules/WildMapsModule.lua$'
-          if unzip -Z1 "dist/WildSpark-$VERSION-WildMaps-PR.zip" | grep -qE '^(QuestDB|QuestieDB)/'; then
+          unzip -Z1 "dist/WildSpark-$VERSION-$PACKAGE_LABEL-PR.zip" | grep -q '^WildSpark/WildSpark.toc$'
+          unzip -Z1 "dist/WildSpark-$VERSION-$PACKAGE_LABEL-PR.zip" | grep -q '^WildSpark/Modules/WildMaps/ASSET-NOTICES.md$'
+          unzip -Z1 "dist/WildSpark-$VERSION-$PACKAGE_LABEL-PR.zip" | grep -q '^WildSpark/Modules/WildMaps/Media/Decor/hiddenmaps_background.tga$'
+          unzip -Z1 "dist/WildSpark-$VERSION-$PACKAGE_LABEL-PR.zip" | grep -q '^WildSpark/Modules/WildMapsModule.lua$'
+          if unzip -Z1 "dist/WildSpark-$VERSION-$PACKAGE_LABEL-PR.zip" | grep -qE '^(QuestDB|QuestieDB)/'; then
             echo "The install ZIP must contain only the WildSpark root folder."
             exit 1
           fi
@@ -128,7 +130,7 @@ jobs:
       - name: Upload installable pull request package
         uses: actions/upload-artifact@v4
         with:
-          name: WildSpark-${{ github.event.pull_request.number || 'branch' }}-WildMaps
+          name: WildSpark-${{ github.event.pull_request.number || 'branch' }}-${{ github.ref_name == 'feature/wildmeter-details-presentation' && 'WildMeter' || 'WildMaps' }}
           path: ${{ steps.package.outputs.archive }}
           if-no-files-found: error
           retention-days: 14
