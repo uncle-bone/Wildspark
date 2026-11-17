@@ -1,3 +1,8 @@
+WildSpark 2.2.44
+- Restored the integrated WildMaps dungeon catalog to the stable addon package.
+- Added a movable compact dungeon map with three size presets, zoom controls, map browsing, and floor selection.
+- PvP module remains planned for a later build.
+
 WildSpark 2.2.43
 - Fix WildGroups crashing when opening the group finder: the whisper-log source existed in the repository but was missing from the main TOC load list.
 - Add release packaging checks for the whisper-log manifest entry and packaged file.

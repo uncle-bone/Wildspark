@@ -8,7 +8,8 @@
 ## Notes-esES: Hace brillar los filones, las hierbas, los objetos de misión y los cofres cuando te acercas, con varios efectos de luz a elegir, y muestra hierbas y filones en el minimapa con su propio icono (usa el soft targeting de Blizzard).
 ## Notes-esMX: Hace brillar los filones, las hierbas, los objetos de misión y los cofres cuando te acercas, con varios efectos de luz a elegir, y muestra hierbas y filones en el minimapa con su propio icono (usa el soft targeting de Blizzard).
 ## Notes-ruRU: ???????????? ?????? ????, ?????, ????????? ??????? ? ??????? ??? ??????????? ? ???, ? ??????? ???????? ????????, ? ?????????? ????? ? ???? ?? ????????? ?? ???????????? ???????? (?????????? soft targeting ?? Blizzard).
-## Version: 2.2.43
+## Version: 2.2.44
+## X-WildMaps-Version: 1.3.0
 ## X-WildLayer-Version: 1.9.14
 ## X-WildLayer-Display-Name: WildLayer
 ## IconTexture: Interface\AddOns\WildSpark\Media\icon.tga
@@ -16,7 +17,7 @@
 ## AddonCompartmentFunc: Wildspark_WildGroups_OnAddonCompartmentClick
 ## AddonCompartmentFuncOnEnter: Wildspark_WildGroups_OnAddonCompartmentEnter
 ## AddonCompartmentFuncOnLeave: Wildspark_WildGroups_OnAddonCompartmentLeave
-## SavedVariables: WildsparkDB, LeashHelperDB, ForeverBuffs_DB, CampingKitDB, KitDockDB, WildAuctionsDB, aux, LFGForeverDB, AutoLayerDB, WildLootRollDB, WildDropsDB
+## SavedVariables: WildsparkDB, LeashHelperDB, ForeverBuffs_DB, CampingKitDB, KitDockDB, WildAuctionsDB, aux, LFGForeverDB, AutoLayerDB, WildLootRollDB, WildDropsDB, HiddenMapsDB, WildMapsDB
 ## SavedVariablesPerCharacter: WildsparkCharDB, ForeverBuffs_CharDB, CampingKitCharDB, LFGForeverCharDB
 ## AllowLoadGameType: mainline
 
@@ -134,3 +135,24 @@ Modules\WildDrops\RespawnData.lua
 Modules\WildDrops\QuestIndex.lua
 Modules\WildDrops\Tooltip.lua
 Modules\WildDrops\WildDropsModule.lua
+
+# WildMaps (adapted from HiddenMaps 1.2.2 by Lichdom)
+Modules\WildMapsModule.lua
+Modules\WildMaps\Core\Bootstrap.lua
+Modules\WildMaps\Core\Registry.lua
+Modules\WildMaps\Maps\Maps.xml
+Modules\WildMaps\Core\Detection.lua
+Modules\WildMaps\Core\Position.lua
+Modules\WildMaps\Core\MapCoordinates.lua
+Modules\WildMaps\Core\Renderer.lua
+Modules\WildMaps\Core\WorldMap.lua
+Modules\WildMaps\Core\ZoneMap.lua
+Modules\WildMaps\Overlays\MapMarkers.lua
+Modules\WildMaps\Overlays\MapCredits.lua
+Modules\WildMaps\Core\Dev.lua
+Modules\WildMaps\Core\Engine.lua
+Modules\WildMaps\Diagnostics\MapOverride.lua
+Modules\WildMaps\Diagnostics\CropCalibration.lua
+Modules\WildMaps\Diagnostics\EntranceCalibration.lua
+Modules\WildMaps\Experiments\Experiments.xml
+Modules\WildMaps\Core\Compatibility.lua

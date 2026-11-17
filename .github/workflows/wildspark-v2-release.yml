@@ -12,6 +12,8 @@ on:
       - "Wildspark/Media/WildFire/tent_*.tga"
       - "Wildspark/Media/WildFire/circle_mask.tga"
       - "Wildspark/Modules/WildDrops/**"
+      - "Wildspark/Modules/WildMaps/**"
+      - "Wildspark/Modules/WildMapsModule.lua"
       - "Wildspark/Modules/WildAuctions/**"
 
 permissions:
