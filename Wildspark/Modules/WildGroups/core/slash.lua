@@ -19,7 +19,7 @@
 -- two lines below do, but derives the key from the command word
 -- (`local name = string.upper(command)`), so it would register us as "LFG".
 -- It also requires a second alias and would build "/"..nil without one.
-local COMMAND_KEY = "WILDGROUPS"
+local COMMAND_KEY = "LFGFOREVER"
 
 -- The addon's private table, the second of the two varargs the client passes
 -- every addon file. core/window.lua puts ToggleWindow on it, and the .toc loads
@@ -45,7 +45,7 @@ local L = LFGF.L
 -- LFGF.SLASH_COMMAND, not a literal: core/main.lua's load greeting names the
 -- same constant, so the command the player is told to type and the command
 -- that is registered cannot drift apart.
-_G["SLASH_" .. COMMAND_KEY .. "1"] = "/wildgroups"
+_G["SLASH_" .. COMMAND_KEY .. "1"] = LFGF.SLASH_COMMAND
 
 -- The handler's signature is (msg, editBox): the trimmed argument string and
 -- the chat edit box the command was typed into (ChatFrameEditBox.lua:266-267).
@@ -68,12 +68,41 @@ end
 -- earliest on this addon's ADDON_LOADED, after this file has run. The section
 -- is the addon's name, which is never translated; the label is LFGF.L's, so a
 -- language pack translates it.
-BINDING_HEADER_WILDGROUPS = LFGF.TITLE
-BINDING_NAME_WILDGROUPS_TOGGLE = L.BINDING_OPEN_WINDOW
+BINDING_HEADER_LFGFOREVER = LFGF.TITLE
+BINDING_NAME_LFGFOREVER_TOGGLE = L.BINDING_OPEN_WINDOW
 
 -- What the binding's body calls. A binding body runs in the global
 -- environment, so this is a global, namespaced like the compartment's
 -- (core/minimap.lua). It works in combat: the window is a plain frame.
-function WildSpark_WildGroups_ToggleWindow()
+function LFGForever_ToggleWindow()
 	LFGF.ToggleWindow()
 end
+
+-- The Search key, Bindings.xml's "CLICK LFGForeverSearchKeyButton:LeftButton":
+-- a key bound to a BUTTON, so the client clicks this button when the key is
+-- pressed. No script calls Search: the player reports a script that does is
+-- refused, and a Forever addon's own note says the same of /click from a
+-- macro while its key-bound buttons work. The click runs the Search button's
+-- own search (LFGF.SearchFromKey, core/window.lua, looked up when pressed).
+--
+-- The NAME is saved with the player's key, like a binding's action: renaming
+-- it unbinds every player.
+--
+-- SHOWN, WITH NO SIZE AND NO ANCHOR: nothing to see, no rect a mouse can hit,
+-- and never hidden, because the sources do not say a bound key clicks a hidden
+-- button. Not the window's Search button itself, which exists only once the
+-- window is built and is hidden while the window is closed.
+--
+-- THE PRESS ALONE: a bound key sends a press click and then a release click,
+-- and Blizzard's action bars act on the press by default (ActionButtonUseKeyDown
+-- is "1", CVars.lua:14). One search per key press, as the key goes down.
+local SEARCH_KEY_BUTTON = "LFGForeverSearchKeyButton"
+local searchKey = CreateFrame("Button", SEARCH_KEY_BUTTON, UIParent)
+searchKey:RegisterForClicks("LeftButtonDown")
+searchKey:SetScript("OnClick", function()
+	LFGF.SearchFromKey()
+end)
+
+-- The row's label: Blizzard's Search, the Search button's own word, so the
+-- client and every language pack already translate it.
+_G["BINDING_NAME_CLICK " .. SEARCH_KEY_BUTTON .. ":LeftButton"] = L.SEARCH

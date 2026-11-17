@@ -1,13 +1,29 @@
 local addon_name = ...
 select(2, ...).WildAuctions 'aux'
 _G.WildAuctions = _G.WildAuctions or {}
-_G.WildAuctions.M = M
+_G.WildAuctions.M = require 'aux'
 
 local post = require 'aux.tabs.post'
+M.AUCTION_CUT = .05
 local gui = require 'aux.gui'
 
 function M.print(...)
 	DEFAULT_CHAT_FRAME:AddMessage(LIGHTYELLOW_FONT_COLOR_CODE .. '<WildAuctions> ' .. join(map({...}, tostring), ' '))
+end
+
+-- Sort autocomplete names only when a new unsorted name has been appended.
+local function name_before(a, b)
+    return strlen(a) < strlen(b) or (strlen(a) == strlen(b) and a < b)
+end
+
+function M.sort_item_names(names)
+    for i = 2, #names do
+        if name_before(names[i], names[i - 1]) then
+            sort(names, name_before)
+            return true
+        end
+    end
+    return false
 end
 
 local event_frame = CreateFrame'Frame'
@@ -46,7 +62,7 @@ do
 			for _, f in ipairs(handlers2) do f(arg1, ...) end
 			if type(account_data) == 'table' then
 				account_data.auctionable_items = type(account_data.auctionable_items) == 'table' and account_data.auctionable_items or {}
-				sort(account_data.auctionable_items, function(a, b) return strlen(a) < strlen(b) or (strlen(a) == strlen(b) and a < b) end)
+				sort_item_names(account_data.auctionable_items)
 				print('WildAuctions loaded. Made by Uncle Bone. Use /wa for help.')
 				print(full_scan_reminder(account_data.replicate_time, time()))
 			else
@@ -91,6 +107,7 @@ TOOLTIP_DEFAULTS = {
     disenchant_value = false,
     disenchant_distribution = false,
     money_icons = false,
+    crate = true,
 }
 function M.character_settings(saved)
     assign(saved, {bid_auction_ids = {}, tooltip = {}})
@@ -112,7 +129,7 @@ function event.AUX_LOADED()
         action_shortcuts = false,
         post_full_scan = nil,
         post_bid = nil,
-        post_duration = post.DURATION_24,
+        post_duration = post.DURATION_8,
         post_undercut = false,
         full_search = false,
         sniper_percent = 60,
@@ -318,7 +335,7 @@ do
             AuctionHouseFrame:SetAlpha(0)
             AuctionHouseFrame:EnableMouse(false)
         end
-        if type(M.update_blizzard_button) == 'function' then M.update_blizzard_button() end
+        if type(update_blizzard_button) == 'function' then update_blizzard_button() end
     end
 
     local hooked
@@ -377,7 +394,7 @@ do
         end)
         AuctionHouseFrame:HookScript('OnHide', function()
             blizzard_visible = false
-            if type(M.update_blizzard_button) == 'function' then M.update_blizzard_button() end
+            if type(update_blizzard_button) == 'function' then update_blizzard_button() end
         end)
     end
 
@@ -434,6 +451,15 @@ end
 _G.WildAuctions.OpenWindow = function()
     if open_wild_auctions then return open_wild_auctions() end
 end
+_G.WildAuctions.DisableRuntime = function()
+    -- Keep the auction-house session alive while handing its visible frame back to Blizzard.
+    keep_auction_house_open = true
+    if frame then frame:Hide() end
+    keep_auction_house_open = false
+    set_blizzard_frame_shown(true)
+    if AuctionHouseFrame and AuctionHouseFrame.SetAlpha then AuctionHouseFrame:SetAlpha(1) end
+    if type(update_native_open_button) == 'function' then update_native_open_button() end
+end
 _G.WildAuctions.SetBlizzardUIVisible = function(shown)
     if type(set_blizzard_frame_shown) == 'function' then
         set_blizzard_frame_shown(shown)
@@ -453,3 +479,4 @@ do
 		frame:Hide()
 	end
 end
+

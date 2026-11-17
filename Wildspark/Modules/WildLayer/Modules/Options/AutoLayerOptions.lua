@@ -271,6 +271,15 @@ addonTable.options = {
 					end,
 					order = 6,
 				},
+				foreverLeaveWrongZone = {
+					type = "toggle",
+					name = "Leave Wrong-Zone Layer Groups",
+					desc = "After a layer request, leave a group joined by a recorded layer inviter when the leader is in another zone. Turn this off if you accept unrelated invites while waiting.",
+					set = function(_, val) WildLayer.db.profile.foreverLeaveWrongZone = val and true or false end,
+					get = function() return WildLayer.db.profile.foreverLeaveWrongZone end,
+					hidden = function() return not compat.isForever end,
+					order = 7,
+				},
 				showLayerWarning = {
 					type = "toggle",
 					name = addonTable.flavor == "bcc" and "Layer Zone Warning" or "Layer Segment Warning",
@@ -286,7 +295,7 @@ addonTable.options = {
 					disabled = function()
 						return not WildLayer.db.profile.layerSegments
 					end,
-					order = 7,
+					order = 8,
 				},
 				zoneMismatchWhisper = {
 					type = "toggle",
@@ -298,7 +307,7 @@ addonTable.options = {
 					get = function(info)
 						return WildLayer.db.profile.zoneMismatchWhisper
 					end,
-					order = 8,
+					order = 9,
 					hidden = function()
 						return addonTable.flavor ~= "bcc"
 					end,
@@ -316,7 +325,7 @@ addonTable.options = {
 					get = function(info)
 						return WildLayer.db.profile.lockdownRequestWarning
 					end,
-					order = 9,
+					order = 10,
 					hidden = function()
 						return not compat.isForever
 					end,
@@ -331,7 +340,7 @@ addonTable.options = {
 					get = function(info)
 						return WildLayer.db.profile.lockdownEndedMessage
 					end,
-					order = 10,
+					order = 11,
 					hidden = function()
 						return not compat.isForever
 					end,

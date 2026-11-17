@@ -20,6 +20,7 @@ ns.defaults = {
     showQuestDrops = true,
     showNormalDrops = true,
     showRare = true, -- include low-probability drops by default
+    estimateDropRates = true, -- show clearly labelled local estimates when no published rate exists
     respawnEnabled = true, -- show locally observed NPC respawn estimates when available
 }
 

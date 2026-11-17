@@ -29,7 +29,7 @@ local LFGF = root.WildGroups
 -- Every word this file shows, from core/locale.lua (loaded first).
 local L = LFGF.L
 
-local FRAME_NAME = "WildSparkWildGroupsFrame"
+local FRAME_NAME = "LFGForeverFrame"
 
 -- 1165 x 620. The width is WeeklyRewardsFrame's (Blizzard_WeeklyRewards.xml),
 -- picked as a real Blizzard panel of this size rather than an arbitrary
@@ -184,16 +184,109 @@ end
 -- LFGVanilla_ToggleFrame takes -- 1 Listing, 2 Browse, 3 Who List.
 -- Each tooltip is Blizzard's own tab name by default (LFG_LIST_TAB_1..3,
 -- through core/locale.lua), so it names the tab it opens in the client's words.
+local BLIZZARD_TABS = {
+	{ key = "ListingTab",    tab = 1, icon = "Interface\\ICONS\\INV_SideTab_GroupFinder_c60",
+	  tooltip = L.TAB_CREATE_LISTING },
+	{ key = "BrowsingTab",   tab = 2, icon = "Interface\\ICONS\\INV_SideTab_GroupBrowsing_c60",
+	  tooltip = L.TAB_GROUP_BROWSER },
+	{ key = "WhoListingTab", tab = 3, icon = "Interface\\ICONS\\INV_SideTab_WhoList_c60",
+	  tooltip = L.TAB_WHO_LIST },
+}
+
+--- Hand off to Blizzard's Group Finder on `tab`.
+---
+--- LFGVanilla_ToggleFrame rather than LFGVanilla_ShowFrame, because it carries
+--- Blizzard's own guards (ParentFrame.lua:144-148): it refuses when
+--- GetPremadeGroupFinderStyle() is not Vanilla, or CanPlayerUsePremadeGroup() is
+--- false. ShowFrame checks neither. Letting Blizzard decide is both less code
+--- and the behaviour that stays correct if those rules change.
+---
+--- Their window opens beside this one, which stays open: this window is not
+--- a UI panel, so the manager neither replaces it nor pushes it.
+---
+--- TAINT, stated plainly because it is the cost of this feature: the call runs
+--- from our handler, so Blizzard's tab-switch code executes inside a tainted
+--- stack, and LFGBrowseMixin:OnShow / LFGListingMixin:OnShow read data whose
+--- getters are SecretArguments = "AllowedWhenUntainted". This is the same shape
+--- as Blizzard's own TOGGLEGROUPFINDER binding, and it is unavoidable for any
+--- addon-initiated tab switch -- there is no way to launder taint. See
+--- .claude/rules/groupfinder-blizzard-tab.md.
+---
+--- KNOWN COST, reproduced in the client: Blizzard's OnShow writes
+--- LFGParentFrame.selectedTab inside this call (ParentFrame.lua:56-57 ->
+--- SharedUIPanelTemplates.lua:442), and LFGVanilla_ToggleFrame reads that
+--- field before ShowUIPanel (:138). After one of these side tabs is used, the
+--- player's own Group Finder key is refused in combat
+--- (UIParentPanelManager.lua:854-861) until they click one of Blizzard's tabs.
+--- The whisper log's Location link used to come through here too and no longer
+--- does, for that reason: it pre-fills /who in chat instead.
+function LFGF.GoToBlizzardTab(tab)
+	-- Blizzard's own words at UIParentPanelManager.lua:852:
+	--     "We no longer allow addons to show or hide UI panels in combat."
+	-- CheckProtectedFunctionsAllowed (:853-861) refuses when InCombatLockdown()
+	-- is true and the caller is not secure -- which an addon never is -- and
+	-- prints INTERFACE_ACTION_BLOCKED naming this addon. This window is not a UI
+	-- panel, so it opens in combat; Blizzard's Group Finder IS one, so the side
+	-- tabs that open it check first and say a sentence of ours instead.
+	if InCombatLockdown() then
+		LFGF.Print(L.COMBAT_WINDOW)
+		return
+	end
+
+	-- The finder is LoadOnDemand, so /lfg can have opened this window while it is
+	-- still unloaded and LFGVanilla_ToggleFrame does not exist yet.
+	-- GroupFinderVanillaStyle_LoadUI is always available: its file is [Bootstrap]
+	-- (Blizzard_GroupFinder_VanillaStyle_Bootstrap.lua:3-5).
+	if not LFGVanilla_ToggleFrame then
+		GroupFinderVanillaStyle_LoadUI()
+	end
+
+	if LFGVanilla_ToggleFrame then
+		LFGVanilla_ToggleFrame(tab)
+	end
+end
+
 local function BuildSideTabs(frame)
-	local own = CreateFrame("Frame", nil, frame, "LargeSideTabButtonTemplate")
-	own:SetID(4)
+	local previous
+
+	local function AddTab(key)
+		local t = CreateFrame("Frame", nil, frame, "LargeSideTabButtonTemplate")
+		t.Icon:SetSize(30, 30)
+		t:SetFillToInterior(true)
+
+		if previous then
+			t:SetPoint("TOPLEFT", previous, "BOTTOMLEFT", 0, -2)
+		else
+			-- ParentFrame.xml:100 -- the strip hangs off the frame's TOPRIGHT.
+			t:SetPoint("TOPLEFT", frame, "TOPRIGHT", 0, -60)
+		end
+
+		frame[key] = t
+		previous = t
+		return t
+	end
+
+	for _, info in ipairs(BLIZZARD_TABS) do
+		local t = AddTab(info.key)
+		-- SetTexture plus the crop Blizzard applies to a square ICONS file
+		-- (LFGParentFrameRightTabMixin:OnLoad, ParentFrame.lua:101-112).
+		t.Icon:SetTexture(info.icon)
+		t.Icon:SetTexCoord(0.03125, 0.96875, 0.03125, 0.96875)
+		t.tooltipText = info.tooltip
+		t:SetChecked(false)
+		t:SetCustomOnMouseUpHandler(function(_, button, upInside)
+			if button == "LeftButton" and upInside then
+				LFGF.GoToBlizzardTab(info.tab)
+			end
+		end)
+	end
+
+	-- This window's own tab, checked because this window IS that view. It takes
+	-- no click handler: there is nowhere to go.
+	local own = AddTab("BetterTab")
 	own.Icon:SetAtlas(LFGF.ICON_ATLAS)
-	own.Icon:SetSize(30, 30)
-	own:SetFillToInterior(true)
-	own:SetPoint("TOPLEFT", frame, "TOPRIGHT", 0, -60)
 	own.tooltipText = TITLE
 	own:SetChecked(true)
-	frame.BetterTab = own
 end
 
 --- The saved centre offset, or nothing when there is no usable one.
@@ -412,7 +505,7 @@ end
 -- right end, above the filter panel. Blizzard's camelot Group Browser puts
 -- its 16-high gear in the same strip, at TOPRIGHT (-12, -32)
 -- (Blizzard_LFGVanilla_Browse.xml:593-596). Ours sits at the same height and
--- ends where LFG Forever's settings gear below it ends: the filter panel's
+-- ends where WildGroups's settings gear below it ends: the filter panel's
 -- right edge (INSET_RIGHT) less its row padding. Below the title bar, so the
 -- drag bar never takes its clicks; above the panels (INSET_TOP).
 --
@@ -620,6 +713,26 @@ function LFGF.OpenWindow()
 	Prepare():Show()
 end
 
-function LFGF.CloseWindow()
-	if window then window:Hide() end
+--- Search from the Search key (core/slash.lua's key-bound button): open the
+--- window, building it if needed, then run the Search button's own search.
+--- Shown first, so the list hears the search start while it is on screen.
+--- When Search cannot run (a search still running, no category yet) nothing
+--- more happens, as with a click on the greyed button; the click sound plays
+--- only when the search goes out.
+function LFGF.SearchFromKey()
+	if not LFGF.IsEnabled() then return end
+	local frame = Prepare()
+	frame:Show()
+	if frame.Content.FilterPanel:RequestSearch() then
+		LFGF.PlayClick()
+	end
+end
+
+--- Open the window on the Player ratings tab, building it if needed. Used by
+--- the "rate players who left" chat link (core/rateleavers.lua). Shown first,
+--- so the tab's list is shown once, when the tab switch reaches it.
+function LFGF.OpenPlayerRatings()
+	local frame = Prepare()
+	frame:Show()
+	frame.Content.FilterPanel:ShowPlayerRatingsTab()
 end

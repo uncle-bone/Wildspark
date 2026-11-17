@@ -64,6 +64,18 @@ function module.GetShowRare()
     return db and db.showRare ~= false or false
 end
 
+function module.GetEstimateDropRates()
+    local db = settings()
+    return db == nil or db.estimateDropRates ~= false
+end
+
+function module.SetEstimateDropRates(enabled)
+    local db = settings()
+    if not db then return end
+    db.estimateDropRates = enabled and true or false
+    if core and core.Refresh then core.Refresh() end
+end
+
 function module.SetShowRare(enabled)
     local db = settings()
     if not db then return end

@@ -126,7 +126,7 @@ SOFTWARE.
 """
 ARTWORK_NOTICE = """WildSpark replaces all original CampingKit media artwork with new assets.
 
-The original tent, kit, control, ring, glow, mask, and divider artwork described in CampingKitEmbedded/LICENSE is not included in this package. Code and bundled libraries retain their original notices. Replacement emoji art is from Microsoft Fluent Emoji under MIT; its full notice is in Media/WildFireIcon-LICENSE.txt. The remaining masks and UI effects are clean replacement textures generated for WildSpark."""
+The original tent, kit, control, ring, glow, mask, and divider artwork described in WildFireKitEmbedded/LICENSE is not included in this package. Code and bundled libraries retain their original notices. Replacement emoji art is from Microsoft Fluent Emoji under MIT; its full notice is in Media/WildFireIcon-LICENSE.txt. The remaining masks and UI effects are clean replacement textures generated for WildSpark."""
 
 def to_tga(image):
     output = io.BytesIO()
@@ -290,11 +290,11 @@ def rewrite_text(name: str, data: bytes) -> bytes:
         show = show.replace("hook_panel_layout()", "hook_panel_layout()")
         show = show.replace("set_blizzard_frame_shown(false)", "set_blizzard_frame_shown(false)")
         text = text[:show_start] + show + text[show_end:]
-    if name == "WildSpark/CampingKitEmbedded/Data.lua":
+    if name == "WildSpark/WildFireKitEmbedded/Data.lua":
         old_path = "Media" + chr(92)*2 + "CampingKit" + chr(92)*2
         new_path = "Media" + chr(92)*2 + "WildFire" + chr(92)*2
         text = text.replace(old_path, new_path)
-    if name == "WildSpark/CampingKitEmbedded/Libs/KitDock/KitDock.lua":
+    if name == "WildSpark/WildFireKitEmbedded/Libs/KitDock/KitDock.lua":
         old_path = "Media" + chr(92)*2 + "CampingKit" + chr(92)*2
         new_path = "Media" + chr(92)*2 + "WildFire" + chr(92)*2
         text = text.replace(old_path, new_path)
@@ -391,7 +391,7 @@ with zipfile.ZipFile(baseline, "r") as src, zipfile.ZipFile(output_zip, "w", com
         dst.writestr("WildSpark/Media/WildFire/" + asset_name, asset_data, compress_type=zipfile.ZIP_DEFLATED)
     dst.writestr("WildSpark/Media/WildFireIcon.tga", to_tga(render_fluent("camping", 64)), compress_type=zipfile.ZIP_DEFLATED)
     dst.writestr("WildSpark/Media/WildFireIcon-LICENSE.txt", CAMPING_LICENSE, compress_type=zipfile.ZIP_DEFLATED)
-    dst.writestr("WildSpark/CampingKitEmbedded/ARTWORK_NOTICE.txt", ARTWORK_NOTICE, compress_type=zipfile.ZIP_DEFLATED)
+    dst.writestr("WildSpark/WildFireKitEmbedded/ARTWORK_NOTICE.txt", ARTWORK_NOTICE, compress_type=zipfile.ZIP_DEFLATED)
 
 with zipfile.ZipFile(output_zip, "r") as z:
     required = [
@@ -410,8 +410,8 @@ with zipfile.ZipFile(output_zip, "r") as z:
     new_camping_art = [name for name in z.namelist() if name.startswith("WildSpark/Media/WildFire/")]
     if old_camping_art or len(new_camping_art) != 37:
         raise SystemExit(f"Expected all 37 old CampingKit assets replaced; old={len(old_camping_art)}, new={len(new_camping_art)}")
-    data_source = z.read("WildSpark/CampingKitEmbedded/Data.lua")
-    dock_source = z.read("WildSpark/CampingKitEmbedded/Libs/KitDock/KitDock.lua")
+    data_source = z.read("WildSpark/WildFireKitEmbedded/Data.lua")
+    dock_source = z.read("WildSpark/WildFireKitEmbedded/Libs/KitDock/KitDock.lua")
     old_media_path = b"Media" + bytes([92,92]) + b"CampingKit" + bytes([92,92])
     if old_media_path in data_source or old_media_path in dock_source:
         raise SystemExit("Old CampingKit art path is still referenced")

@@ -1,10 +1,36 @@
 # WildSpark
 
-> **[Download WildSpark 2.2.44 - Latest Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.44/WildSpark-2.2.44.zip)**
+> **[Download WildSpark 2.2.48 - Latest Published Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.48/WildSpark-2.2.48.zip)**
 
-**Current stable release: 2.2.44 for WoW Forever 1.60.1.** The installable ZIP contains one `WildSpark` addon folder. QuestDB, the latest QuestieDB Forever data, and WildInfo's quest-drop datasets are embedded and load automatically with WildSpark.
+**Latest published stable release: 2.2.48 for WoW Forever 1.60.1.** The package contains one install folder, `WildSpark`. Its WildPvP module combines nearby enemy alerts, battleground timers, battleground map intel, and enemy frames. QuestDB, QuestieDB Forever data, and WildInfo's quest-drop datasets are embedded and load automatically with WildSpark.
 
-WildSpark is a modular WoW Forever utility suite for gathering highlights, quest-drop tooltips, buffs, creature leash tracking, WildFire camping, auctions, group finding, and layer hopping. Its major modules have dedicated settings tabs, and can be enabled or disabled independently.
+WildSpark is a modular WoW Forever utility suite for gathering highlights, quest-drop tooltips, dungeon maps, buffs, creature leash tracking, WildFire camping, auctions, group finding, layer hopping, and PvP tools. WildPvP's settings tab opens each feature directly.
+
+Install the single `WildSpark` folder from the ZIP into `Interface/AddOns`. WildPvP appears as a tab inside WildSpark. Its buttons open nearby enemy alerts, battleground timers, map intel, and enemy frames without requiring slash commands. The source projects' names are not used in the player-facing tab or feature labels.
+
+## What's new in 2.2.48
+
+- Update WildLayer with AutoLayer 1.9.16's zone-scoped Forever requests and correlated wrong-zone invite handling.
+- Update Spy Forever to 1.3.8-forever20. The other three supplied PvP components already match upstream.
+- Make WildAuctions, WildMaps, WildGroups notifications, and WildLayer disable immediately without `/reload`.
+- Keep WildMaps in its own movable, clipped Zone Map. Zoom stays inside the fixed viewport and cannot shrink below the fitted full-map view.
+- Add clearly labeled local drop-rate estimates from looted-corpse observations when the database has no percentage; do not register the restricted combat-log event.
+- Restore WildGroups chat notices for party/raid and guild invites, with the LFG ReadyCheck sound on incoming group invites.
+
+## What's new in 2.2.46
+
+- Add the WildMaps settings tab with a selectable dungeon catalog that opens only in its movable Zone Map; Shift+M toggles the Zone Map.
+- Fix dragging the compact Zone Map window and stop opening or modifying Blizzard's World Map.
+- Combine the four supplied PvP sources into the WildPvP module inside WildSpark, with one WildSpark install folder and its own tab.
+- Keep required author credits and license notices in WildPvP's `LICENSES` folder.
+- Restore WildGroups chat notices and the Blizzard invite sound for incoming and outgoing party/raid invitations.
+- Keep the WildMaps dungeon catalog and the module tab rail inside their scrollable panels.
+
+## What's new in 2.2.45
+
+- Add the missing WildMaps settings tab with a selectable dungeon catalog, map launch controls, compact Zone Map size control, and an enable switch.
+- Fix dragging the compact Zone Map window.
+- Add a WildPvP tab and master switch as the home for a later PvP integration.
 
 ## What's new in 2.2.44
 

@@ -12,4 +12,6 @@
 	<Binding name="CLICK CampingKitSlot_prof2:LeftButton" category="ADDONS"/>
 	<Binding name="CLICK CampingKitSlot_bag:LeftButton" category="ADDONS"/>
 	<Binding name="CLICK CampingKitSlot_sit:LeftButton" category="ADDONS"/>
+	<Binding name="LFGFOREVER_TOGGLE" category="BINDING_HEADER_LFGFOREVER">LFGForever_ToggleWindow()</Binding>
+	<Binding name="CLICK LFGForeverSearchKeyButton:LeftButton" category="BINDING_HEADER_LFGFOREVER"/>
 </Bindings>

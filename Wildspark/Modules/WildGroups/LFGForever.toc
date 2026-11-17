@@ -1,10 +1,10 @@
 ## Interface: 16001
-## Title: LFG Forever
-## Notes: Advanced LFG group finder: filter by role, class, whisper, quick invite. Type /lfg
+## Title: WildGroups
+## Notes: Forever group finder: filter by role, class, whisper, quick invite. Type /lfg
 ## Category: Group Finder
 ## IconAtlas: friends-icon-tab-quickJoin
 ## Author: Artefius
-## Version: 1.3.0
+## Version: 2.1.0
 ## X-License: GPLv3
 ## X-Category: Chat/Communication
 ## X-Curse-Project-ID: 1707849
@@ -12,6 +12,9 @@
 ## X-Website: https://discord.com/invite/z6BU5Rkdsy
 ## SavedVariables: LFGForeverDB
 ## SavedVariablesPerCharacter: LFGForeverCharDB
+## AddonCompartmentFunc: LFGForever_OnAddonCompartmentClick
+## AddonCompartmentFuncOnEnter: LFGForever_OnAddonCompartmentEnter
+## AddonCompartmentFuncOnLeave: LFGForever_OnAddonCompartmentLeave
 
 # Interface 16001 is GetBuildInfo() dumped from a running Forever 1.60.1
 # client (.libraries/BlizzardInterfaceResources/README.md:7).
@@ -60,11 +63,19 @@
 #   * core/filterpanel_shared.lua comes before core/filterpanel_miscellaneous.lua
 #     and core/filterpanel.lua: both read its LFGF.FilterShared (the section
 #     builders) at file scope. .claude/rules/filter-miscellaneous-section.md
+# core/playerrow.lua (the one-line player row) comes before core/whisperlog.lua
+# and core/playerratings.lua (the Player ratings tab), which read its
+# LFGF.PlayerRow at file scope. .claude/rules/player-ratings.md
+# core/recentparty.lua (the last five party members) sits just before
+# core/playerratings.lua, whose tab lists them; it is read only at call time.
 # core/filterpanel_groupclasses.lua (the Groups section's class filter) sits
 # beside the Miscellaneous section's file, before core/filterpanel.lua, which
 # builds with it. .claude/rules/group-class-filter.md
 # The panel factories come before core/window.lua, which builds with them, and
 # core/blizzardtab.lua after it, since the tab opens that window.
+# core/rateleavers.lua (the "rate players who left" chat line) comes after them
+# too: its link opens that window, on the Player ratings tab.
+# .claude/rules/rate-leavers.md
 core\locale.lua
 core\db.lua
 core\main.lua
@@ -73,12 +84,16 @@ core\talents.lua
 core\settings.lua
 core\settings.xml
 core\listpanel.lua
+core\playerrow.lua
 core\whisperlog.lua
+core\recentparty.lua
+core\playerratings.lua
 core\filterpanel_shared.lua
 core\filterpanel_miscellaneous.lua
 core\filterpanel_groupclasses.lua
 core\filterpanel.lua
 core\window.lua
 core\blizzardtab.lua
+core\rateleavers.lua
 core\minimap.lua
 core\slash.lua

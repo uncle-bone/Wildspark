@@ -1,6 +1,6 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/ ..\..\FrameXML\UI.xsd">
 	<!--
-		LFG Forever's settings row for a line of text: the "Message" fields under
+		WildGroups's settings row for a line of text: the "Message" fields under
 		"Auto-whisper on Ask to Join" and "Auto-whisper on Invite". Blizzard ships
 		no text-input settings row, so this is one of our own, laid out like
 		Blizzard's rows:
@@ -20,10 +20,10 @@
 		:361-395). Built on Blizzard's row template and mixins, the row carried
 		Blizzard's methods as values of ours, the list read one of them tainted,
 		and every row built after it, the Keybindings page's included, ran as
-		LFG Forever. The only mixin is ours, holding only the methods Blizzard
+		WildGroups. The only mixin is ours, holding only the methods Blizzard
 		calls inside its protected calls. .claude/rules/settings-list-taint.md
 	-->
-	<Frame name="WildSparkWildGroupsSettingsMessageRowTemplate" mixin="WildSparkWildGroupsSettingsMessageRowMixin" virtual="true">
+	<Frame name="LFGForeverSettingsMessageRowTemplate" mixin="LFGForeverSettingsMessageRowMixin" virtual="true">
 		<Size x="280" y="26"/>
 		<Layers>
 			<Layer level="OVERLAY">
@@ -68,7 +68,7 @@
 	</Frame>
 
 	<!--
-		LFG Forever's settings row for a sentence: the one in Miscellaneous that
+		WildGroups's settings row for a sentence: the one in Miscellaneous that
 		says where the other languages come from. Blizzard's only text row,
 		SettingsAddOnDisabledLabelTemplate (Blizzard_SettingControls.xml:36-47),
 		shows one fixed string and has no code to change it, so this is one of
@@ -85,7 +85,7 @@
 		The same rule as the row above: no Blizzard row, no Blizzard row mixin,
 		no script. The mixin holds Init alone. .claude/rules/language-packs-row.md
 	-->
-	<Frame name="WildSparkWildGroupsSettingsTextRowTemplate" mixin="WildSparkWildGroupsSettingsTextRowMixin" virtual="true">
+	<Frame name="LFGForeverSettingsTextRowTemplate" mixin="LFGForeverSettingsTextRowMixin" virtual="true">
 		<Size x="280" y="45"/>
 		<Layers>
 			<Layer level="OVERLAY">

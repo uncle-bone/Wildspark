@@ -64,7 +64,7 @@ function M.scan_auctions()
     listing:SetDatabase(auctions)
 end
 
--- WildAuctions (0.4): undercut check. Each item you sell is read once (about half a second per
+-- auxForever (0.4): undercut check. Each item you sell is read once (about half a second per
 -- item, only when the tab opens or Check prices is pressed, never in the background). For each
 -- item it keeps the cheapest price of other sellers and how many other sellers list it at each
 -- price. Another seller at your price ("tied") is shown, but only a lower price counts as undercut
@@ -75,7 +75,7 @@ checks = {} -- item key text -> {lowest = cheapest other seller per item, at_pri
 checking = nil -- {done, total} while a check runs
 checked_at = nil
 cancelled = {} -- auction IDs the auction house confirmed cancelled, until the list no longer has them
--- WildAuctions (0.7.1, FB-016): a cancel sent but not yet confirmed. aux used to say "Cancelled"
+-- auxForever (0.7.1, FB-016): a cancel sent but not yet confirmed. aux used to say "Cancelled"
 -- as soon as it was sent; a cancel the server refused or never answered still read cancelled.
 cancelling = {} -- auction ID -> GetTime() when the cancel was sent
 CANCEL_TIMEOUT = 10 -- seconds without an answer before the row goes back to its status
@@ -89,7 +89,7 @@ local function check_key(record)
     return record.price_key or (record.item_search_key and key_text(record.item_search_key)) or record.item_id .. ':0'
 end
 
--- WildAuctions (0.8, gear versions): gear with a random ending is checked against every listing of
+-- auxForever (0.8, gear versions): gear with a random ending is checked against every listing of
 -- its name, as Blizzard's Sell window does: the auction house keeps one name under several versions
 -- with the same stats (Ritual Belt of Arcane Protection under four, seen 2026-10-17), and a check of
 -- the exact version alone said "Only one listed" with others of the name for sale. Such gear is read
@@ -149,12 +149,23 @@ function M.check_prices()
             local mine = record.contains_own or (record.own_count or 0) > 0
             entry.at_price[price] = (entry.at_price[price] or 0) + max(1, (record.seller_count or 1) - (mine and 1 or 0))
         end,
-        on_complete = function()
+        on_complete = function(result)
+            -- 0.8.2.1 (outside review, R-02): when part of the answer is missing (the item list did
+            -- not fully arrive, or an item could not be read), an item nothing was found for is not
+            -- "Lowest" or "Only one listed": it keeps what the last check said, or "Not checked",
+            -- and the next time the tab opens it is checked again
+            local whole = scan.saw_everything(result)
             for key in pairs(wanted) do
-                checks[key] = found[key] or {at_price = {}}
+                if whole then
+                    checks[key] = found[key] or {at_price = {}}
+                else
+                    checks[key] = found[key] or checks[key]
+                end
             end
             checking = nil
-            checked_at = time()
+            if whole then
+                checked_at = time()
+            end
             listing:UpdateRows()
         end,
         on_abort = function()
@@ -268,7 +279,7 @@ function M.cancel_next_undercut()
     end
 end
 
--- WildAuctions: the list follows the game's events; a slow refresh keeps time left current. aux used
+-- auxForever: the list follows the game's events; a slow refresh keeps time left current. aux used
 -- to run a thread every frame all game long to rebuild it every second.
 REFRESH_SECONDS = 10
 

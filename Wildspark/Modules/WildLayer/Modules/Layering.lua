@@ -18,6 +18,7 @@ local queuedKickNames = {}
 local compatibilityNoticeExpiry = {}
 local pendingCompatibilityNotices = {}
 local nextCompatibilityNoticeToken = 0
+local joinCheckToken = 0
 local zoneMismatchNoticeExpiry = {}
 local runtimeStats = {
 	matchedRequests = 0,
@@ -477,6 +478,7 @@ function WildLayer:ProcessMessage(
 	local bccMetadata
 	local bccRequiresCompatibilityHandling = false
 	local bccShouldNotifyCompatibility = false
+	local requesterZoneID
 
 	if addonTable.flavor == "bcc" then
 		local bccBody
@@ -494,12 +496,20 @@ function WildLayer:ProcessMessage(
 			bccShouldNotifyCompatibility = bccRequiresCompatibilityHandling
 		end
 	else
+		if compat.isForever then
+			requesterZoneID, msg = util.ParseZoneHeader(msg)
+		end
+
 		-- Check if the message has a layer segment prefix. If it does, it should match our layer segment.
 		local segmentPrefix = msg:match("^<(%w+)> ")
 
 		-- Remove the matched prefix from msg, since it could inadvertently trigger things like blacklist or invert keywords
 		if segmentPrefix then
 			msg = msg:gsub("^<" .. segmentPrefix .. "> ", "")
+		end
+
+		if compat.isForever and not requesterZoneID then
+			requesterZoneID, msg = util.ParseZoneHeader(msg)
 		end
 
 		if self.db.profile.layerSegments and addonTable.currentLayerSegment and segmentPrefix then
@@ -577,6 +587,17 @@ function WildLayer:ProcessMessage(
 				sendZoneMismatchNoticeOnce(name)
 				return
 			end
+		end
+	end
+
+	if compat.isForever and requesterZoneID and self.db.profile.layerSegments then
+		local leaderUnit = util.FindGroupLeaderUnit()
+		local targetZoneID = self:GetLayerZoneID("player")
+		if leaderUnit then targetZoneID = self:GetLayerZoneID(leaderUnit) end
+		if targetZoneID and requesterZoneID ~= targetZoneID then
+			self:DebugPrint("Request zone", requesterZoneID, "does not match inviting group zone", targetZoneID, "ignoring")
+			sendZoneMismatchNoticeOnce(name)
+			return
 		end
 	end
 
@@ -725,6 +746,15 @@ function WildLayer:ProcessSystemMessages(_, SystemMessages)
 		clearGroupInviteTimes()
 	end
 	if not self.db.profile.enabled then
+		return
+	end
+
+	-- A requester on another realm/PvP shard may be invisible to invites on Forever.
+	local notFoundName = SystemMessages:match(util.MessagePattern(ERR_BAD_PLAYER_NAME_S))
+	if notFoundName and self:IsRecentLayerRequest(notFoundName) then
+		local notFoundPlayer = removeRealmName(notFoundName)
+		table.insert(playersInvitedRecently, { name = notFoundPlayer, time = time() })
+		self:DebugPrint("Adding", notFoundPlayer, "to cache, reason: player not found")
 		return
 	end
 
@@ -884,10 +914,12 @@ function WildLayer:HandleAutoKick()
 end
 
 function WildLayer:ProcessRosterUpdate()
+	if not self.db.profile.enabled then return end
 	self:getCurrentLayer()
 end
 
 function WildLayer:ProcessZoneChange()
+	if not self.db.profile.enabled then return end
 	if addonTable.flavor == "bcc" then
 		addonTable.currentLayerZone = self:GetLayerZone()
 		self:DebugPrint("Current layer zone set to:", addonTable.currentLayerZone)
@@ -963,6 +995,69 @@ function WildLayer:ProcessGroupJoined()
 		return
 	end
 
+	if compat.isForever then
+		joinCheckToken = joinCheckToken + 1
+		local pendingLayerHop = addonTable.pendingLayerHop
+		if pendingLayerHop and pendingLayerHop.sentAt + 300 < time() then
+			addonTable.pendingLayerHop = nil
+			pendingLayerHop = nil
+		end
+		if pendingLayerHop then addonTable.pendingLayerHop = nil end
+		local inviters = pendingLayerHop and pendingLayerHop.inviters or {}
+		local warningsEnabled = self.db.profile.layerSegments and self.db.profile.showLayerWarning
+		if pendingLayerHop and next(inviters) and (self.db.profile.foreverLeaveWrongZone or warningsEnabled) then
+			local token, attempts = joinCheckToken, 0
+			local function isInviteCorrelated()
+				local prefix = IsInRaid() and "raid" or "party"
+				for i = 1, GetNumGroupMembers() do
+					local memberName = UnitName(prefix .. i)
+					if memberName and compat.CanAccess(memberName)
+						and inviters[normalizeCharacterName(memberName)] then return true end
+				end
+				return false
+			end
+			local function checkGroupZone()
+				attempts = attempts + 1
+				if joinCheckToken ~= token or (not IsInGroup() and not IsInRaid()) or UnitIsGroupLeader("player") then return end
+				local leaderUnit = util.FindGroupLeaderUnit()
+				if not leaderUnit then
+					if attempts < 3 then C_Timer.After(2, checkGroupZone) end
+					return
+				end
+				local inviteCorrelated = isInviteCorrelated()
+				local playerZone, leaderZone = self:GetLayerZoneID("player"), self:GetLayerZoneID(leaderUnit)
+				local action = util.GetForeverGroupAction({
+					forever = true, isLeader = false, inviteCorrelated = inviteCorrelated,
+					leaveWrongZone = self.db.profile.foreverLeaveWrongZone,
+					warningsEnabled = warningsEnabled, playerZone = playerZone, leaderZone = leaderZone,
+				})
+				if action == "retry" and attempts < 3 then C_Timer.After(2, checkGroupZone); return end
+				if action == "leave" then
+					compat.LeaveParty()
+					local playerInfo, leaderInfo = C_Map.GetMapInfo(playerZone), C_Map.GetMapInfo(leaderZone)
+					self:Print("|cffffff00Left the group:|r the party leader is in " ..
+						(leaderInfo and leaderInfo.name or "another zone") .. ", while you are in " ..
+						(playerInfo and playerInfo.name or "a different zone") ..
+						". On WoW Forever, layer invites only work within the same zone. You can request a layer again.")
+					return
+				end
+				if action == "warn" or (action == "none" and not inviteCorrelated and warningsEnabled)
+					or (action == "retry" and warningsEnabled) then
+					local playerSegment, leaderSegment = WildLayer:CompareLayerSegments()
+					if playerSegment ~= leaderSegment then
+						self:Print("|cffffff00WARNING:|r You are in " ..
+							(addonTable.layerSegments[playerSegment] or "an unknown segment") ..
+							", while the party leader is in " ..
+							(addonTable.layerSegments[leaderSegment] or "an unknown segment") ..
+							". You will most likely not layer correctly. You can leave the party and try to layer again.")
+					end
+				end
+			end
+			C_Timer.After(2, checkGroupZone)
+			return
+		end
+	end
+
 	if self.db.profile.layerSegments and self.db.profile.showLayerWarning and not UnitIsGroupLeader("player") then
 		self:DebugPrint("Group joined, comparing layer segments with leader...")
 		-- Grant the game a little bit of time to process the group join and update any relevant information before we compare segments
@@ -984,6 +1079,14 @@ WildLayer:RegisterEvent("CHAT_MSG_SYSTEM", "ProcessSystemMessages")
 WildLayer:RegisterEvent("GROUP_ROSTER_UPDATE", "ProcessRosterUpdate")
 WildLayer:RegisterEvent("ZONE_CHANGED_NEW_AREA", "ProcessZoneChange")
 WildLayer:RegisterEvent("GROUP_JOINED", "ProcessGroupJoined")
+WildLayer:RegisterEvent("PARTY_INVITE_REQUEST", function(_, inviterName)
+	local pending = addonTable.pendingLayerHop
+	if not compat.isForever or not pending or not inviterName or not compat.CanAccess(inviterName) then return end
+	local normalized = normalizeCharacterName(inviterName)
+	if normalized == "" then return end
+	pending.inviters = pending.inviters or {}
+	pending.inviters[normalized] = true
+end)
 WildLayer:RegisterEvent("CHANNEL_UI_UPDATE", function()
 	ScheduleChannelOrderFix()
 end)

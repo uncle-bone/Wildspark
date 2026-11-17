@@ -223,6 +223,11 @@ end
 --
 -- READ AT EVERY USE, NEVER CACHED: nothing says the offered list is there when
 -- the panel is built, so the dropdown checks again whenever it is shown.
+--
+-- NEVER DISABLED, by the author's rule: the player can always open the menu
+-- and see the languages, even when every one is locked. Blizzard's own menu
+-- hides itself when nothing can be changed (LFGListCanChangeLanguages,
+-- LFGList.lua:2421-2435); ours does not.
 
 -- The label, Blizzard's LANGUAGES_LABEL (its retail menu's, LFGList.lua:2686)
 -- through the locale table. Published for MeasureLayout and the specs.
@@ -265,17 +270,6 @@ local function LockedLanguages(offered)
 	return locked
 end
 
---- A choice exists when some offered language is not locked: the half of
---- Blizzard's LFGListCanChangeLanguages kept here (LFGList.lua:2425-2435).
-local function CanChooseLanguages(offered, locked)
-	for _, code in ipairs(offered) do
-		if not locked[code] then
-			return true
-		end
-	end
-	return false
-end
-
 --- A language's name: its locale key (core/locale.lua), which defaults to
 --- Blizzard's own string, or the code for one the addon has no key for.
 local function LanguageName(code)
@@ -306,35 +300,17 @@ local function MenuOrder(offered, locked)
 	return first
 end
 
---- The greyed-out dropdown's tooltip, in the addon's usual shape (a white
---- title and a gold line, as LFGF.ShowTooltip draws them). Handed to the
---- dropdown's own SetTooltip, which shows it on enter
---- (DropdownSelectionTextMixin, MenuTemplates.lua:875-897).
-local function UnavailableTooltip(tooltip)
-	GameTooltip_SetTitle(tooltip, L.LANGUAGES_ROW_LABEL)
-	GameTooltip_AddNormalLine(tooltip, L.LANGUAGES_UNAVAILABLE_TOOLTIP)
-end
-
---- Bring the dropdown in line with the game and the selection: enabled with a
---- choice, greyed out with its tooltip without one, and the text by the
+--- Bring the dropdown's text in line with the game and the selection, by the
 --- author's rule (Playstyle's), taking the first that applies:
 ---   * one language ticked (the default: yours): its name;
 ---   * every offered language ticked: ALL;
 ---   * nothing ticked, which needs nothing offered: ALL, there being no name;
 ---   * otherwise the count ("2 selected").
---- With no choice every offered language is locked, so the same rule names
---- yours.
----
---- THE TOOLTIP IS CLEARED WITH A CHOICE: while one is set, the dropdown shows
---- it on every hover, in place of Blizzard's truncated-text tooltip.
+--- With every offered language locked, the same rule names yours.
 local function UpdateLanguages(section)
 	local offered = OfferedLanguages()
 	local locked = LockedLanguages(offered)
 	local dropdown = section.LanguagesDropdown
-
-	local canChoose = CanChooseLanguages(offered, locked)
-	dropdown:SetEnabled(canChoose)
-	dropdown:SetTooltip(not canChoose and UnavailableTooltip or nil)
 
 	local ticked, only = 0, nil
 	for _, code in ipairs(offered) do
@@ -358,6 +334,11 @@ end
 --- the menu stays open (:357-368); then one checkbox per offered language, in
 --- MenuOrder. The words are the class filter's links' (core/filterpanel.lua),
 --- so the panel says it one way. Unselect all leaves a locked language ticked.
+--- The bulk rows stay clickable when every language is locked (they change
+--- nothing then), by the author's choice.
+---
+--- NOTHING OFFERED (the game answers no list): the bulk rows are greyed out
+--- and a greyed-out note follows them, so the opened menu is never empty.
 ---
 --- A LOCKED ROW is Blizzard's own: disabled, so it cannot be clicked, and
 --- still ticked (LFGList.lua:2696, :2708-2710). A disabled menu row still
@@ -391,14 +372,18 @@ local function SetupLanguagesMenu(section)
 			UpdateLanguages(section)
 		end
 
-		rootDescription:CreateButton(L.SELECT_ALL, SetAll, true)
-		rootDescription:CreateButton(L.UNSELECT_ALL, SetAll, false)
+		local anyOffered = #offered > 0
+		rootDescription:CreateButton(L.SELECT_ALL, SetAll, true):SetEnabled(anyOffered)
+		rootDescription:CreateButton(L.UNSELECT_ALL, SetAll, false):SetEnabled(anyOffered)
+		if not anyOffered then
+			rootDescription:CreateButton(L.LANGUAGES_NONE_AVAILABLE):SetEnabled(false)
+		end
 		for _, code in ipairs(MenuOrder(offered, locked)) do
 			local name = LanguageName(code)
 			local checkbox = rootDescription:CreateCheckbox(name, IsSelected, SetSelected, code)
 			if locked[code] then
 				checkbox:SetEnabled(false)
-				checkbox:SetTitleAndTextTooltip(name, L.LANGUAGE_LOCKED_TOOLTIP)
+				checkbox:SetTitleAndTextTooltip(name, L.LANGUAGE_LOCKED_BY_BLIZZARD_TOOLTIP)
 			end
 		end
 	end)
@@ -413,9 +398,6 @@ local function BuildLanguagesRow(panel, section)
 	local dropdown = CreateFrame("DropdownButton", nil, section.Content, "WowStyle1DropdownTemplate")
 	dropdown:SetWidth(LFGF.LANGUAGES_DROPDOWN_WIDTH)
 	dropdown:SetPoint("RIGHT", section.Content, "TOPRIGHT", 0, rowTop - Shared.ROLE_ROW_HEIGHT / 2)
-	-- The template does not take the mouse's motion while disabled, and the
-	-- greyed-out dropdown's tooltip needs it (as the Role Check button's does).
-	dropdown:SetMotionScriptsWhileDisabled(true)
 	-- The offered list may arrive after the panel is built: check again
 	-- whenever the dropdown is shown (the window opening, the Filters tab).
 	dropdown:HookScript("OnShow", function()

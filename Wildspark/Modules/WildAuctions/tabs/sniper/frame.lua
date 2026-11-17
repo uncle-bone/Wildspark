@@ -9,7 +9,7 @@ local auction_listing = require 'aux.gui.auction_listing'
 local buy_bar = require 'aux.gui.buy_bar'
 local search_tab = require 'aux.tabs.search'
 
--- WildAuctions: the Sniper tab, from the approved mockup: Start / Stop and the round status on the
+-- auxForever: the Sniper tab, from the approved mockup: Start / Stop and the round status on the
 -- left, the deal rule on the right, the deals in a table with the buy bar under it.
 
 frame = CreateFrame('Frame', nil, aux.frame)
@@ -186,9 +186,9 @@ listing:SetHandler('OnClick', function(row, button)
     if button == 'LeftButton' then
         click_deal(row.record)
     elseif button == 'RightButton' then
+        local item_id = row.record.item_id
         aux.set_tab(1)
-        search_tab.set_filter(strlower(info.item(row.record.item_id).name) .. '/exact')
-        search_tab.execute(nil, false)
+        search_tab.search_item(item_id)
     end
 end)
 

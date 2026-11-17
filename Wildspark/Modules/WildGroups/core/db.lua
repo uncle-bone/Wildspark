@@ -1,6 +1,6 @@
 -- LFGForever -- core/db.lua
 --
--- THE SAVED TABLES: every key LFG Forever keeps on disk, its default, and the
+-- THE SAVED TABLES: every key WildGroups keeps on disk, its default, and the
 -- four helpers every other file reads and writes them through. Loads SECOND,
 -- after core/locale.lua, so every later file can read a default at file scope.
 --
@@ -105,7 +105,14 @@ LFGF.SAVED_KEYS = {
 	-- THE MINIMAP BUTTON (core/minimap.lua). The addon compartment entry is
 	-- declared in the TOC and is not governed by this: it is Blizzard's menu.
 	{ key = "showMinimapButton", scope = ACCOUNT, variable = "LFGFOREVER_SHOW_MINIMAP_BUTTON",
-		type = "boolean", default = false },
+		type = "boolean", default = true },
+	-- PLAYER RATINGS: the window's third tab, listing Blizzard's Recent Allies
+	-- with one to three stars each (core/playerratings.lua), the marks in the
+	-- lists, the rating order, the "Do you want to rate them?" chat line and
+	-- the last party members list. ON by default, by the author's decision. A
+	-- saved off stays off. .claude/rules/player-ratings.md
+	{ key = "showPlayerRatings", scope = ACCOUNT, variable = "LFGFOREVER_SHOW_PLAYER_RATINGS",
+		type = "boolean", default = true },
 
 	-- The Filters tab as last searched, reset or applied from My filters
 	-- (core/main.lua, LFGF.SavedFilters; .claude/rules/saved-filters.md).
@@ -116,6 +123,17 @@ LFGF.SAVED_KEYS = {
 	-- (core/main.lua, LFGF.CollapsedFilterSections; added in 0.22.0-dev.2,
 	-- .claude/rules/collapsible-filter-sections.md).
 	{ key = "collapsedFilterSections", scope = ACCOUNT, type = "table" },
+	-- The players' ratings, one to three stars each, keyed by "Firstname Surname"
+	-- (core/main.lua, LFGF.PlayerRating; added in 1.5.0-dev.5,
+	-- .claude/rules/player-ratings.md). Kept when the Player ratings setting is
+	-- off, and when the player is no longer a recent ally.
+	{ key = "playerRatings", scope = ACCOUNT, type = "table" },
+	-- The last five players who joined your party, newest first, each with
+	-- their name, class, level, GUID, your zone and the time they joined
+	-- (core/recentparty.lua; added in 1.5.0-dev.14,
+	-- .claude/rules/player-ratings.md). Per character, by the author's
+	-- decision: Blizzard's Recent Allies are each character's own.
+	{ key = "recentPartyMembers", scope = CHARACTER, type = "table" },
 
 	-- The window's centre, as an offset from UIParent's centre in UIParent
 	-- units, and its size in its own units (core/window.lua). No default: with
@@ -141,7 +159,7 @@ local function EntryFor(key)
 	local entry = byKey[key]
 	if not entry then
 		-- A typo in a key would otherwise read nil forever, silently.
-		error("LFG Forever: no saved key named " .. tostring(key), 3)
+		error("WildGroups: no saved key named " .. tostring(key), 3)
 	end
 	return entry
 end
@@ -149,7 +167,7 @@ end
 local function GlobalNameFor(scope)
 	local name = GLOBAL_NAMES[scope]
 	if not name then
-		error("LFG Forever: no saved table for scope " .. tostring(scope), 3)
+		error("WildGroups: no saved table for scope " .. tostring(scope), 3)
 	end
 	return name
 end

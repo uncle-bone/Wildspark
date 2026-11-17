@@ -57,17 +57,17 @@ do
     previous_button = btn
 end
 do
-    -- WildAuctions: opens the quick search menu (quick.lua)
+    -- auxForever: opens the quick search menu (quick.lua)
     local btn = gui.button(frame, 25)
     btn:SetPoint('LEFT', previous_button, 'RIGHT', 4, 0)
     btn:SetWidth(42)
     btn:SetHeight(25)
     local clock = btn:CreateTexture(nil, 'ARTWORK')
-    clock:SetTexture([[Interface\AddOns\WildSpark\Modules\WildAuctions\textures\clock.tga]])
+    clock:SetTexture([[Interface\AddOns\auxForever\textures\clock.tga]])
     clock:SetSize(16, 16)
     clock:SetPoint('LEFT', 7, 0)
     local chevron = btn:CreateTexture(nil, 'ARTWORK')
-    chevron:SetTexture([[Interface\AddOns\WildSpark\Modules\WildAuctions\textures\chevron.tga]])
+    chevron:SetTexture([[Interface\AddOns\auxForever\textures\chevron.tga]])
     chevron:SetSize(11, 11)
     chevron:SetPoint('LEFT', clock, 'RIGHT', 3, 0)
     btn.icons = {clock, chevron}
@@ -91,7 +91,7 @@ do
     next_button = btn
 end
 do
-    -- WildAuctions: Live mode. The button shows what it is doing: "Updating" during a round, then a
+    -- auxForever: Live mode. The button shows what it is doing: "Updating" during a round, then a
     -- countdown to the next round ("Live 4s"), or "Paused".
 	local btn = gui.button(frame, gui.font_size.small)
 	btn:SetHeight(25)
@@ -147,7 +147,7 @@ do
     resume_button = btn
 end
 do
-    -- WildAuctions: Fast reads each item once with its lowest price; Full reads every auction
+    -- auxForever: Fast reads each item once with its lowest price; Full reads every auction
     local function tooltip(self, title, ...)
         GameTooltip:SetOwner(self, 'ANCHOR_BOTTOM')
         GameTooltip:AddLine(title)
@@ -204,17 +204,16 @@ do
     local function search_cursor_item()
         local type, item_id = GetCursorInfo()
         if type == 'item' then
-            set_filter(strlower(info.item(item_id).name) .. '/exact')
-            execute(nil, false)
+            search_item(item_id)
             ClearCursor()
         end
     end
     editbox:HookScript('OnReceiveDrag', search_cursor_item)
     editbox:HookScript('OnMouseDown', search_cursor_item)
 	search_box = editbox
-    -- WildAuctions: a magnifier at the start of the search bar
+    -- auxForever: a magnifier at the start of the search bar
     local icon = editbox:CreateTexture(nil, 'OVERLAY')
-    icon:SetTexture([[Interface\AddOns\WildSpark\Modules\WildAuctions\textures\search.tga]])
+    icon:SetTexture([[Interface\AddOns\auxForever\textures\search.tga]])
     icon:SetSize(14, 14)
     icon:SetPoint('LEFT', 7, 0)
     gui.vertex_color(icon, aux.color.label.enabled)
@@ -253,7 +252,7 @@ do
     new_filter_button = btn
 end
 do
-    -- WildAuctions: what the shown results hold, e.g. "11 price levels, 6,180 for sale, searched 2m ago"
+    -- auxForever: what the shown results hold, e.g. "11 price levels, 6,180 for sale, searched 2m ago"
     local label = gui.label(frame, gui.font_size.small)
     label:SetPoint('TOPLEFT', new_filter_button, 'TOPRIGHT', 12, 0)
     label:SetPoint('BOTTOMRIGHT', aux.frame.content, 'TOPRIGHT', -10, 8)
@@ -266,15 +265,14 @@ do
     btn:SetPoint('LEFT', aux.status_bar, 'RIGHT', 5, 0)
     btn:SetText('Clear')
     btn:SetScript('OnClick', function()
-        while tremove(current_search().records) do end
-        current_search().table:SetDatabase()
+        clear_results(current_search())
         current_search().complete = false
         update_done()
     end)
     clear_button = btn
 end
 do
-    -- WildAuctions: a recipe search's cost, in the free space of the bottom bar under its results
+    -- auxForever: a recipe search's cost, in the free space of the bottom bar under its results
     -- (it crowded the line next to the sub tabs and was cut off there)
     local label = gui.label(frame.results, gui.font_size.medium)
     label:SetPoint('LEFT', clear_button, 'RIGHT', 14, 0)
@@ -492,8 +490,7 @@ for _ = 1, 5 do
 			    end
 		    end
 	    elseif button == 'RightButton' then
-		    set_filter(strlower(info.item(row.record.item_id).name) .. '/exact')
-		    execute(nil, false)
+		    search_item(row.record.item_id)
 	    end
     end)
     table:SetHandler('OnSelectionChanged', function(rt, datum)

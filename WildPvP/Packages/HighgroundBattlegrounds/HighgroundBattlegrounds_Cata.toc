@@ -1,0 +1,137 @@
+## Interface: 40402
+## Title: Highground Battlegrounds
+## Notes: Battleground timers: resurrection waves, captures and win prediction, flag carriers, enemy map positions and sap calls. Cataclysm Classic 4.4.2.
+## Author: kemicofa
+## Version: 0.8.1
+## X-Curse-Project-ID: 1770535
+## OptionalDeps: Highground
+## SavedVariables: HighgroundBattlegroundsDB
+## SavedVariablesPerCharacter: HighgroundBattlegroundsCharDB
+## X-Package-Files: README.md CHANGELOG.md LICENSE libs/media/*.ttf libs/media/*.txt libs/sounds/stealth-*.ogg libs/sounds/stealth.txt
+
+# libs/ links to the HighgroundKit library (copied into the package by
+# scripts/build.py); src/ is this addon's own code.
+libs/standalone/Bootstrap.lua
+src/config/Shared.lua
+libs/config/Theme.lua
+libs/config/themes/Ember.lua
+libs/config/themes/Parchment.lua
+libs/config/themes/Azeroth.lua
+libs/config/themes/ClassColors.lua
+libs/config/UI.lua
+src/config/cata/Classes.lua
+src/config/cata/Auras.lua
+src/config/cata/Kits.lua
+src/config/cata/SpecClues.lua
+libs/config/Client.lua
+src/config/Battlegrounds.lua
+src/config/battlegrounds/AlteracValley.lua
+src/config/battlegrounds/ArathiBasin.lua
+src/config/battlegrounds/Ashran.lua
+src/config/battlegrounds/BattleForGilneas.lua
+src/config/battlegrounds/DeephaulRavine.lua
+src/config/battlegrounds/DeepwindGorge.lua
+src/config/battlegrounds/EyeOfTheStorm.lua
+src/config/battlegrounds/IsleOfConquest.lua
+src/config/battlegrounds/SeethingShore.lua
+src/config/battlegrounds/SilvershardMines.lua
+src/config/battlegrounds/SlayersRise.lua
+src/config/battlegrounds/StrandOfTheAncients.lua
+src/config/battlegrounds/TempleOfKotmogu.lua
+src/config/battlegrounds/TwinPeaks.lua
+src/config/battlegrounds/WarsongGulch.lua
+src/config/battlegrounds/Wintergrasp.lua
+libs/config/Options.lua
+libs/config/catalog/Battlegrounds.lua
+src/rules/Combat.lua
+src/rules/SpecInference.lua
+libs/core/Util.lua
+libs/core/Codec.lua
+src/core/State.lua
+libs/core/Names.lua
+src/core/Specs.lua
+src/core/ChatLocale.lua
+src/core/ChatFlags1.lua
+src/core/ChatNodes1.lua
+src/core/ChatNodes2.lua
+src/core/ChatNodes3.lua
+src/core/Objectives.lua
+src/core/PlayerObjective.lua
+src/core/ScoreSettings.lua
+src/core/Settings.lua
+src/core/Cooldowns.lua
+src/core/Roster.lua
+src/core/Auras.lua
+src/core/Units.lua
+src/core/Capping.lua
+src/core/CapProbe.lua
+libs/core/Comms.lua
+src/core/CapShare.lua
+src/core/SapCall.lua
+libs/core/Alerts.lua
+libs/core/Stealth.lua
+libs/ui/Style.lua
+libs/ui/Theme.lua
+libs/ui/Motion.lua
+libs/ui/Contrast.lua
+libs/ui/kit/Controls.lua
+libs/ui/kit/Feedback.lua
+libs/ui/kit/Fields.lua
+libs/ui/kit/Lists.lua
+libs/ui/kit/Workspace.lua
+libs/ui/kit/Ornament.lua
+libs/ui/kit/Dialog.lua
+libs/ui/Browser.lua
+libs/ui/Alerts.lua
+libs/pvp/Stealth.lua
+libs/pvp/Matches.lua
+libs/pvp/MatchWindow.lua
+libs/ui/Restore.lua
+libs/ui/Hud.lua
+libs/ui/PanelControls.lua
+libs/ui/PanelMenu.lua
+src/ui/Appearance.lua
+src/ui/Compact.lua
+src/ui/Scale.lua
+src/ui/CapPlates.lua
+src/core/Lifecycle.lua
+src/core/Features.lua
+src/core/CombatLog.lua
+src/core/Migrations.lua
+src/core/Events.lua
+src/core/Exports.lua
+Pins.xml
+src/map/Coordinates.lua
+src/map/Areas.lua
+src/map/Records.lua
+src/map/Flags.lua
+src/map/Observations.lua
+src/map/Sharing.lua
+src/map/Layer.lua
+src/map/Driver.lua
+src/timers/State.lua
+src/timers/Graveyards.lua
+src/timers/Nodes.lua
+src/timers/Observations.lua
+src/timers/Sharing.lua
+src/timers/Labels.lua
+src/timers/Advice.lua
+src/timers/Rows.lua
+libs/ui/Windows.lua
+src/timers/Prediction.lua
+src/timers/Overview.lua
+src/timers/Mechanics.lua
+src/timers/Objectives.lua
+src/timers/Layer.lua
+src/timers/Driver.lua
+src/core/Calls.lua
+src/ui/QuickCallMessages.lua
+src/ui/QuickCalls.lua
+src/flags/State.lua
+src/flags/Window.lua
+src/flags/Driver.lua
+src/timers/Exports.lua
+libs/standalone/Settings.lua
+libs/standalone/Main.lua
+src/ui/Preview.lua
+Main.lua

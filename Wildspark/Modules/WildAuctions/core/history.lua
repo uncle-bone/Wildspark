@@ -4,7 +4,7 @@ local aux = require 'aux'
 
 local persistence = require 'aux.util.persistence'
 
--- WildAuctions (0.5): better price data (docs/price-data.md, "Plan for 0.5").
+-- auxForever (0.5): better price data (docs/price-data.md, "Plan for 0.5").
 --
 -- Per item, one packed line in the saved variables:
 --   day         the day number (days since 1 January 1970, local calendar) the "today" fields belong to
@@ -36,12 +36,71 @@ local value_cache = {}
 local price_keys_since
 
 function aux.event.PLAYER_LOGIN()
-	local faction_data = type(aux.faction_data) == 'table' and aux.faction_data or {}
-	aux.faction_data = faction_data
-	if type(faction_data.history) ~= 'table' then faction_data.history = {} end
-	data = faction_data.history
-	faction_data.price_keys_since = faction_data.price_keys_since or today()
-	price_keys_since = faction_data.price_keys_since
+	data = aux.faction_data.history
+	aux.faction_data.price_keys_since = aux.faction_data.price_keys_since or today()
+	price_keys_since = aux.faction_data.price_keys_since
+	aux.coro_thread(forget_old_prices)
+end
+
+-- 0.8.2.1 (outside review 2026-11-10, R-10; Tyler, 2026-11-10: "Yes"): prices of items aux has not
+-- seen at the auction house for FORGET_DAYS days are forgotten. Every item ever seen kept its line
+-- forever, and since 0.8 each gear ending is an item of its own; all of it loads at every login.
+-- Once a day at most, at login, in a thread that pauses by the clock. "Seen" is the day of a line's
+-- newest price, not the day it was last read (a tooltip or a Sniper round reads a line and moves
+-- its day on without having seen the item).
+M.FORGET_DAYS = 90
+
+-- the day number a saved line's newest price is from, without unpacking the line; nil if unreadable
+function M.last_seen_day(str)
+	local day = tonumber(strmatch(str, '^(%d+)#'))
+	if not day then
+		return
+	end
+	if day > 1e7 then
+		-- a 0.4 line: when its day ended (a timestamp), today's lowest, then the past lows with
+		-- the time each day ended
+		local next_push, daily_min, point_time = strmatch(str, '^(%d+)#(%d*)#%d*@?(%d*)')
+		local seen = daily_min ~= '' and tonumber(next_push) or tonumber(point_time)
+		return seen and day_of_time(seen - 43200) or nil
+	end
+	local low, market, point_day = strmatch(str, '^%d+#(%d*)#(%d*)#%d*#(%d*)')
+	if not low then
+		return
+	end
+	if low ~= '' or market ~= '' then
+		return day
+	end
+	return tonumber(point_day)
+end
+
+-- must run inside a coroutine (it pauses). now: today's day number (given by tests). Returns how
+-- many lines were forgotten, or nil when it already ran today.
+function M.forget_old_prices(now)
+	now = now or today()
+	if not data or aux.faction_data.history_trimmed == now then
+		return
+	end
+	aux.faction_data.history_trimmed = now
+	-- the keys first, in one go: the walk below pauses, and a table must not gain keys (a scan
+	-- recording a new item) while it is walked
+	local keys, n = {}, 0
+	for key in pairs(data) do
+		n = n + 1
+		keys[n] = key
+	end
+	local forgotten = 0
+	for i = 1, n do
+		local key = keys[i]
+		local str = data[key]
+		local seen = type(str) == 'string' and last_seen_day(str)
+		if seen and now - seen > FORGET_DAYS then
+			data[key] = nil
+			value_cache[key] = nil
+			forgotten = forgotten + 1
+		end
+		aux.coro_slice(i, 500)
+	end
+	return forgotten
 end
 
 -- the price history is read once the saved variables load (PLAYER_LOGIN); before that every price is unknown
@@ -123,7 +182,7 @@ end
 
 -- 0.8 (review H-006, finding 7): before 0.8 every ending of a gear item was priced as one, under
 -- "id:0". aux reads gear by its ending now, but that old mixed price stayed under "id:0", where a
--- price asked by item ID (WildAuctionsAPI) or a plain link still found it, never updated again. The
+-- price asked by item ID (AuxForeverAPI) or a plain link still found it, never updated again. The
 -- first time an item's ending gets a price, an "id:0" price with nothing newer than the update is
 -- removed. One kept since the update is a real plain item and stays.
 local retire_checked = {}
@@ -170,7 +229,7 @@ function push_record(record)
 	record.day, record.low, record.market, record.units = today(), nil, nil, nil
 end
 
--- WildAuctions: a scan sees every auction, and aux unpacked and repacked the item's saved history for
+-- auxForever: a scan sees every auction, and aux unpacked and repacked the item's saved history for
 -- each one. Today's lowest price per item is kept in memory (one number per item seen today), so
 -- the saved text is only touched when a price is a new low for the day.
 local today_min, today_day = {}, 0
@@ -183,12 +242,17 @@ local function today_min_table()
 end
 
 function M.process_auction(auction_record)
-	local unit_buyout_price = ceil(auction_record.buyout_price / auction_record.count)
+	process_price(auction_record.price_key or auction_record.item_key, auction_record.buyout_price, auction_record.count)
+end
+
+-- the same from plain numbers: a price key, a buyout and how many it is for (0.8.2.1: the Full scan
+-- reads these without building an auction record)
+function M.process_price(key, buyout_price, count)
+	local unit_buyout_price = ceil(buyout_price / count)
 	if unit_buyout_price <= 0 then
 		return
 	end
 	local mins = today_min_table()
-	local key = auction_record.price_key or auction_record.item_key
 	local known = mins[key]
 	if known and unit_buyout_price >= known then
 		return
@@ -338,51 +402,51 @@ local function cached(item_key)
 end
 
 function M.value(item_key)
-	-- WildAuctions: an item without any history needs no unpacking and no cache entry (the Sniper asks
+	-- auxForever: an item without any history needs no unpacking and no cache entry (the Sniper asks
 	-- about every item on the auction house)
-	if type(data) ~= 'table' or not data[item_key] then
+	if not data[item_key] then
 		return
 	end
 	return cached(item_key).value
 end
 
--- WildAuctions: the usual price and how many days of history it rests on, from the same cache (the
+-- auxForever: the usual price and how many days of history it rests on, from the same cache (the
 -- Sniper used to unpack the saved history again just to count its days)
 function M.value_and_days(item_key)
-	if type(data) ~= 'table' or not data[item_key] then
+	if not data[item_key] then
 		return nil, 0
 	end
 	local entry = cached(item_key)
 	return entry.value, entry.days
 end
 
--- WildAuctions (0.6): the usual price and how many past days of complete looks it rests on. The
+-- auxForever (0.6): the usual price and how many past days of complete looks it rests on. The
 -- Sniper counts only those: Fading Echo's usual of 79s came from two 0.4 days that only kept the
 -- lowest asking price, while a complete look yesterday saw it at 1s (Tyler, build 5).
 function M.value_and_complete_days(item_key)
-	if type(data) ~= 'table' or not data[item_key] then
+	if not data[item_key] then
 		return nil, 0
 	end
 	local entry = cached(item_key)
 	return entry.value, entry.complete
 end
 
--- WildAuctions (0.5): the usual price and how many days ago aux last saw the item (0: today), or nil
+-- auxForever (0.5): the usual price and how many days ago aux last saw the item (0: today), or nil
 function M.value_and_age(item_key)
-	if type(data) ~= 'table' or not data[item_key] then
+	if not data[item_key] then
 		return
 	end
 	local entry = cached(item_key)
 	return entry.value, entry.age
 end
 
--- WildAuctions (0.5, build 3): the price of the latest complete look at the item (its market price, or
+-- auxForever (0.5, build 3): the price of the latest complete look at the item (its market price, or
 -- its lowest when no complete look was had that day) and how many days ago that was. Tooltips and
 -- the recipe cost show this: players scan, post and leave, and need the tooltip to match the
 -- auction house they just saw (Tyler, 2026-10-07). The multi-day usual price (value) stays for
 -- finding deals: the Sniper, the search % column and the percentage filters.
 function M.latest(item_key)
-	if type(data) ~= 'table' or not data[item_key] then
+	if not data[item_key] then
 		return
 	end
 	local entry = cached(item_key)
@@ -405,7 +469,7 @@ function M.age_text(age)
 end
 
 function M.market_value(item_key)
-	if type(data) ~= 'table' or not data[item_key] then
+	if not data[item_key] then
 		return
 	end
 	return read_record(item_key).low
@@ -413,7 +477,7 @@ end
 
 -- today's market price and the units it was worked out from, if a complete view was seen today
 function M.today_market(item_key)
-	if type(data) ~= 'table' or not data[item_key] then
+	if not data[item_key] then
 		return
 	end
 	local record = read_record(item_key)
@@ -432,7 +496,7 @@ function weighted_median(list)
 	return list[#list] and list[#list].value
 end
 
--- WildAuctions (0.5): the Full scan's auctions arrive in no item order. A collector gathers unit
+-- auxForever (0.5): the Full scan's auctions arrive in no item order. A collector gathers unit
 -- prices and counts per item in flat number arrays while the scan runs; finish records each item
 -- once (yielding every few hundred items) and drops everything.
 function M.new_collector()
@@ -440,18 +504,22 @@ function M.new_collector()
 end
 
 function M.collect(collector, record)
-	local units = record_units(record)
 	local key = record.price_key or record.item_key
 	if (record.buyout_price or 0) <= 0 or not key then
 		return
 	end
+	collect_price(collector, key, ceil(record.buyout_price / max(1, record.count or 1)), record_units(record))
+end
+
+-- the same from plain numbers: a unit price and how many units are listed at it
+function M.collect_price(collector, key, unit_price, units)
 	local flat = collector.items[key]
 	if not flat then
 		flat = {}
 		collector.items[key] = flat
 		collector.count = collector.count + 1
 	end
-	tinsert(flat, ceil(record.buyout_price / max(1, record.count or 1)))
+	tinsert(flat, unit_price)
 	tinsert(flat, units)
 end
 
@@ -467,17 +535,17 @@ function M.finish_collector(collector, each)
 			record_view(key, flat)
 		end
 		done = done + 1
-		if done % 200 == 0 then
-			aux.coro_wait()
-		end
+		-- by the clock (0.8.2.1, R-07): 200 items a frame made single long frames at the end of a
+		-- Full scan
+		aux.coro_slice(done, 200)
 	end
 	collector.items, collector.count, collector.partial = {}, 0, {}
 end
 
--- WildAuctions (0.5): /wa price <item>. What aux keeps for an item, in plain words, so a price that
+-- auxForever (0.5): /aux price <item>. What aux keeps for an item, in plain words, so a price that
 -- looks wrong can be checked against what was recorded (Tyler, build 1). money_text formats copper.
 function M.report(item_key, money_text)
-	if type(data) ~= 'table' or not data[item_key] then
+	if not data[item_key] then
 		return {'No price history for this item yet.'}
 	end
 	local record = read_record(item_key)
@@ -501,7 +569,7 @@ function M.report(item_key, money_text)
 	return lines
 end
 
--- WildAuctions: /wa memory detail
+-- auxForever: /aux memory detail
 function M.memory_counts()
 	local cached_n, today_n = 0, 0
 	for _ in pairs(value_cache) do cached_n = cached_n + 1 end

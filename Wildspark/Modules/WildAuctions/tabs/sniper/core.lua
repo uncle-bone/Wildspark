@@ -9,15 +9,15 @@ local buy_bar = require 'aux.gui.buy_bar'
 
 local tab = aux.tab 'Sniper'
 
--- WildAuctions: the Sniper. It reads the item list of the whole auction house again and again (one
--- round took 8.5 seconds for 7718 items on Forever, Tyler's /wa debug list, 2026-10-04) and lists
+-- auxForever: the Sniper. It reads the item list of the whole auction house again and again (one
+-- round took 8.5 seconds for 7718 items on Forever, Tyler's /aux debug list, 2026-10-04) and lists
 -- the items whose lowest price is a deal. The list only knows each item's lowest price, which may
 -- be a bid, so an item that looks like a deal is opened (one request) to check its real auctions.
 -- Only checked auctions are listed, and they are what the buy bar buys.
 -- It runs only while its tab is open: the Sniper, searches and posting share the game's request
 -- limit. Closing the tab holds it; closing the auction house stops it.
 
-AUCTION_CUT = .05 -- the auction house cut, as on the Post tab
+AUCTION_CUT = aux.AUCTION_CUT -- the auction house cut, one number for every tab (aux-addon.lua)
 MIN_DAYS = 3 -- days of price history needed before a price can be a deal against the usual price
 ROUND_PAUSE = 2.5 -- seconds between rounds: less garbage and fewer requests than 1s, deals still quick (Tyler)
 MAX_DEALS = 100
@@ -54,6 +54,7 @@ local scan_markets = {}
 local scan_markets_at -- GetTime() of the Full scan they come from
 SCAN_MARKET_TRUST = 2 * 60 * 60 -- seconds a Full scan's markets are trusted for that
 local next_round_at
+local judged_day -- the day (history.today) the items in known were judged on
 local last_alert -- GetTime() of the last sound
 local checked -- the selected deal, as the buy bar shows it
 local show_deal -- the buy bar for a deal (below, with the buying)
@@ -186,7 +187,7 @@ end
 -- usual price, vendor price, days of history; nil when the client has not loaded the item yet
 -- Runs for every item whose price changed (all of them in the first round), so it builds no tables:
 -- the vendor price straight from the game, the history from its cache.
--- WildAuctions (0.6, Tyler): the Sniper is for making money, so
+-- auxForever (0.6, Tyler): the Sniper is for making money, so
 -- - gray (poor) items are never a deal: "gray items definitely cannot be in the sniper". They get
 --   no usual price and no vendor price, so judge finds nothing, below vendor price included.
 -- - the days counted are days of complete looks only (history.value_and_complete_days), so a usual
@@ -213,7 +214,7 @@ function M.item_facts(key, item_id)
     return usual, sell_price or 0, days
 end
 
--- WildAuctions (0.6 build 9, Tyler): the most days of complete looks any item has, seen while judging
+-- auxForever (0.6 build 9, Tyler): the most days of complete looks any item has, seen while judging
 -- items (no extra work), and whether a whole round has been judged, so the notice below can say how
 -- far the price history is from MIN_DAYS
 history_days, history_days_known = 0, false
@@ -389,6 +390,12 @@ scan.on_full_scan_view(function(at, key, flat)
     if at ~= scan_markets_at then
         aux.wipe(scan_markets)
         scan_markets_at = at
+        -- 0.8.2.1 (outside review, R-03): a Full scan changes what items are judged against (today
+        -- becomes a day of complete looks, and its markets are new), but an item was judged again
+        -- only when its listed price changed. On the third day of scans, the day deals against the
+        -- usual price start, nothing already listed became a deal after the scan. The rounds wait
+        -- while a Full scan runs, so everything is judged afresh in the round after it.
+        aux.wipe(known)
     end
     local cheapest
     for i = 1, #flat, 2 do
@@ -474,7 +481,12 @@ function check_list(results, seen)
                 -- 0.8: prices are kept per ending (info.price_key), the list's key is a version
                 local price_key = info.item_key_price_key(result.itemKey)
                 local usual, vendor, days
-                if price_key then usual, vendor, days = item_facts(price_key, result.itemKey.itemID) end
+                if price_key and price_key ~= key and aux.account_data.sniper_ignored[price_key] then
+                    -- ignored by name (another version of an ignored gear name)
+                    known[key] = price
+                elseif price_key then
+                    usual, vendor, days = item_facts(price_key, result.itemKey.itemID)
+                end
                 if usual ~= nil or vendor ~= nil then
                     -- a possible deal counts as judged only once it is opened (check_item): a round
                     -- stopped by a click on a deal left the rest marked judged, never opened, so
@@ -493,9 +505,8 @@ function check_list(results, seen)
                 end
             end
         end
-        if i % 200 == 0 then
-            aux.coro_wait()
-        end
+        -- by the clock (0.8.2.1, outside review R-07), every 200 items without one
+        aux.coro_slice(i, 200)
     end
     -- each one is a request (and one per other version of a gear name): shown as "checking 12
     -- possible deals (3 done)" while it runs
@@ -527,6 +538,15 @@ local function mark_gone(seen)
     end
 end
 
+-- 0.8.2.1 (outside review, R-03): the day the items in known were judged on. The usual prices take
+-- in the day that ended at midnight, so on a new day everything is judged again.
+function M.forget_on_new_day(day)
+    if day ~= judged_day then
+        judged_day = day
+        aux.wipe(known)
+    end
+end
+
 function start_round()
     active = true
     next_round_at = nil
@@ -534,21 +554,31 @@ function start_round()
     -- one table for every round: a new one per round was 7000+ entries of garbage each time
     aux.wipe(seen_items)
     local seen = seen_items
+    forget_on_new_day(history.today())
+    local got_list
     scan.start{
         type = 'list',
         quiet = true,
         queries = {{blizzard_query = {}}},
         on_item_list = function(results)
+            got_list = true
             last_count = #results
             check_list(results, seen)
         end,
-        on_complete = function()
+        on_complete = function(result)
             active = false
             checking = nil
-            round = round + 1
-            history_days_known = true
-            last_seconds = GetTime() - t0
-            if last_count then
+            -- 0.8.2.1 (outside review, R-01 and R-02): only a round that got the whole item list says
+            -- what is gone. A round the auction house did not answer has seen nothing, and marked
+            -- every deal gone; they stayed gone, since an item is opened again only when its price
+            -- changes. A list that arrived in part did the same to the deals past its end.
+            local whole = got_list and not (result and (result.no_list or result.partial_list))
+            if got_list then
+                round = round + 1
+                history_days_known = true
+                last_seconds = GetTime() - t0
+            end
+            if whole then
                 mark_gone(seen)
             end
             next_round_at = GetTime() + ROUND_PAUSE
@@ -590,12 +620,18 @@ function M.clear_deals()
     update_deals()
 end
 
+-- 0.8.2.1 (outside review, R-20): an item is ignored by its price key, which for gear is its name
+-- with the ending. It was the auction house's version key, and one name can sit under several
+-- versions with the same stats, so the other versions of an ignored staff kept showing. Entries
+-- saved before (version keys) still count.
 function M.ignore(record)
     if not record then return end
-    aux.account_data.sniper_ignored[record.deal_key] = record.name
-    local _, index = find_deal(record.deal_key)
-    if index then
-        tremove(deals, index)
+    local price_key = record.price_key or record.deal_key
+    aux.account_data.sniper_ignored[price_key] = record.name
+    for i = #deals, 1, -1 do
+        if deals[i].deal_key == record.deal_key or (deals[i].price_key or deals[i].deal_key) == price_key then
+            tremove(deals, i)
+        end
     end
     update_deals()
 end
@@ -744,6 +780,11 @@ refreshing = nil -- the gear deal being read again before it can be bought
 
 local show_item_bar, show_commodity_bar
 
+-- what a deal takes over from another auction of its item found at the shown price or lower
+PRICE_FIELDS = {'auction_id', 'auction_count', 'buyout_price', 'unit_buyout_price', 'bid_price', 'unit_bid_price',
+    'blizzard_bid', 'unit_blizzard_bid', 'start_price', 'high_bid', 'min_increment', 'raw_min_bid', 'raw_bid', 'raw_buyout',
+    'high_bidder', 'owner', 'seller_count', 'duration', 'item_search_key'}
+
 -- Read a deal's item again when it is selected; the buy bar offers it once that answer is in.
 -- Gear: the same auction, or another one at the shown price or lower. Trade goods: the units that
 -- are still a deal, at today's counts (4 of 5 trade good buys failed with "Internal auction error"
@@ -804,7 +845,22 @@ local function refresh_deal(record)
                     end
                 end
                 if found then
-                    record.auction_id = found.auction_id
+                    -- 0.8.2.1 (outside review, R-14): the deal takes on the auction found, prices
+                    -- included. Only its auction ID was taken, so when the one found was cheaper,
+                    -- Buy sent the old, higher buyout with the new ID: more than that auction asks.
+                    -- The button now shows and sends exactly what the auction found costs.
+                    if found.auction_id ~= record.auction_id then
+                        for _, field in ipairs(PRICE_FIELDS) do
+                            record[field] = found[field]
+                        end
+                        info.signatures(record)
+                        -- the profit and the percent shown belong to the new price
+                        local reason, profit, pct = judge_record(record)
+                        if reason then
+                            record.deal_reason, record.deal_profit, record.deal_percent = reason, profit, pct
+                        end
+                        deals_changed = true
+                    end
                     if checked == record then
                         show_item_bar(record)
                     end
@@ -958,7 +1014,7 @@ local function count(t)
     return n
 end
 
--- /wa memory detail: what the Sniper keeps
+-- /aux memory detail: what the Sniper keeps
 function M.memory_counts()
     return count(known), count(seen_items), #deals, count(markets) + count(scan_markets)
 end

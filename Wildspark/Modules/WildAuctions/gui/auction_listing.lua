@@ -25,7 +25,7 @@ gui.themed(function()
     TIME_LEFT_STRINGS[4] = aux.color.blue(info.time_left_label(4)) -- Very Long
 end)
 
--- WildAuctions (0.8, Tyler, build 7: "Why are we separating these lines?"): which row a record goes
+-- auxForever (0.8, Tyler, build 7: "Why are we separating these lines?"): which row a record goes
 -- in. Gear auctions at one buyout price share a row, whoever sells them and whatever time they have
 -- left; the auction house hands them over per seller and time left (four sellers at 11s were four
 -- rows). Trade goods come grouped by price already; an auction with no buyout keeps its own row,
@@ -39,7 +39,7 @@ function M.price_group(record)
         info.is_player(record.owner) and 1 or 0, record.high_bidder and 1 or 0}, ':')
 end
 
--- WildAuctions: Forever names the seller only when one player sells at a row's price
+-- auxForever: Forever names the seller only when one player sells at a row's price
 function M.seller_text(record)
     -- 0.8: a row of several sellers' auctions at one price (UpdateRowInfo)
     if (record.group_sellers or 0) > 1 then
@@ -112,7 +112,7 @@ function status_code(record)
     end
 end
 
--- WildAuctions (0.7, FB-013): the level an item needs is colored by how far it is from the player's,
+-- auxForever (0.7, FB-013): the level an item needs is colored by how far it is from the player's,
 -- like quests (Tyler, 2026-10-13): red 5 or more levels above, orange 3 to 4, yellow 1 to 2; green
 -- once the player can use it, and gray when far below (outgrown). "Far below" is the level under
 -- which Classic's monsters and quests turn gray, as players documented it (Wowpedia, "Mob
@@ -140,7 +140,7 @@ function M.requirement_color(requirement, player_level)
     return aux.color.trivial
 end
 
--- WildAuctions: columns shared by the tables. The required level, then the item level (gear only),
+-- auxForever: columns shared by the tables. The required level, then the item level (gear only),
 -- then the item (0.7, FB-013: "Lvl" read as either). Tyler, build 2: the levels go before the name,
 -- so the units for sale after it never sit next to another column of plain numbers; build 4: "Req
 -- first always".
@@ -202,7 +202,7 @@ local function quantity_column(title)
     }
 end
 
--- WildAuctions: an auction without a starting bid carries its buyout as the bid price, so it looked
+-- auxForever: an auction without a starting bid carries its buyout as the bid price, so it looked
 -- biddable at the buyout (Tyler, 0.4.1: "I dont even have the option to bid"); most Forever gear is
 -- buyout only. Same rule as the buy bar's Bid button.
 function M.biddable(record)
@@ -227,7 +227,7 @@ M.search_columns = {
         width = .04,
         align = 'CENTER',
         fill = function(cell, record)
-            -- WildAuctions: a fast mode row does not know its auctions yet
+            -- auxForever: a fast mode row does not know its auctions yet
             cell.text:SetText(record.fast and '' or TIME_LEFT_STRINGS[record.duration or 0] or '?')
         end,
         cmp = function(record_a, record_b, desc)
@@ -350,151 +350,8 @@ M.search_columns = {
     },
 }
 
-M.auctions_columns = {
-    requirement_column(),
-    item_level_column(),
-    {
-        title = 'Item',
-        width = .32,
-        init = item_column_init,
-        fill = item_column_fill,
-        cmp = function(record_a, record_b, desc)
-            return sort_util.compare(record_a.name, record_b.name, desc)
-        end,
-    },
-    quantity_column('Quantity'),
-    {
-        title = 'Time\nLeft',
-        width = .04,
-        align = 'CENTER',
-        fill = function(cell, record)
-            if record.sale_status == 1 then
-                cell.text:SetText('?')
-            else
-                cell.text:SetText(TIME_LEFT_STRINGS[record.duration or 0] or '?')
-            end
-        end,
-        cmp = function(record_a, record_b, desc)
-            if record_a.sale_status == 1 and record_b.sale_status == 1 then
-                return sort_util.EQ
-            elseif record_a.sale_status == 1 then
-                return sort_util.GT
-            elseif record_b.sale_status == 1 then
-                return sort_util.LT
-            else
-                return sort_util.compare(record_a.duration, record_b.duration, desc)
-            end
-        end,
-    },
-    {
-        title = {'Auction Bid\n(per item)', 'Auction Bid\n(per stack)'},
-        bid = true,
-        width = .125,
-        align = 'RIGHT',
-        toggle = 'price_per_unit',
-        fill = function(cell, record)
-            if record.sale_status == 1 and price_per_unit then
-                cell.text:SetText('?')
-                return
-            end
-            local price
-            if record.high_bidder then
-                price = price_per_unit and ceil(record.high_bid / record.count) or record.high_bid
-            else
-                price = price_per_unit and ceil(record.start_price / record.count) or record.start_price
-            end
-            cell.text:SetText(money.to_string(price, true))
-        end,
-        cmp = function(record_a, record_b, desc)
-            if price_per_unit then
-                if record_a.sale_status == 1 and record_b.sale_status == 1 then
-                    return sort_util.EQ
-                elseif record_a.sale_status == 1 then
-                    return sort_util.GT
-                elseif record_b.sale_status == 1 then
-                    return sort_util.LT
-                end
-            end
-            local price_a
-            if record_a.high_bidder then
-                price_a = price_per_unit and record_a.high_bid / record_a.count or record_a.high_bid
-            else
-                price_a = price_per_unit and record_a.start_price / record_b.count or record_a.start_price
-            end
-            local price_b
-            if record_b.sale_status == 1 and price_per_unit then
-                price_b = math.huge
-            elseif record_b.high_bidder then
-                price_b = price_per_unit and record_b.high_bid / record_b.count or record_b.high_bid
-            else
-                price_b = price_per_unit and record_b.start_price / record_b.count or record_b.start_price
-            end
-            return sort_util.compare(price_a, price_b, desc)
-        end,
-    },
-    {
-        title = {'Auction Buyout\n(per item)', 'Auction Buyout\n(per stack)'},
-        width = .125,
-        align = 'RIGHT',
-        toggle = 'price_per_unit',
-        fill = function(cell, record)
-            if record.sale_status == 1 and price_per_unit then
-                cell.text:SetText('?')
-                return
-            end
-            local price = price_per_unit and ceil(record.unit_buyout_price) or record.buyout_price
-            cell.text:SetText(price > 0 and money.to_string(price, true) or '---')
-        end,
-        cmp = function(record_a, record_b, desc)
-            if price_per_unit then
-                if record_a.sale_status == 1 and record_b.sale_status == 1 then
-                    return sort_util.EQ
-                elseif record_a.sale_status == 1 then
-                    return sort_util.GT
-                elseif record_b.sale_status == 1 then
-                    return sort_util.LT
-                end
-            end
-
-            local price_a = price_per_unit and record_a.unit_buyout_price or record_a.buyout_price
-            local price_b = price_per_unit and record_b.unit_buyout_price or record_b.buyout_price
-            price_a = price_a > 0 and price_a or (desc and -math.huge or math.huge)
-            price_b = price_b > 0 and price_b or (desc and -math.huge or math.huge)
-
-            return sort_util.compare(price_a, price_b, desc)
-        end,
-    },
-    {
-        title = 'Status',
-        width = .21,
-        align = 'CENTER',
-        fill = function(cell, record)
-            local text
-            if not record.high_bidder then
-                text = aux.color.red'No Bids'
-            elseif record.sale_status == 1 then
-                text = aux.color.blue'Sold: ' .. record.high_bidder
-            else
-                text = aux.color.green'Bid: ' .. record.high_bidder
-            end
-            cell.text:SetText(text)
-        end,
-        cmp = function(record_a, record_b, desc)
-            local status_order = sort_util.compare(status_code(record_a), status_code(record_b), desc)
-            if status_order ~= sort_util.EQ then
-                return status_order
-            elseif not record_a.high_bidder and not record_b.high_bidder then
-                return sort_util.EQ
-            elseif not record_a.high_bidder then
-                return sort_util.GT
-            elseif not record_b.high_bidder then
-                return sort_util.LT
-            else
-                return sort_util.compare(record_a.high_bidder, record_b.high_bidder, desc)
-            end
-        end,
-    },
-}
+-- (the Auctions tab has its own columns since 0.4, tabs/auctions/frame.lua; the old list that stood
+-- here was unused and is gone, 0.8.2.1)
 
 M.bids_columns = {
     requirement_column(),
@@ -630,7 +487,7 @@ end
 
 local methods = {
 
-    -- WildAuctions (0.7 build 3, Tyler): after a fast resize the table kept the width of a step
+    -- auxForever (0.7 build 3, Tyler): after a fast resize the table kept the width of a step
     -- before, so at the smallest window its right columns ran past the edge. Same fix as the lists
     -- in FB-006: the content area's own size event lays the table out with the width it reports
     -- (content_width), and the last column is anchored to the right edge (create_row, M.new). Later
@@ -697,8 +554,16 @@ local methods = {
         if row.record then
 	        GameTooltip:SetOwner(self, 'ANCHOR_RIGHT')
             local key = row.record.browse_key
-            if key and GameTooltip.SetItemKey then
-                -- WildAuctions: a fast mode row has no link of its own; this shows its suffix too
+            -- 0.8.2.1 build 7 (FB-045, karrier_user_slouyac50poxg707: "of shadow protection" and
+            -- "of healing" without their stat): a fast row has no link of its own. As Blizzard's
+            -- item display does (Code, Blizzard_AuctionHouseSharedTemplates.lua, branch forever), a
+            -- real link of one of the item key's auctions comes first when the game has one, then
+            -- the item key, which shows the suffix of most endings
+            local sample = key and C_AuctionHouse.GetItemKeySampleLink and C_AuctionHouse.GetItemKeySampleLink(key)
+            if type(sample) == 'string' and sample ~= '' then
+                GameTooltip:SetHyperlink(sample)
+            elseif key and GameTooltip.SetItemKey then
+                -- auxForever: a fast mode row has no link of its own; this shows its suffix too
                 GameTooltip:SetItemKey(key.itemID, key.itemLevel or 0, key.itemSuffix or 0, row.record.requirement or 0)
             else
                 GameTooltip:SetHyperlink(row.record.link)
@@ -709,7 +574,7 @@ local methods = {
         end
     end,
 
-    -- WildAuctions (0.5, docs/clicks.md): the clicks of a row, for the gray line at the bottom of its
+    -- auxForever (0.5, docs/clicks.md): the clicks of a row, for the gray line at the bottom of its
     -- tooltips. A tab adds its Alt shortcuts with rt.alt_hint (shown only when they are turned on).
     ClickHint = function(self, row)
         local parts = {}
@@ -742,7 +607,7 @@ local methods = {
 
     OnEnter = function(self)
         local rt = self.rt
-        -- WildAuctions (0.5): every row says what its clicks do, in one gray line (was: only grouped
+        -- auxForever (0.5): every row says what its clicks do, in one gray line (was: only grouped
         -- and fast rows, in white)
         if self.record then
             GameTooltip_SetDefaultAnchor(GameTooltip, UIParent)
@@ -767,7 +632,7 @@ local methods = {
                 if not selection or selection.record ~= self.record then
                     self.rt:SetSelectedRecord(self.record)
                 elseif not IsAltKeyDown() then
-                    -- WildAuctions (0.5, docs/clicks.md): clicking the selected row again lets go of
+                    -- auxForever (0.5, docs/clicks.md): clicking the selected row again lets go of
                     -- it, in every table (Alt-click on it is the opt-in buy/cancel shortcut)
                     self.rt:SetSelectedRecord()
                 end
@@ -804,7 +669,7 @@ local methods = {
         local function group(record) return record.price_key or record.item_key end
         self.rowInfo.single_item = aux.all(records, function(record) return group(record) == group(records[1]) end)
 
-        -- WildAuctions (0.8, Tyler, build 7: "Why are we separating these lines?"): gear auctions at one
+        -- auxForever (0.8, Tyler, build 7: "Why are we separating these lines?"): gear auctions at one
         -- buyout price are one row, whoever sells them and whatever time they have left. The auction
         -- house hands them over per seller and time left; four sellers at 11s were four rows. The row
         -- keeps one real auction behind it (the lowest starting bid), so buying it buys exactly the
@@ -843,6 +708,7 @@ local methods = {
                     named[record.owner] = true
                     sellers = sellers + 1
                 end
+                child.sellers = sellers
                 if sellers > 1 then child.record.group_sellers = sellers end
                 -- the same price as the previous row (identical, or another seller or time left), so
                 -- it adds to that row's count. Forever: one record can stand for a bucket of identical
@@ -853,19 +719,46 @@ local methods = {
             elseif not self.rowInfo.single_item and not self.one_row_each and prevRecord and group(record) == group(prevRecord) then
                 -- it's the same base item as the previous row so insert a new auction
                 start_row(record)
-                tinsert(self.rowInfo[#self.rowInfo].children, { count = record.auction_count or 1, record = record })
+                tinsert(self.rowInfo[#self.rowInfo].children, { count = record.auction_count or 1, record = record, named = named, sellers = sellers })
                 if self.expanded[self.rowInfo[#self.rowInfo].expandKey] then
                     self.rowInfo.numDisplayRows = self.rowInfo.numDisplayRows + 1
                 end
             else
                 -- it's a different base item from the previous row
                 start_row(record)
-                tinsert(self.rowInfo, { item_key = record.item_key, expandKey = group(record), children = {{ count = record.auction_count or 1, record = record }} })
+                tinsert(self.rowInfo, { item_key = record.item_key, expandKey = group(record), children = {{ count = record.auction_count or 1, record = record, named = named, sellers = sellers }} })
                 self.rowInfo.numDisplayRows = self.rowInfo.numDisplayRows + 1
             end
         end
 
-        -- WildAuctions: when any price in the table has copper, every price shows all its parts
+        -- 0.8.2.1 build 6 (outside review S-08, Tyler, 2026-11-11: "yes"): a search keeps about 20
+        -- real auctions per price row and counts the rest (folded, from tabs/search/results.lua).
+        -- They add to the row's "For sale" and "N sellers" here, so the row says what is listed.
+        local folded = self.folded
+        if folded and next(folded) then
+            for _, row in ipairs(self.rowInfo) do
+                for _, child in ipairs(row.children) do
+                    local entries = folded[child.record.price_group]
+                    if entries then
+                        local sellers = child.sellers or 1
+                        for _, entry in pairs(entries) do
+                            child.count = child.count + entry.auctions
+                            sellers = sellers + entry.unnamed
+                            for owner in pairs(entry.named) do
+                                if not child.named[owner] then
+                                    child.named[owner] = true
+                                    sellers = sellers + 1
+                                end
+                            end
+                        end
+                        child.record.group_sellers = sellers > 1 and sellers or nil
+                        child.record.group_count = child.count
+                    end
+                end
+            end
+        end
+
+        -- auxForever: when any price in the table has copper, every price shows all its parts
         local has_copper = false
         for _, record in ipairs(records) do
             for _, amount in ipairs{ceil(record.unit_buyout_price or 0), ceil(record.unit_bid_price or 0), record.buyout_price or 0, record.bid_price or 0} do
@@ -878,7 +771,7 @@ local methods = {
         end
         self.has_copper = has_copper
 
-	    -- WildAuctions: rows show units for sale (see quantity_column), so total units per item
+	    -- auxForever: rows show units for sale (see quantity_column), so total units per item
 	    for _, v in ipairs(self.rowInfo) do
             local totalUnits, totalPlayerUnits = 0, 0
             for _, childInfo in pairs(v.children) do
@@ -892,7 +785,7 @@ local methods = {
             v.totalPlayerUnits = totalPlayerUnits
 	    end
 
-	    -- WildAuctions: trade goods cannot be bid on, so the Bid column hides when every row is one
+	    -- auxForever: trade goods cannot be bid on, so the Bid column hides when every row is one
 	    local all_commodities = #records > 0
 	    for _, record in ipairs(records) do
 	        if not (record.commodity or record.is_commodity) then
@@ -918,7 +811,7 @@ local methods = {
 		    FauxScrollFrame_SetOffset(self.scrollFrame, maxOffset)
 	    end
 
-        -- WildAuctions (0.6, the UI Kit): the sorted column's name is white with a gold arrow
+        -- auxForever (0.6, the UI Kit): the sorted column's name is white with a gold arrow
         local last_sort = self.sorts[1]
         -- 0.8.2 build 6 (Tyler's test): the width of a two-line title is its longest line; the font
         -- string's own width came out narrower, and the arrow sat on the "%" of "% Hist. Value"
@@ -1072,9 +965,14 @@ local methods = {
         self:SetSelectedRecord()
     end,
 
-    SetDatabase = function(self, database)
+    -- folded: what a search counted without keeping (S-08); given with the records, cleared by
+    -- records given without it, kept by a call with no records
+    SetDatabase = function(self, database, folded)
         if database and database ~= self.records then
             self.records = database
+        end
+        if database then
+            self.folded = folded
         end
 
         local prevSelectedIndex
@@ -1090,7 +988,7 @@ local methods = {
         self:UpdateRowInfo()
         self:UpdateRows()
 
-        -- WildAuctions: the same record stays selected while it is still listed. aux reselected by row
+        -- auxForever: the same record stays selected while it is still listed. aux reselected by row
         -- position, so new rows above it moved the selection onto another record (Tyler, 0.4.1,
         -- Sniper: "the item I am selecting changes every time a new item is added")
         if not self.selected and prev_selected then
@@ -1335,12 +1233,12 @@ function M.new(parent, row_height, columns)
         if not column.toggle then cell:SetText(column.title or '') end -- TODO
         text:SetAllPoints()
 
-        -- WildAuctions (0.6, the UI Kit): a raised plate with a black edge, 1px below the table's top
+        -- auxForever (0.6, the UI Kit): a raised plate with a black edge, 1px below the table's top
         gui.set_frame_style(cell, aux.color.header.background, aux.color.window.border, 0, 0, 1, 0, 0)
         gui.add_sheen(cell, .26)
         gui.add_highlight(cell, 0)
         local arrow = cell:CreateTexture(nil, 'OVERLAY')
-        arrow:SetTexture([[Interface\AddOns\WildSpark\Modules\WildAuctions\textures\chevron.tga]])
+        arrow:SetTexture([[Interface\AddOns\auxForever\textures\chevron.tga]])
         arrow:SetSize(9, 9)
         gui.vertex_color(arrow, aux.color.accent.background)
         arrow:Hide()

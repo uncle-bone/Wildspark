@@ -22,4 +22,4 @@ The source notice in `ASSET-NOTICES.md` is retained unchanged. Keep all upstream
 
 
 ## Compact zone map
-Use `/wildmaps zone` to open the movable compact map. Use `/wildmaps size` to cycle three window sizes. Zoom with the plus/minus buttons or mouse wheel, browse catalog maps with the arrow buttons, and switch floors where available.
+Open Zone Map from the WildMaps tab in WildSpark. Drag its corner grip to resize; drag the title area to move it. Zoom with the plus/minus buttons or mouse wheel, browse catalog maps with the arrow buttons, and switch floors where available. The catalog can be browsed anywhere, even when you are not inside a dungeon.

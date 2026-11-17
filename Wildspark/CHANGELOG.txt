@@ -1,3 +1,31 @@
+WildSpark 2.2.48
+- Update WildLayer to AutoLayer 1.9.16 with its zone-aware Forever layer requests and wrong-zone invitation handling.
+- Update WildFire Kit to 1.10 and rename the embedded folder to WildFireKitEmbedded while retaining WildSpark camp sharing.
+- Update WildGroups to 2.1.0, include player ratings/recent party/rate leavers, and make its tab and launchers follow the module switch.
+- Update WildAuctions to auxForever 0.8.2.1, including the corrected full-scan progress callback, crate tooltip control, and current sniper fee calculation.
+- Keep WildPvP bundled as a WildSpark module; Spy, battleground timers, intel, and enemy frames are limited to battlegrounds and arenas.
+- Keep WildMaps on its custom movable zone map, clip zoom to the viewport, and prevent zooming below the fitted full-map size.
+- Add local drop-rate estimates from observed looted corpses when no published rate is available; label the sample and estimate clearly.
+- Restore WildGroups chat notices for incoming/outgoing party and raid invites and guild invites; play the LFG ReadyCheck sound on incoming group invites.
+- Avoid registering the restricted combat-log event for WildInfo's local estimator.
+
+WildSpark 2.2.47-dev
+- Update WildLayer's Forever zone-aware request and wrong-zone group handling to match AutoLayer 1.9.16 while retaining WildSpark-specific fixes.
+- Update the included Spy Forever component to 1.3.8-forever20. The other supplied PvP components already match their current Forever releases.
+- Apply module switches immediately: disabling WildMaps closes and blocks its Zone Map, WildGroups alerts honor its switch, and WildLayer stops its chat filters and closes its request window.
+- Make disabling WildAuctions immediately restore Blizzard's auction-house window, stop its item tooltip additions and click shortcuts, and block its slash commands.
+
+WildSpark 2.2.46
+- Keep the module tab rail and WildMaps catalog inside clipped scroll areas so tab buttons no longer collide or escape their panel.
+- Combine the four supplied PvP sources into WildSpark as a WildPvP module with its own tab. Preserve author credits and license notices in the module.
+- Keep WildMaps inside its compact Zone Map; open it from WildSpark or with Shift+M, without opening or changing Blizzard's World Map.
+- Announce incoming and outgoing party/raid invitations from WildGroups and play the Blizzard group-invite sound.
+
+WildSpark 2.2.45
+- Add the missing WildMaps settings tab with an enable switch, selectable dungeon catalog, compact Zone Map toggle, and size control.
+- Fix compact Zone Map dragging so the drag handler receives its frame correctly.
+- Add a WildPvP settings tab and master switch. The four authorized feature integrations are bundled in WildSpark.
+
 WildSpark 2.2.44
 - Restored the integrated WildMaps dungeon catalog to the stable addon package.
 - Added a movable compact dungeon map with three size presets, zoom controls, map browsing, and floor selection.

@@ -12,8 +12,13 @@ StaticPopupDialogs.AUX_REMOVE_FAVORITE_CONFIRMATION = {
     timeout = 0,
     hideOnEscape = 1,
     preferredIndex = STATICPOPUP_NUMDIALOGS,
-    OnAccept = function(self, index)
-        tremove(favorite_searches, index)
+    -- 0.8.2.1 (outside review, R-20): the favorite itself, not its row number, which can change while
+    -- the question is open (a reorder then removed another one)
+    OnAccept = function(self, search)
+        local index = aux.key(favorite_searches, search)
+        if index then
+            tremove(favorite_searches, index)
+        end
         update_search_listings()
     end
 }
@@ -24,7 +29,6 @@ StaticPopupDialogs.AUX_RENAME_FAVORITE = {
     button2 = 'Cancel',
 	maxLetters = 50,
     hasEditBox = 1,
-    editBoxWidth = editBoxWidth ,
     timeout = 0,
     hideOnEscape = 1,
     preferredIndex = STATICPOPUP_NUMDIALOGS,
@@ -56,11 +60,7 @@ StaticPopupDialogs.AUX_RENAME_FAVORITE = {
 dragged_search = nil
 
 function aux.event.AUX_LOADED()
-	local realm_data = type(aux.realm_data) == 'table' and aux.realm_data or {}
-	aux.realm_data = realm_data
-	if type(realm_data.recent_searches) ~= 'table' then realm_data.recent_searches = {} end
-	if type(realm_data.favorite_searches) ~= 'table' then realm_data.favorite_searches = {} end
-	recent_searches, favorite_searches = realm_data.recent_searches, realm_data.favorite_searches
+	recent_searches, favorite_searches = aux.realm_data.recent_searches, aux.realm_data.favorite_searches
 end
 
 function update_search_listings()
@@ -106,7 +106,7 @@ function new_recent_search(filter_string, prettified, recipe)
 	update_search_listings()
 end
 
--- WildAuctions (0.5, docs/clicks.md): Simon's clicks stay, and the tooltip now lists them
+-- auxForever (0.5, docs/clicks.md): Simon's clicks stay, and the tooltip now lists them
 do
 	local sep = gui.HINT_SEPARATOR
 	RECENT_HINT = 'Click: run' .. sep .. 'Shift-click: put in the search bar' .. sep .. 'Shift-right-click: add to the search bar' .. sep .. 'Right-click: add to favorites'
@@ -143,7 +143,7 @@ handlers = {
 				tinsert(favorite_searches, 1, data.search)
                 update_search_listings()
 			elseif st == favorite_searches_listing then
-                aux.show_popup('AUX_REMOVE_FAVORITE_CONFIRMATION', nil, nil, data.index)
+                aux.show_popup('AUX_REMOVE_FAVORITE_CONFIRMATION', nil, nil, data.search)
             end
         end
 	end,
@@ -204,7 +204,7 @@ function get_alert_validator()
 	end
 end
 
--- WildAuctions: an empty search bar is not saved (it used to add an empty search per click), nor a
+-- auxForever: an empty search bar is not saved (it used to add an empty search per click), nor a
 -- search that is already a favorite. Returns 'saved', 'empty' or 'duplicate' (nil when invalid).
 function add_favorite(filter_string)
 	filter_string = aux.trim(filter_string or '')

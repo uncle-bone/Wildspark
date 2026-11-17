@@ -36,6 +36,7 @@ function WildLayer:NotifyChatLockdownBlockedRequest()
 end
 
 function WildLayer:SendLayerRequest()
+	if not self.db.profile.enabled then return self:Print("WildLayer is disabled.") end
 	if addonTable.compat.InChatLockdown() then
 		self:DebugPrint("Chat messaging lockdown: layer request blocked")
 		self:NotifyChatLockdownBlockedRequest()
@@ -55,6 +56,16 @@ function WildLayer:SendLayerRequest()
 	elseif self.db.profile.layerSegments and addonTable.currentLayerSegment then
 		self:DebugPrint("Using layer segment:", addonTable.currentLayerSegment)
 		res = "<" .. addonTable.currentLayerSegment .. "> "
+	end
+
+	-- Forever helpers can ignore requests from another zone before sending an invite.
+	-- Letters-only keeps older helpers from interpreting the tag as a layer number.
+	if addonTable.compat.isForever and self.db.profile.layerSegments then
+		local zoneHeader = addonTable.util.BuildZoneHeader(self:GetLayerZoneID())
+		if zoneHeader then res = res .. zoneHeader end
+	end
+	if addonTable.compat.isForever and self.db.profile.foreverLeaveWrongZone then
+		pendingLayerHop = { sentAt = time(), inviters = {} }
 	end
 
 	res = res .. "inv layer "
@@ -87,6 +98,7 @@ function WildLayer:SendLayerRequest()
 end
 
 function WildLayer:SlashCommandRequest(input)
+	if not self.db.profile.enabled then return self:Print("WildLayer is disabled.") end
 	if not is_closed then
 		return self:Print("Hopper GUI is already open. Use either the GUI or slash commands, not both.")
 	end
@@ -125,6 +137,7 @@ function WildLayer:SlashCommandRequest(input)
 end
 
 function WildLayer:HopGUI()
+	if not self.db.profile.enabled then return self:Print("WildLayer is disabled.") end
 	if not is_closed then
 		return
 	end
@@ -313,4 +326,9 @@ function WildLayer:HopGUI()
 	cooldownLabel:SetText("|cffff0000Note:|r Blizzard enforces an increasing cooldown on layering.\nThe more you attempt to layer, the longer it takes each time.|r")
 	cooldownLabel:SetFullWidth(true)
 	frame:AddChild(cooldownLabel)
+end
+
+function WildLayer:CloseHopper()
+	local frame = _G[HOPPER_FRAME_GLOBAL]
+	if frame and frame.Hide then frame:Hide() end
 end

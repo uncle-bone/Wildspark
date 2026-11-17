@@ -14,8 +14,7 @@ local ADDON_NAME, ns = ...
 local L = ns.L
 local Skin = ns.Skin
 if not Skin then
-	-- Skin.lua est arrivé avec une mise à jour, et le jeu ne charge un nouveau fichier qu'à son
-	-- lancement : d'ici là pas de fenêtre, et /wildspark dit pourquoi
+	function ns.OpenModulePage() ns.Print(L.MSG_RESTART) end
 	function ns.ToggleMenu() ns.Print(L.MSG_RESTART) end
 	Wildspark_OnAddonCompartmentClick = ns.ToggleMenu
 	return
@@ -25,10 +24,10 @@ local MEDIA = "Interface\\AddOns\\" .. ADDON_NAME .. "\\Media\\"
 local ICONS = "Interface\\Icons\\"
 local FALLBACK_ICON = "Interface\\Cooldown\\star4"
 
-local WIDTH, HEIGHT = 728, 496
+local WIDTH, HEIGHT = 728, 640
 local EDGE = 12               -- marge entre le cadre de la fenêtre et ses panneaux
 local TOP, FOOT = 62, 42      -- ce que la fenêtre garde au-dessus des panneaux (son portrait) et dessous (ses boutons)
-local TAB_RAIL_WIDTH = 88     -- réserve le bord droit aux onglets pour qu'ils restent dans la fenêtre
+local TAB_RAIL_WIDTH = 88     -- garde les onglets d'icônes compacts sur le bord de la fenêtre
 local GAP = 6                 -- espace entre deux panneaux
 local PAD = 16                -- marge intérieure d'un panneau
 local LIST = 236              -- largeur du panneau des objets
@@ -51,7 +50,7 @@ local NODES_ICON = "INV_Misc_Map_01"
 local NODES_HEIGHT = 320      -- hauteur des deux panneaux de la page de la minimap
 
 -- Titre de chaque page sous la barre de titre ; celle des objets compose le sien (LookTitle)
-local PAGE_TITLES = { nodes = "NODES_PAGE", settings = "SETTINGS", leash = "LEASH_SETTINGS", buffs = "BUFFS_TAB", camping = "CAMPING_TAB", auctions = "WILDAUCTIONS_TAB", groups = "WILDGROUPS_TAB", layers = "WILDLAYER_TAB", info = "WILDINFO_TAB", lootrolls = "WILDLOOTROLLS_TAB" }
+local PAGE_TITLES = { nodes = "NODES_PAGE", settings = "SETTINGS", leash = "LEASH_SETTINGS", buffs = "BUFFS_TAB", camping = "CAMPING_TAB", auctions = "WILDAUCTIONS_TAB", groups = "WILDGROUPS_TAB", layers = "WILDLAYER_TAB", info = "WILDINFO_TAB", lootrolls = "WILDLOOTROLLS_TAB", maps = "WILDMAPS_TAB", pvp = "WILDPVP_TAB" }
 
 -- Choix d'un réglage : { valeur, nom du texte } ; ou { valeur, nil, libellé } quand le libellé
 -- ne se traduit pas
@@ -734,24 +733,39 @@ local function CreateMenu()
 	if ns.WildLayer then list[#list + 1] = { "layers", MEDIA .. "WildLayerIcon", "WILDLAYER_TAB" } end
 	if ns.WildInfo then list[#list + 1] = { "info", MEDIA .. "icon.tga", "WILDINFO_TAB" } end
 	if ns.WildLootRolls then list[#list + 1] = { "lootrolls", ICONS .. "INV_Misc_Dice_02", "WILDLOOTROLLS_TAB" } end
+	if ns.WildMapsModule then list[#list + 1] = { "maps", ICONS .. "INV_Misc_Map_01", "WILDMAPS_TAB" } end
+	if ns.WildPvP then list[#list + 1] = { "pvp", ICONS .. "INV_Sword_04", "WILDPVP_TAB" } end
 	frame.tabs = {}
-	local previous
-	local tab_top, tab_bottom = 56, 12
-	local tab_slot = (HEIGHT - tab_top - tab_bottom) / #list
-	local tab_gap = 6
-	local tab_index = 0
-	for _, tab in ipairs(list) do
-		tab_index = tab_index + 1
+	local tab_top, tab_bottom = 58, 12
+	local tab_size, tab_gap = 40, 3
+	local tab_pitch = tab_size + tab_gap
+	for tabIndex, tab in ipairs(list) do
 		local name, text = tab[1], tab[3]
-		local button = Skin.SideTab(frame, previous, tab[2], function() Open(name) end)
-		local tab_height = button.GetHeight and button:GetHeight() or 32
-		button:SetScale(math.min(1, math.max(0, tab_slot - tab_gap) / math.max(1, tab_height)))
-		button:ClearAllPoints()
-		button:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -3, -tab_top - (tab_index - 1) * tab_slot)
-		captions[#captions + 1] = function() button.tooltipText = L[text] end
+		-- Bounded icon buttons avoid overlap from the oversized artwork on
+		-- Blizzard's side-tab template while keeping full-size icons.
+		local button = CreateFrame("CheckButton", nil, frame)
+		button:SetSize(tab_size, tab_size)
+		button:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -8, -tab_top - (tabIndex - 1) * tab_pitch)
+		local back = button:CreateTexture(nil, "BACKGROUND")
+		back:SetAllPoints()
+		back:SetColorTexture(0, 0, 0, 0.9)
+		local icon = button:CreateTexture(nil, "ARTWORK")
+		icon:SetPoint("TOPLEFT", 3, -3)
+		icon:SetPoint("BOTTOMRIGHT", -3, 3)
+		icon:SetTexture(tab[2])
+		button:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
+		button:SetCheckedTexture("Interface\\Buttons\\CheckButtonHilight")
+		button:SetScript("OnClick", function() PlaySound(SOUNDKIT.IG_CHARACTER_INFO_TAB); Open(name) end)
+		button:SetScript("OnEnter", function(self)
+			GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+			GameTooltip_SetTitle(GameTooltip, self.tooltipText)
+			GameTooltip:Show()
+		end)
+		button:SetScript("OnLeave", function() GameTooltip:Hide() end)
 		button.tooltipText = L[text]
+		captions[#captions + 1] = function() button.tooltipText = L[text] end
 		refreshers[#refreshers + 1] = function() button:SetChecked(openPage == name) end
-		frame.tabs[name], previous = button, button
+		frame.tabs[name] = button
 	end
 
 	local height = HEIGHT - TOP - FOOT
@@ -953,6 +967,89 @@ local function CreateMenu()
 		open:SetPoint("TOPLEFT", column.x, column.y - 4)
 	end
 
+	page = pages.maps
+	if page and ns.WildMapsModule then
+		local maps = ns.WildMapsModule
+		column = NewCard(page, 0, 0, page:GetWidth(), height, "WILDMAPS_TAB")
+		local note = column.parent:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+		note:SetPoint("TOPLEFT", column.x, column.y)
+		note:SetWidth(column.width)
+		note:SetJustifyH("LEFT")
+		note:SetWordWrap(true)
+		note:SetText(L.WILDMAPS_NOTE:format(maps.GetMapCount and maps.GetMapCount() or 0))
+		column.y = column.y - note:GetStringHeight() - 12
+		AddCheckbox(column, "WILDMAPS_ENABLED", maps.IsEnabled, maps.SetEnabled)
+		local browseLabel = column.parent:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+		browseLabel:SetPoint("TOPLEFT", column.x + 4, column.y - 4)
+		browseLabel:SetWidth(column.width)
+		browseLabel:SetJustifyH("LEFT")
+		browseLabel:SetWordWrap(true)
+		browseLabel:SetText(L.WILDMAPS_BROWSE)
+		column.y = column.y - browseLabel:GetStringHeight() - 10
+		local mapScroll = CreateFrame("ScrollFrame", nil, column.parent, "UIPanelScrollFrameTemplate")
+		mapScroll:SetPoint("TOPLEFT", column.x + 4, column.y)
+		mapScroll:SetSize(column.width - 32, 250)
+		if mapScroll.SetClipsChildren then mapScroll:SetClipsChildren(true) end
+		local mapContent = CreateFrame("Frame", nil, mapScroll)
+		mapContent:SetSize(column.width - 32, 1)
+		mapScroll:SetScrollChild(mapContent)
+		local mapRows = {}
+		local function RefreshMaps()
+			local mapList = maps.GetMaps and maps.GetMaps() or {}
+			mapContent:SetHeight(math.max(1, #mapList * 30))
+			for i, map in ipairs(mapList) do
+				local row = mapRows[i]
+				if not row then
+					row = CreateFrame("Button", nil, mapContent, "UIPanelButtonTemplate")
+					row:SetHeight(24)
+					row:SetPoint("TOPLEFT", 0, -(i - 1) * 30)
+					mapRows[i] = row
+				end
+				row:SetWidth(column.width - 36)
+				row:SetText(map.name or map.id or "?")
+				row:SetScript("OnClick", function()
+					if maps.SelectMap(map.id) and maps.ZoneMap and maps.ZoneMap.frame then
+						maps.ZoneMap.pinnedMap = map.id
+						maps.ZoneMap:Refresh()
+					end
+				end)
+				row:Show()
+			end
+			for i = #mapList + 1, #mapRows do mapRows[i]:Hide() end
+		end
+		RefreshMaps()
+		local open = AddButton(column.parent, "WILDMAPS_OPEN", function() if maps.Open then maps.Open() end end, 190)
+		open:SetPoint("BOTTOMLEFT", column.parent, "BOTTOMLEFT", 16, 14)
+	end
+
+	page = pages.pvp
+	if page and ns.WildPvP then
+		local pvp = ns.WildPvP
+		column = NewCard(page, 0, 0, page:GetWidth(), height, "WILDPVP_TAB")
+		local note = column.parent:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+		note:SetPoint("TOPLEFT", column.x, column.y)
+		note:SetWidth(column.width)
+		note:SetJustifyH("LEFT")
+		note:SetWordWrap(true)
+		note:SetText(L.WILDPVP_NOTE)
+		column.y = column.y - note:GetStringHeight() - 12
+		local componentButtons = {
+			{ id = "nearby", button = "WILDPVP_OPEN_SPY" },
+			{ id = "timers", button = "WILDPVP_OPEN_CAPPING" },
+			{ id = "intel", button = "WILDPVP_OPEN_HIGHGROUND" },
+			{ id = "enemyframes", button = "WILDPVP_OPEN_ENEMYFRAMES" },
+		}
+		local pvpStatus = column.parent:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+		pvpStatus:SetPoint("TOPLEFT", column.x + 20, column.y - 4)
+		pvpStatus:SetText("PvP features activate inside battlegrounds and arenas.")
+		column.y = column.y - 30
+		for _, component in ipairs(componentButtons) do
+			local open = AddButton(column.parent, component.button, function() pvp.OpenComponent(component.id) end, 260)
+			open:SetPoint("TOPLEFT", column.x + 20, column.y - 2)
+			column.y = column.y - 34
+		end
+	end
+
 	page = pages.layers
 	if page and ns.WildLayer then
 		local layers = ns.WildLayer
@@ -1146,6 +1243,13 @@ local function CreateMenu()
 		SetLabel(reset, confirmLeft and L.CONFIRM or L.DEFAULTS)
 	end)
 	return frame
+end
+
+function ns.OpenModulePage(name)
+	local frame = menu or CreateMenu()
+	Open(name)
+	if not frame:IsShown() then ns.ToggleMenu() end
+	return frame:IsShown()
 end
 
 function ns.ToggleMenu()

@@ -3,8 +3,8 @@ select(2, ...).WildAuctions 'aux.core.api'
 local info = require 'aux.util.info'
 local history = require 'aux.core.history'
 
--- WildAuctions (0.7, FB-012, asked by MDHippie): prices for other addons, in the
--- global WildAuctionsAPI. Everything else in aux stays private to its modules. These names and what
+-- auxForever (0.7, FB-012, asked by MDHippie): prices for other addons, in the
+-- global AuxForeverAPI. Everything else in aux stays private to its modules. These names and what
 -- they return are a promise to other addons: add new functions, never change or remove these.
 -- Described for addon authors in docs/api.md. It only works when called: nothing runs per frame.
 
@@ -60,4 +60,4 @@ function api.IsReady()
     return history.loaded()
 end
 
-_G.WildAuctionsAPI = api
+_G.AuxForeverAPI = api

@@ -20,7 +20,7 @@ local LFGF = root.WildGroups
 -- Every word this file shows, from core/locale.lua (loaded first).
 local L = LFGF.L
 
-local BUTTON_NAME = "WildSparkWildGroupsMinimapButton"
+local BUTTON_NAME = "LFGForeverMinimapButton"
 
 -- 31x31, strata MEDIUM, frame level 8, both locked, as LibDBIcon creates every
 -- button (LibDBIcon-1.0.lua:258-261, :483).
@@ -326,5 +326,4 @@ function LFGF.UpdateMinimapButton()
 end
 EventUtil.ContinueOnAddOnLoaded(addonName, function()
 	button = button or BuildButton()
-	LFGF.UpdateMinimapButton()
 end)

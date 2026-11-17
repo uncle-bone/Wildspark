@@ -10,17 +10,17 @@ function status(enabled)
 	return (enabled and aux.color.green'on' or aux.color.red'off')
 end
 
--- WildAuctions: /wa memory. How much memory aux uses, and how many items its price history holds
+-- auxForever: /aux memory. How much memory aux uses, and how many items its price history holds
 -- (the part that grows over time). Measured only when asked: updating the game's memory figures
 -- takes a moment.
 function M.memory_report()
     UpdateAddOnMemoryUsage()
-    local kilobytes = GetAddOnMemoryUsage('WildSpark') or 0
+    local kilobytes = GetAddOnMemoryUsage('auxForever') or 0
     local items = 0
     for _ in pairs(aux.faction_data and aux.faction_data.history or empty) do
         items = items + 1
     end
-    local text = format('WildAuctions uses %.1f MB of memory; price history for %d items', kilobytes / 1024, items)
+    local text = format('auxForever uses %.1f MB of memory; price history for %d items (prices not seen for %d days are forgotten)', kilobytes / 1024, items, require('aux.core.history').FORGET_DAYS)
     local known, _, left, done = info.item_list_progress()
     text = text .. format('; item list %d items', known) .. (done and '' or format(', still checking (%d numbers left)', left))
     -- The game's number includes garbage (tables no longer used, such as each Sniper round's item
@@ -28,12 +28,12 @@ function M.memory_report()
     -- shows what aux really keeps.
     if pcall(collectgarbage, 'collect') then
         UpdateAddOnMemoryUsage()
-        text = text .. format('. After a cleanup: %.1f MB; the rest was garbage the game frees over time', (GetAddOnMemoryUsage('WildSpark') or 0) / 1024)
+        text = text .. format('. After a cleanup: %.1f MB; the rest was garbage the game frees over time', (GetAddOnMemoryUsage('auxForever') or 0) / 1024)
     end
     return text
 end
 
--- /wa memory detail: how many entries aux's main stores hold, to find one that keeps growing
+-- /aux memory detail: how many entries aux's main stores hold, to find one that keeps growing
 function M.memory_detail()
     local known, seen, deals, markets = require('aux.tabs.sniper').memory_counts()
     local cached, today = require('aux.core.history').memory_counts()
@@ -48,9 +48,9 @@ function M.memory_detail()
     }
 end
 
-_G.SLASH_WA1 = '/wa'
-_G.SLASH_WA2 = '/WildAuctions'
-function SlashCmdList.WA(command)
+_G.SLASH_AUX1 = '/aux'
+_G.SLASH_AUX2 = '/auxforever'
+function SlashCmdList.AUX(command)
 	if not command then return end
 	local arguments = aux.tokenize(command)
     local tooltip_settings = aux.character_data.tooltip
@@ -64,7 +64,7 @@ function SlashCmdList.WA(command)
             scan.measure_item_list()
         end
     elseif arguments[1] == 'price' then
-        -- WildAuctions (0.5): /wa price <item link or exact name>
+        -- auxForever (0.5): /aux price <item link or exact name>
         local target = strmatch(command, '^%s*price%s+(.-)%s*$') or ''
         local item_id, suffix_id
         if strfind(target, 'item:', 1, true) then
@@ -74,7 +74,7 @@ function SlashCmdList.WA(command)
             item_id, suffix_id = info.split_ending(target), 0
         end
         if not item_id then
-            aux.print('Usage: /wa price followed by an item link (Shift-click the item) or its exact name.')
+            aux.print('Usage: /aux price followed by an item link (Shift-click the item) or its exact name.')
         else
             local item_info = info.item(item_id)
             aux.print('Price data for ' .. (item_info and item_info.link or ('item ' .. item_id)) .. ':')
@@ -117,6 +117,9 @@ function SlashCmdList.WA(command)
     elseif arguments[1] == 'tooltip' and (arguments[2] == 'percent' or arguments[2] == 'usually') then
 	    tooltip_settings.usually = not tooltip_settings.usually
         aux.print('tooltip percent of usual ' .. status(tooltip_settings.usually))
+    elseif arguments[1] == 'tooltip' and arguments[2] == 'crate' then
+	    tooltip_settings.crate = not tooltip_settings.crate
+        aux.print('tooltip crate ' .. status(tooltip_settings.crate))
     elseif arguments[1] == 'tooltip' and arguments[2] == 'daily' then
 	    tooltip_settings.daily = not tooltip_settings.daily
         aux.print('tooltip daily ' .. status(tooltip_settings.daily))
@@ -151,11 +154,13 @@ function SlashCmdList.WA(command)
         -- E6 in docs/forever-auction-house.md: said of the modern auction house, not yet seen on Forever
         aux.print('Undercutting on Forever: on the modern auction house, the newest of several listings at one price is said to sell first. This is not yet confirmed on Forever.')
         aux.print('If it holds, posting at the cheapest price sells just as fast as going below it, and keeps prices from sliding.')
-        aux.print('WildAuctions matches the cheapest price by default. Undercut mode (the goblin on the Post tab) goes one step below it.')
+        aux.print('auxForever matches the cheapest price by default. Undercut mode (the goblin on the Post tab) goes one step below it.')
         aux.print('For gear, buyers pick the listing themselves.')
-        aux.print('Undercut mode [' .. status(aux.account_data.post_undercut) .. '] - /wa undercut on|off (it starts off each time the auction house opens)')
+        aux.print('Undercut mode [' .. status(aux.account_data.post_undercut) .. '] - /aux undercut on|off (it starts off each time the auction house opens)')
     elseif arguments[1] == 'clear' and arguments[2] == 'post' then
-        aux.faction_data.post = {}
+        -- emptied in place: the Post tab keeps this same table, so a new one left it reading the old
+        -- prices and writing new ones where they were never saved (outside review 2026-11-10, R-06)
+        aux.wipe(aux.faction_data.post)
         aux.print('Post data cleared.')
 	else
 		aux.print('Usage:')
@@ -170,6 +175,7 @@ function SlashCmdList.WA(command)
 		aux.print('- tooltip value [' .. status(tooltip_settings.value) .. ']')
 		aux.print('- tooltip percent [' .. status(tooltip_settings.usually) .. ']')
 		aux.print('- tooltip daily [' .. status(tooltip_settings.daily) .. ']')
+		aux.print('- tooltip crate [' .. status(tooltip_settings.crate) .. ']')
 		aux.print('- tooltip merchant buy [' .. status(tooltip_settings.merchant_buy) .. ']')
 		aux.print('- tooltip merchant sell [' .. status(tooltip_settings.merchant_sell) .. ']')
 		aux.print('- tooltip disenchant value [' .. status(tooltip_settings.disenchant_value) .. ']')

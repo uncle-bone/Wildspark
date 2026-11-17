@@ -1,0 +1,1 @@
+WildFire Kit 1.10 code, libraries, and media are included in the WildSpark embedded module with permission. Original source licenses and copyright notices remain with their components.

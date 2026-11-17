@@ -22,7 +22,7 @@ local L = LFGF.L
 -- player reads.
 LFGF.TITLE = "WildGroups"
 
---- One chat line from the addon, prefixed with its name: "LFG Forever: text".
+--- One chat line from the addon, prefixed with its name: "WildGroups: text".
 --- print() is the FrameXML global from Blizzard_PrintHandler.lua:93.
 function LFGF.Print(text)
 	print(LFGF.TITLE .. ": " .. text)
@@ -248,7 +248,7 @@ end
 --- DEFENSIVE, like LFGF.SavedFilters: an entry that is not a table, has no
 --- usable name, or has no filters table is skipped, and each filter is cleaned
 --- by CleanFilters. Names are unique by construction; should a hand edit repeat
---- one, only the first counts, so what the menu lists, what "taken" means and
+--- one, only the first counts, so what the menu lists, what "saved" means and
 --- what a click applies all agree.
 function LFGF.MyFilters()
 	local saved = LFGF.SavedValue("myFilters")
@@ -270,13 +270,29 @@ function LFGF.MyFilters()
 	return list
 end
 
---- What is wrong with saving a new filter under `name`, or nil if nothing is:
+--- Whether a filter is saved under `name`, trimmed and matched exactly (case
+--- counts, as everywhere in My filters). Saving under such a name overwrites it.
+function LFGF.IsMyFilterSaved(name)
+	name = LFGF.CleanMyFilterName(name)
+	if name == "" then
+		return false
+	end
+	for _, filter in ipairs(LFGF.MyFilters()) do
+		if filter.name == name then
+			return true
+		end
+	end
+	return false
+end
+
+--- What is wrong with saving a filter under `name`, or nil if nothing is:
 ---   "empty" -- nothing left once trimmed
 ---   "long"  -- more than 20 letters; strlenutf8 counts letters, not bytes
----   "taken" -- a saved filter already has this name, exactly
----   "full"  -- 20 are saved
---- One answer, the first that applies, so the popup can say why its Okay is
---- off and AddMyFilter can refuse with the same word.
+---   "full"  -- 20 are saved and the name is new
+--- A name already saved is fine: saving overwrites it, which adds none, so it
+--- is never "full" (the author's decision). One answer, the first that
+--- applies, so the popup can say why its Okay is off and SaveMyFilter can
+--- refuse with the same word.
 function LFGF.MyFilterNameProblem(name)
 	name = LFGF.CleanMyFilterName(name)
 	if name == "" then
@@ -285,13 +301,7 @@ function LFGF.MyFilterNameProblem(name)
 	if strlenutf8(name) > LFGF.MY_FILTER_NAME_MAX_LETTERS then
 		return "long"
 	end
-	local filters = LFGF.MyFilters()
-	for _, filter in ipairs(filters) do
-		if filter.name == name then
-			return "taken"
-		end
-	end
-	if #filters >= LFGF.MY_FILTERS_MAX then
+	if not LFGF.IsMyFilterSaved(name) and #LFGF.MyFilters() >= LFGF.MY_FILTERS_MAX then
 		return "full"
 	end
 	return nil
@@ -303,21 +313,33 @@ local function WriteMyFilters(list)
 	LFGF.SaveValue("myFilters", list)
 end
 
---- Add a filter at the end of My filters, under the trimmed name. Returns true,
---- or false and the problem (see MyFilterNameProblem), saving nothing.
+--- Save a filter at the end of My filters, under the trimmed name. A filter
+--- already saved under that name is deleted first, so an overwrite moves the
+--- name to the end, as a new save would (the author's decision). Returns true
+--- and whether it overwrote one, or false and the problem (see
+--- MyFilterNameProblem), saving nothing.
 ---
 --- The snapshot is stored as given (a deep copy, CopyTable, TableUtil.lua:218-
 --- 228), levels included: a min above the max is saved as typed, by the
 --- author's decision, and put right by FixLevelRange when it is applied.
-function LFGF.AddMyFilter(name, snapshot)
+function LFGF.SaveMyFilter(name, snapshot)
 	local problem = LFGF.MyFilterNameProblem(name)
 	if problem then
 		return false, problem
 	end
+	name = LFGF.CleanMyFilterName(name)
 	local list = LFGF.MyFilters()
-	table.insert(list, { name = LFGF.CleanMyFilterName(name), filters = CopyTable(snapshot) })
+	local overwritten = false
+	for index, filter in ipairs(list) do
+		if filter.name == name then
+			table.remove(list, index)
+			overwritten = true
+			break
+		end
+	end
+	table.insert(list, { name = name, filters = CopyTable(snapshot) })
 	WriteMyFilters(list)
-	return true
+	return true, overwritten
 end
 
 --- Delete the filter with exactly this name. Returns true if one was deleted.
@@ -417,6 +439,16 @@ end
 -- whisper log size, so the button never has to know the Settings API exists.
 LFGF.EVENT_MINIMAP_BUTTON_CHANGED = "LFGForever.MinimapButtonChanged"
 
+--- Is "Player ratings" on? (core/filterpanel.lua shows the third tab by it)
+function LFGF.ShowPlayerRatings()
+	return LFGF.SavedSetting("showPlayerRatings")
+end
+
+-- Raised by core/settings.lua when "Player ratings" changes, with the new
+-- value; the filter panel shows or hides the Player ratings tab, and the list
+-- of the last party members (core/recentparty.lua) starts or stops recording.
+LFGF.EVENT_PLAYER_RATINGS_CHANGED = "LFGForever.PlayerRatingsChanged"
+
 --- Is "Show all level activities" on? Our own setting, never Blizzard's CVar
 --- (why: core/db.lua).
 function LFGF.ShowAllLevelRanges()
@@ -477,7 +509,7 @@ local function OpenSettingsCategory(categoryID, scrollToElementName)
 	end
 end
 
---- Open Options -> AddOns -> LFG Forever, the page core/settings.lua builds.
+--- Open Options -> AddOns -> WildGroups, the page core/settings.lua builds.
 --- Every way in -- the settings gear, the minimap button's and the
 --- compartment's right click -- comes through here. Does nothing until
 --- core/settings.lua has registered the category on ADDON_LOADED.
@@ -486,11 +518,11 @@ function LFGF.OpenSettings()
 	OpenSettingsCategory(category and category:GetID())
 end
 
---- Open Blizzard's own Keybindings page at the LFG Forever section, where
+--- Open Blizzard's own Keybindings page at the WildGroups section, where
 --- Blizzard's code sets the key: the settings page's key binding button.
 --- Blizzard links its Ping keybindings this way (PingSystem.lua:74-91), with
 --- the page's ID from Keybindings.lua:282. The section is titled with the
---- binding's category, BINDING_HEADER_WILDGROUPS = LFGF.TITLE (core/slash.lua,
+--- binding's category, BINDING_HEADER_LFGFOREVER = LFGF.TITLE (core/slash.lua,
 --- read as _G[category] at Keybindings.lua:220-226), and the panel scrolls to
 --- the element of that name (Blizzard_SettingsList.lua:152-158).
 ---
@@ -512,7 +544,7 @@ local DISCORD_URL = "https://discord.com/invite/z6BU5Rkdsy"
 -- already been refused from this addon in the client. So the popup holds the
 -- link in a text box, selected, for the player's own Ctrl+C -- what every
 -- example addon that shows a link does.
-local REPORT_BUG_POPUP = "WILDSPARK_WILDGROUPS_REPORT_BUG"
+local REPORT_BUG_POPUP = "LFGFOREVER_REPORT_BUG"
 local REPORT_BUG_POPUP_TEXT = L.REPORT_BUG_POPUP_TEXT
 
 -- Wide enough to show the whole link; GameDialogMixin:SetupEditBox reads it
@@ -575,6 +607,67 @@ StaticPopupDialogs[REPORT_BUG_POPUP] = {
 --- editBoxSecureText (StaticPopup.lua:323), which this popup does not set.
 function LFGF.ShowReportBug()
 	StaticPopup_Show(REPORT_BUG_POPUP, nil, nil, DISCORD_URL)
+end
+
+-------------------------------------------------------
+---------- A popup's Okay, and why it is off
+-------------------------------------------------------
+-- A popup with a box keeps its Okay off until what is typed will do, and says
+-- why on hover: Save new filter (core/filterpanel.lua) and Clear player rating
+-- (core/playerratings.lua). Blizzard's popup has no tooltip for its buttons, so
+-- it goes on the button itself. But that button is Blizzard's: the popups are
+-- four reused frames (GameDialog.xml:348-367), each owning its buttons
+-- (:181-184), and per dialog Blizzard resets only their text, enabled state
+-- and pulse (GameDialogMixin:SetupButtons, GameDialog.lua:319-341). Left in
+-- place, our scripts would reach the next dialog in that frame, one of
+-- Blizzard's own, say. So OnShow keeps what was there, and OnHide puts it
+-- back. Kept here, in a table of ours, not on Blizzard's frame. OnClick is
+-- never touched.
+local okayRestore = setmetatable({}, { __mode = "k" })
+
+--- From a popup's OnShow: while `dialog`'s Okay is off, hovering it shows
+--- `title` over `Reason(text)`, the reason for what the box holds (nil when
+--- there is none). Undo it with LFGF.RestorePopupOkay from the popup's OnHide.
+function LFGF.HookPopupOkayTooltip(dialog, title, Reason)
+	local okay = dialog:GetButton1()
+	okayRestore[okay] = {
+		motion = okay:GetMotionScriptsWhileDisabled(),
+		onEnter = okay:GetScript("OnEnter"),
+		onLeave = okay:GetScript("OnLeave"),
+	}
+	-- A disabled button fires no OnEnter unless told to; Blizzard sets the
+	-- same flag on its own Role Check button for its reason tooltip
+	-- (Blizzard_LFGVanilla_Listing.xml:413).
+	okay:SetMotionScriptsWhileDisabled(true)
+	okay:SetScript("OnEnter", function(self)
+		local reason = Reason(dialog:GetEditBox():GetText())
+		if self:IsEnabled() or reason == nil then
+			return
+		end
+		LFGF.ShowTooltip(self, title, reason)
+	end)
+	okay:SetScript("OnLeave", function(self)
+		if GameTooltip:GetOwner() == self then
+			GameTooltip:Hide()
+		end
+	end)
+end
+
+--- From a popup's OnHide: put back what LFGF.HookPopupOkayTooltip found on the
+--- Okay button. Nothing for a button it never borrowed.
+function LFGF.RestorePopupOkay(dialog)
+	local okay = dialog:GetButton1()
+	local saved = okayRestore[okay]
+	if not saved then
+		return
+	end
+	okayRestore[okay] = nil
+	if GameTooltip:GetOwner() == okay then
+		GameTooltip:Hide()
+	end
+	okay:SetMotionScriptsWhileDisabled(saved.motion)
+	okay:SetScript("OnEnter", saved.onEnter)
+	okay:SetScript("OnLeave", saved.onLeave)
 end
 
 -- THE ASK TO JOIN WHISPER. Its text is a setting (core/settings.lua), saved
@@ -883,7 +976,7 @@ end
 -- something nobody can type is not a state this addon can reach. Published
 -- here rather than in slash.lua because main.lua loads first (LFGForever.toc)
 -- and this file is where the shared constants live.
-LFGF.SLASH_COMMAND = "/wildgroups"
+LFGF.SLASH_COMMAND = "/lfg"
 
 
 -------------------------------------------------------
@@ -939,6 +1032,212 @@ function LFGF.ReadableNumbers(...)
 		end
 	end
 	return ...
+end
+
+-------------------------------------------------------
+---------- Player ratings
+-------------------------------------------------------
+-- ONE KEY PER PLAYER, whatever list the name came from: the Player ratings tab
+-- saves by it (core/playerratings.lua), and the player listings are to look it
+-- up. The rules are the forever_notes skill's (assets/notes/NoteKey.lua,
+-- FromName): a Forever character is "Firstname Surname", the parts joined by a
+-- space, with no realms (LuaEnum.lua:9530-9534), and the same player also
+-- arrives in the link form "Firstname-Surname" (ChatFrameEditBox.lua:84-85).
+-- .claude/rules/player-ratings.md
+
+--- The key for a player's name: its ends trimmed, every run of spaces made
+--- one, and the link form "Firstname-Surname" folded into "Firstname Surname".
+--- Nil for no name, an empty one, or one that cannot be read: a hidden name is
+--- never a table key.
+---
+--- NO TYPE TEST AFTER THE READ. A name an API answers is a string, and the
+--- harness's secret is a table, so string.gsub errors on it if the guard ever
+--- goes (patterns-taint.md, A Type Check Can Hide A Missing Secret Guard).
+function LFGF.PlayerKey(name)
+	name = LFGF.Readable(name, nil)
+	if name == nil then
+		return nil
+	end
+	name = (string.gsub(name, "%s+", " "))
+	name = (string.gsub(name, "^ ", ""))
+	name = (string.gsub(name, " $", ""))
+	if name == "" then
+		return nil
+	end
+	if not string.find(name, " ", 1, true) then
+		local first, surname = string.match(name, "^([^%-]+)%-([^%-]+)$")
+		if first then
+			return first .. " " .. surname
+		end
+	end
+	return name
+end
+
+local function IsRating(rating)
+	return rating == 1 or rating == 2 or rating == 3
+end
+
+--- A player's rating, 1, 2 or 3 stars, or nil when nobody rated them. `key` is
+--- LFGF.PlayerKey's. Anything else on disk (a hand edit, another addon) reads
+--- as not rated.
+function LFGF.PlayerRating(key)
+	if key == nil then
+		return nil
+	end
+	local ratings = LFGF.SavedValue("playerRatings")
+	if type(ratings) ~= "table" then
+		return nil
+	end
+	local record = ratings[key]
+	if type(record) ~= "table" or not IsRating(record.rating) then
+		return nil
+	end
+	return record.rating
+end
+
+--- Save `rating`, 1, 2 or 3 stars, for the player `key` (LFGF.PlayerKey's),
+--- with their GUID beside it when it can be read, and the server time.
+--- Answers whether it saved: false, saving nothing, for no key or any other
+--- rating. The stars only change a rating; Clear player rating clears one, by
+--- name (LFGF.ClearPlayerRating).
+---
+--- THE GUID IS KEPT, NEVER THE KEY: the player listings carry no GUID
+--- (LfgSearchResultPlayerInfo, LFGListInfoDocumentation.lua:1013-1027), so a
+--- name is what every list can look up.
+function LFGF.SetPlayerRating(key, rating, guid)
+	if key == nil or not IsRating(rating) then
+		return false
+	end
+	local ratings = LFGF.SavedValue("playerRatings")
+	if type(ratings) ~= "table" then
+		ratings = {}
+	end
+	ratings[key] = { rating = rating, guid = LFGF.Readable(guid, nil), time = GetServerTime() }
+	LFGF.SaveValue("playerRatings", ratings)
+	EventRegistry:TriggerEvent(LFGF.EVENT_PLAYER_RATING_CHANGED, key, rating)
+	return true
+end
+
+--- Clear the saved rating of the player `key` (LFGF.PlayerKey's), exactly that
+--- key: case is kept, so "water boi" is not "Water Boi". Answers whether a
+--- rating was cleared: false, changing nothing, for no key, a player nobody
+--- rated, or a record on disk that is not a rating (LFGF.PlayerRating's rule).
+--- The record goes entirely; rating the player again starts afresh.
+function LFGF.ClearPlayerRating(key)
+	if LFGF.PlayerRating(key) == nil then
+		return false
+	end
+	local ratings = LFGF.SavedValue("playerRatings")
+	ratings[key] = nil
+	LFGF.SaveValue("playerRatings", ratings)
+	EventRegistry:TriggerEvent(LFGF.EVENT_PLAYER_RATING_CHANGED, key, nil)
+	return true
+end
+
+--- Raised after a rating is saved (LFGF.SetPlayerRating) or cleared
+--- (LFGF.ClearPlayerRating), with (key, rating), the rating nil for a clear.
+--- The players list, the whisper log and the Player ratings tab listen, each
+--- with itself as the owner, and redraw their marks and stars in place.
+LFGF.EVENT_PLAYER_RATING_CHANGED = "LFGForever.PlayerRatingChanged"
+
+--- Raised by core/recentparty.lua each time its list of the last five party
+--- members changes. The Player ratings tab listens, with itself as the owner,
+--- and draws its list again while it is shown.
+LFGF.EVENT_RECENT_PARTY_MEMBERS_CHANGED = "LFGForever.RecentPartyMembersChanged"
+
+-------------------------------------------------------
+---------- The rating marks in the lists (Phase 3)
+-------------------------------------------------------
+-- THE AUTHOR'S DECISIONS (2026-11-13): a rated player's row in the players
+-- list (a solo player, a group by its leader) and in the whisper log gets a
+-- 2 px strip in the rating's colour over the left edge of its band; the whisper
+-- log's tooltip gets the rating's line too. .claude/rules/player-ratings.md
+--
+-- 2 PX IS BLIZZARD'S OWN WIDTH: its Event Scheduler draws a 2 px solid line down
+-- the left edge of its rows (Mainline/EventScheduler.xml:96-106), the nearest
+-- thing to a strip on a row in Blizzard's UI. Nothing of Blizzard's marks a
+-- row's status with one.
+local RATING_STRIP_WIDTH = 2
+-- Where both lists' rows start their band: the players list's template
+-- (Blizzard_LFGVanilla_Browse.xml:214-219, TOPLEFT 3, -2 / BOTTOMRIGHT -3, 0) and
+-- the shared player row, which copies it (core/playerrow.lua).
+local BAND_INSET_X, BAND_INSET_TOP = 3, -2
+-- Blizzard's own silver, the |cffc0c0c0 its Group Finder writes its "Silver
+-- Tank" rank in (LFG_LIST_PROVING_TANK_SILVER, GlobalStrings/enUS.lua).
+local SILVER = 192 / 255
+-- Blizzard's own dim green, the |cff40c040 its Wardrobe writes a set in progress
+-- in (Blizzard_Collections/Shared/Blizzard_Wardrobe_Sets.lua) and its Group
+-- Finder the dash of "Pending" (LFG_LIST_PENDING, GlobalStrings/enUS.lua):
+-- DIM_GREEN_FONT_COLOR's value (vscode-wow-api GlobalColors.lua). As a number,
+-- because no Lua file of this client reads that global. Its green is the
+-- silver's brightness, so the three marks look alike in strength.
+local DIM_GREEN_RED_BLUE, DIM_GREEN_GREEN = 64 / 255, 192 / 255
+
+--- The colour a rating is marked in, as r, g, b: 1 star RED_FONT_COLOR, 2
+--- Blizzard's silver, 3 Blizzard's dim green (player-ratings.md). Nothing for
+--- anything else. RED_FONT_COLOR is generated at load from the client's colour
+--- database, so it is read here, at call time.
+function LFGF.PlayerRatingRGB(rating)
+	if rating == 1 then
+		return RED_FONT_COLOR:GetRGB()
+	elseif rating == 2 then
+		return SILVER, SILVER, SILVER
+	elseif rating == 3 then
+		return DIM_GREEN_RED_BLUE, DIM_GREEN_GREEN, DIM_GREEN_RED_BLUE
+	end
+end
+
+--- The rating to MARK a player with: their saved rating while the Player
+--- ratings setting is on, by LFGF.PlayerKey (so the link form and a hidden name
+--- are handled there), and nothing otherwise. The setting off hides every mark
+--- and keeps the ratings (decision 7).
+function LFGF.PlayerRatingFor(name)
+	if not LFGF.ShowPlayerRatings() then
+		return nil
+	end
+	return LFGF.PlayerRating(LFGF.PlayerKey(name))
+end
+
+--- A row's rating strip: a white colour texture tinted per rating, in the
+--- BORDER layer, so over the band (BACKGROUND) and under the text and the hover
+--- bar. The band's own height, its first 2 px. Starts hidden.
+function LFGF.CreateRatingStrip(row)
+	local strip = row:CreateTexture(nil, "BORDER")
+	strip:SetColorTexture(1, 1, 1)
+	strip:SetWidth(RATING_STRIP_WIDTH)
+	strip:SetPoint("TOPLEFT", row, "TOPLEFT", BAND_INSET_X, BAND_INSET_TOP)
+	strip:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", BAND_INSET_X, 0)
+	strip:Hide()
+	return strip
+end
+
+--- Show the strip in `rating`'s colour (1, 2 or 3 stars), or hide it for nil.
+--- Written both ways on every call: rows are pooled.
+function LFGF.PaintRatingStrip(strip, rating)
+	if rating == nil then
+		strip:Hide()
+		return
+	end
+	strip:SetVertexColor(LFGF.PlayerRatingRGB(rating))
+	strip:Show()
+end
+
+--- Show the strip for `name`'s rating (LFGF.PlayerRatingFor), or hide it.
+function LFGF.ShowRatingStrip(strip, name)
+	LFGF.PaintRatingStrip(strip, LFGF.PlayerRatingFor(name))
+end
+
+--- The tooltip line for `name`'s rating, and its colour: the stars tooltip's own
+--- line for that rating ("2 stars - I'm fine grouping with this player"), as
+--- text, r, g, b. Nothing for someone not marked.
+function LFGF.PlayerRatingLine(name)
+	local rating = LFGF.PlayerRatingFor(name)
+	if rating == nil then
+		return nil
+	end
+	local lines = { L.PLAYER_RATING_ONE_STAR_LINE, L.PLAYER_RATING_TWO_STARS_LINE,
+		L.PLAYER_RATING_THREE_STARS_LINE }
+	return lines[rating], LFGF.PlayerRatingRGB(rating)
 end
 
 -- Blizzard's own table is a FILE-LOCAL in Browse.lua:12-25 -- not a global, so
@@ -1028,6 +1327,14 @@ end
 -------------------------------------------------------
 ---------- Lists and text
 -------------------------------------------------------
+
+--- A name, or any text a player typed, as a font string should be given it:
+--- every | doubled, because a font string reads | as the start of an escape
+--- sequence (patterns-ui.md, "| In A FontString Needs Doubling"). What is saved
+--- stays as typed.
+function LFGF.ShownName(name)
+	return (string.gsub(name, "|", "||"))
+end
 
 -- The list's place in its parent: 4 in on every side, with a 22 gutter on the
 -- right for the scroll bar, which sits 4 beside the list.
@@ -1184,12 +1491,20 @@ local actionsLocked = false
 --- lock applied only at click time would be undone by the next refresh.
 ---
 --- A LINK needs only the first line: its disabled font object IS its greying
---- (see CreateRowActionLink). Only the icon buttons carry an Icon to dim.
+--- (see CreateRowActionLink). Only the icon buttons carry an Icon to dim, and
+--- Ask to Join also a Check (core/listpanel.lua), dimmed with it.
+local function DimIcon(texture)
+	texture:SetDesaturated(actionsLocked)
+	texture:SetAlpha(actionsLocked and DISABLED_ICON_ALPHA or 1)
+end
+
 function LFGF.ApplyActionLockTo(button)
 	button:SetEnabled(not actionsLocked)
 	if button.Icon then
-		button.Icon:SetDesaturated(actionsLocked)
-		button.Icon:SetAlpha(actionsLocked and DISABLED_ICON_ALPHA or 1)
+		DimIcon(button.Icon)
+	end
+	if button.Check then
+		DimIcon(button.Check)
 	end
 end
 
@@ -1298,8 +1613,8 @@ end
 --- 128, :142); gold, not red, which Blizzard keeps for errors and lockouts.
 --- GameTooltip_SetTitle clears the lines first, so each call starts afresh.
 ---
---- Used by every "why is this off" tooltip (Role Check, Save new filter, the
---- save popup's Okay) and by a collapsed filter section's warning.
+--- Used by every "why is this off" tooltip (Role Check, Save new filter, a
+--- popup's Okay) and by a collapsed filter section's warning.
 function LFGF.ShowTooltip(owner, title, text)
 	GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
 	GameTooltip_SetTitle(GameTooltip, title)
@@ -1384,7 +1699,7 @@ end
 -- listing can answer -- which is exactly how two silent non-updates were
 -- diagnosed during development.
 --
--- An earlier greeting said "Hello from LFG Forever!" and was removed for being
+-- An earlier greeting said "Hello from WildGroups!" and was removed for being
 -- noise once the addon had a window of its own. The difference is that this
 -- one carries what a tester and a bug report both need: which build, and how
 -- to open it.
@@ -1410,7 +1725,7 @@ end
 -- isLoaded = false (we are still *loading*), so this takes the register branch
 -- and fires on our own ADDON_LOADED.
 EventUtil.ContinueOnAddOnLoaded(addonName, function()
-	local version = LFGF.MODULE_VERSION or C_AddOns.GetAddOnMetadata(addonName, "Version")
+	local version = C_AddOns.GetAddOnMetadata(addonName, "Version")
 
 	-- print() is the FrameXML global from Blizzard_PrintHandler.lua:93; it
 	-- routes through securecall to the default chat frame.

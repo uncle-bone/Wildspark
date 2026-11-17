@@ -345,10 +345,10 @@ do
                     status_bar:set_text(format('Full scan: waiting for the auction house, %d:%02d so far. A search now would stop it.', floor(seconds / 60), seconds % 60))
                 end
             end,
-            on_auction = function(auction_record, total)
-                count = count + 1
-                status_bar:update_status(count / total, 0)
-                local percent = floor(count / total * 100)
+            on_progress = function(done, total)
+                count = done
+                status_bar:update_status(total > 0 and count / total or 0, 0)
+                local percent = total > 0 and floor(count / total * 100) or 0
                 if percent ~= shown_percent then
                     shown_percent = percent
                     status_bar:set_text(format('Full scan: reading auctions, %d%%', percent))

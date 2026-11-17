@@ -1,6 +1,6 @@
 -- LFGForever -- core/locale.lua
 --
--- Every word LFG Forever shows, by key, in English -- and the one place a
+-- Every word WildGroups shows, by key, in English -- and the one place a
 -- LANGUAGE PACK can replace them. The first file the .toc loads, so by the time
 -- any other file runs, LFGF.L already holds the words it should show.
 --
@@ -17,13 +17,11 @@
 -- NOT HERE, by the author's decisions: the whisper text sent to other players
 -- (the two default messages, the class and talent words, the "or" joiner; all
 -- in core/main.lua and core/talents.lua), which stays English whatever the
--- pack; the %class%-style placeholders; the name "LFG Forever"; and anything
+-- pack; the %class%-style placeholders; the name "WildGroups"; and anything
 -- the game itself names -- dungeons, zones, categories, playstyles.
 local addonName, root = ...
 local LFGF = root.WildGroups or {}
 root.WildGroups = LFGF
-LFGF.MODULE_VERSION = "1.3.0"
-LFGF.UPSTREAM_ADDON_NAME = "LFGForever"
 
 --- The client's own string, so a German client keeps Blizzard's German for
 --- these words when no pack is installed, as it always did; the English is
@@ -109,8 +107,9 @@ local L = {
 	-- one "<name>: <line>" per order (Blizzard_Settings.lua:416-496). Keep each
 	-- name short: the dropdown is 220 wide (Blizzard_SettingControls.lua:818).
 	SETTINGS_PLAYER_SORT_LABEL = "Sort players by",
-	SETTINGS_PLAYER_SORT_TOOLTIP = "How players are ordered in the Players list. Your own listing "
-		.. "comes first, then guild members and friends.",
+	SETTINGS_PLAYER_SORT_PARTS_TOOLTIP = "How players are ordered in the Players list. Your own listing "
+		.. "comes first, then friends, players you rated 3 stars and guild members. "
+		.. "Players you rated 1 star come last.",
 	PLAYER_SORT_NEWEST = "Newest listings",
 	PLAYER_SORT_NEWEST_TOOLTIP = "New listings at the top.",
 	PLAYER_SORT_OLDEST = "Oldest listings",
@@ -122,18 +121,23 @@ local L = {
 	PLAYER_SORT_CLASS = Blizzard("CLASS", "Class"),
 	PLAYER_SORT_CLASS_TOOLTIP = "Listings grouped by class.",
 	-- The key binding's label, on Blizzard's Keybindings page (core/slash.lua)
-	-- and on the key binding row of LFG Forever's page. The key opens and
+	-- and on the key binding row of WildGroups's page. The key opens and
 	-- closes it. The row's button opens Blizzard's Keybindings page.
-	BINDING_OPEN_WINDOW = "Open LFG Forever",
+	BINDING_OPEN_WINDOW = "Open WildGroups",
 	KEYBINDINGS = Blizzard("SETTINGS_KEYBINDINGS_LABEL", "Keybindings"),
 	SETTINGS_KEYBINDING_TOOLTIP = "Set the key on Blizzard's Keybindings page.",
+	-- "Player ratings", the second row of Miscellaneous: one key for the row's
+	-- label and the tab's title (core/playerratings.lua), so the two read alike.
+	PLAYER_RATINGS = "Player ratings",
+	SETTINGS_PLAYER_RATINGS_TOOLTIP = "Rate recent allies on how they behaved and played, "
+		.. "so next time you know who to invite and who to avoid.",
 	SETTINGS_MINIMAP_BUTTON_LABEL = "Show minimap button",
 	SETTINGS_MINIMAP_BUTTON_TOOLTIP = "Show a button on the edge of the minimap that opens and "
-		.. "closes LFG Forever. Drag it to move it. /lfg works either way.",
+		.. "closes WildGroups. Drag it to move it. /lfg works either way.",
 	-- The settings page's sentence above Report a bug. %s is a language
 	-- pack's exact title, which stays English; the quote marks around it are
 	-- the translation's.
-	SETTINGS_LANGUAGE_PACKS_FORMAT = "LFG Forever is also available in other languages. "
+	SETTINGS_LANGUAGE_PACKS_FORMAT = "WildGroups is also available in other languages. "
 		.. "Each one is a separate addon on CurseForge, for example \"%s\".",
 	SETTINGS_REPORT_BUG_LABEL = "Found a bug or have an idea?",
 	SETTINGS_REPORT_BUG_TOOLTIP = "Tell us on Discord.",
@@ -142,13 +146,15 @@ local L = {
 	-- tooltip is the two sentences above.
 	REPORT_BUG = "Report a bug",
 	SETTINGS_RESET_WINDOW_LABEL = "Window position and size",
-	SETTINGS_RESET_WINDOW_TOOLTIP = "Move the LFG Forever window back to where it first opened, at its original size.",
+	SETTINGS_RESET_WINDOW_TOOLTIP = "Move the WildGroups window back to where it first opened, at its original size.",
 	MISCELLANEOUS = Blizzard("MISCELLANEOUS", "Miscellaneous"),
 	RESET = Blizzard("RESET", "Reset"),
 	CLOSE = Blizzard("CLOSE", "Close"),
 
 	-- core/listpanel.lua
 	ASK_TO_JOIN = "Ask to Join",
+	-- The same button's tooltip once the group was asked this session.
+	ASK_TO_JOIN_AGAIN = "Ask to join again",
 	GROUP_INVITE = Blizzard("GROUP_INVITE", "Group Invite"),
 	LEVEL_ABBR = Blizzard("LEVEL_ABBR", "Lvl"),
 	ACTIVITY_COUNT_FORMAT = Blizzard("LFGBROWSE_ACTIVITY_COUNT", "%d |4activity:activities;"),
@@ -173,6 +179,60 @@ local L = {
 	REMOVE = Blizzard("REMOVE", "Remove"),
 	INVITE = Blizzard("INVITE", "Invite"),
 	CONTINUED = Blizzard("CONTINUED", "..."),
+
+	-- core/playerratings.lua: the Player ratings tab's one section, its notices,
+	-- the "<time> ago" of a row's second line, and the words of Blizzard's own
+	-- Recent Allies tooltip (Blizzard_RecentAlliesTemplates.lua:153-225), all
+	-- Blizzard's. The two tab names in the not-ready sentence are Blizzard's too,
+	-- so a client keeps its own words.
+	RECENT_ALLIES_SECTION_TITLE = "Recent allies",
+	NO_RECENT_ALLIES = "No recent allies yet.",
+	RECENT_ALLIES_UNAVAILABLE = "Recent Allies are not available.",
+	RECENT_ALLIES_NOT_READY_FORMAT = "Open %s > %s to load your allies.",
+	FRIENDS = Blizzard("FRIENDS", "Friends"),
+	RECENT_ALLIES = Blizzard("CONTACTS_RECENT_ALLIES_TAB_NAME", "Recent Allies"),
+	RECENT_ACTIVITIES = Blizzard("RECENT_ALLY_RECENT_ACTIVITIES_LABEL", "Recent Activities"),
+	RECENT_ALLY_TIME_FORMAT = Blizzard("RECENT_ALLY_INTERACTION_TIME_FORMAT", "%s ago"),
+	RECENT_ALLY_LEVEL_RACE_FORMAT = Blizzard("RECENT_ALLY_TOOLTIP_LEVEL_RACE_FORMAT", "Level %d  %s  %s"),
+	RECENT_ALLY_NOTE_FORMAT = Blizzard("RECENT_ALLY_NOTE_FORMAT",
+		"|TInterface\\FriendsFrame\\UI-FriendsFrame-Note:0:0:0:0:1:1:0:1:0:1:255:209:0|t %s"),
+	-- A player from WildGroups's own list of the last party members
+	-- (core/recentparty.lua) on top of the tab: the activity on their second
+	-- line and in their tooltip, worded like the server's "Fought Together" (the
+	-- author's choice), and the tooltip's level line, Blizzard's.
+	PARTY_MEMBER_ACTIVITY = "Grouped Together",
+	PARTY_MEMBER_LEVEL_FORMAT = Blizzard("UNIT_LEVEL_TEMPLATE", "Level %d"),
+	-- The chat line printed after "WildGroups: " when a player you rated 1
+	-- star joins your party (core/recentparty.lua), the author's wording. The
+	-- first %s is the player's name (in red), the second the gold star icon,
+	-- which comes right after "1 star".
+	PARTY_ONE_STAR_JOINED_FORMAT = "%s joined your party. You rated the player 1 star %s.",
+	-- The rating stars' tooltip, the author's wording (option A of six): the
+	-- sentence comes first and is drawn as the tooltip's title, then one line
+	-- per rating, each a key of its own.
+	PLAYER_RATING_MARKED = "Rated players are marked in red, silver or green in the LFG player listings and the Whispers tab.",
+	PLAYER_RATING_ONE_STAR_LINE = "1 star - I don't want to group with this player",
+	PLAYER_RATING_TWO_STARS_LINE = "2 stars - I'm fine grouping with this player",
+	PLAYER_RATING_THREE_STARS_LINE = "3 stars - I want to group with this player",
+	-- Clear player rating: the link at the right end of the Recent allies
+	-- title line, the popup it opens (the label above the box, and the two
+	-- reasons its Okay is off, after the link's words as the tooltip's title)
+	-- and the chat line printed after "WildGroups: " once a rating is
+	-- cleared. Each %s is the player's name as the rating is saved under it.
+	CLEAR_PLAYER_RATING = "Clear player rating",
+	CLEAR_PLAYER_RATING_PROMPT = "Enter the player's character name:",
+	CLEAR_PLAYER_RATING_EMPTY = "Type a player's name.",
+	CLEAR_PLAYER_RATING_UNKNOWN_FORMAT = 'No rating saved for "%s".',
+	PLAYER_RATING_CLEARED_FORMAT = 'rating for "%s" cleared.',
+
+	-- core/rateleavers.lua: the chat line posted after players leave your party,
+	-- the author's wording. %s is the link, whose words are the second key; a
+	-- click opens the Player ratings tab. The third is printed after
+	-- "WildGroups: " when the link is clicked while Player ratings is off, and
+	-- its %s is PLAYER_RATINGS.
+	RATE_LEAVERS_FORMAT = "Players left your party. Do you want to rate them? %s",
+	RATE_LEAVERS_LINK = "Rate them",
+	RATE_LEAVERS_TURNED_OFF_FORMAT = "turn on %s in the settings to rate players.",
 
 	-- core/filterpanel.lua
 	ROLE_SECTION_TITLE = "Find players by role and level",
@@ -210,8 +270,10 @@ local L = {
 	LANGUAGES_ROW_LABEL = Blizzard("LANGUAGES_LABEL", "Languages"),
 	LANGUAGES_ALL = Blizzard("ALL", "All"),
 	LANGUAGES_SELECTED_FORMAT = "%d selected",
-	LANGUAGE_LOCKED_TOOLTIP = "Your game's language is always included in the search.",
-	LANGUAGES_UNAVAILABLE_TOOLTIP = "Only your game's language can be searched here.",
+	-- On a locked row of the menu, under the language's name.
+	LANGUAGE_LOCKED_BY_BLIZZARD_TOOLTIP = "Default languages are locked by Blizzard. They are always searched and can't be unselected.",
+	-- A greyed-out row, alone after the bulk rows, when the game offers none.
+	LANGUAGES_NONE_AVAILABLE = "No languages available.",
 	-- Read by code, L["LANGUAGE_NAME_" .. string.upper(code)]: one per locale
 	-- the WowLocale structure holds (LFGListInfoDocumentation.lua:1045-1060).
 	-- Blizzard's retail language names (LFG_LIST_LANGUAGE_*), except for the
@@ -290,9 +352,11 @@ local L = {
 	MY_FILTERS_FULL_FORMAT = "My filters holds up to %d filters. Delete one to save a new filter.",
 	MY_FILTER_EMPTY = "Type a name for your new filter.",
 	MY_FILTER_TOO_LONG_FORMAT = "Use at most %d letters.",
-	MY_FILTER_TAKEN_FORMAT = 'You already have a filter named "%s".',
-	-- Chat lines, each printed after "LFG Forever: ".
+	-- Red, above the popup's box, while the name typed is already saved.
+	MY_FILTER_OVERWRITE_WARNING_FORMAT = 'You already have a filter named "%s". It will be overwritten.',
+	-- Chat lines, each printed after "WildGroups: ".
 	MY_FILTER_SAVED_FORMAT = 'filter "%s" saved.',
+	MY_FILTER_OVERWRITTEN_FORMAT = 'filter "%s" overwritten.',
 	MY_FILTER_APPLIED_FORMAT = 'filter "%s" applied. Click Search to use it.',
 	MY_FILTER_DELETED_FORMAT = 'filter "%s" deleted.',
 	OKAY = Blizzard("OKAY", "Okay"),
@@ -305,9 +369,22 @@ local L = {
 	SETTINGS = Blizzard("SETTINGS", "Settings"),
 	ACTIVITY_HEADER_DEFAULT = Blizzard("LFGBROWSE_ACTIVITY_HEADER_DEFAULT", "Filter by activity"),
 	ACTIVITY_HEADER_FORMAT = Blizzard("LFGBROWSE_ACTIVITY_HEADER", "%d |4activity:activities; selected"),
+	-- A ticked activity the activity menu no longer offers (a level-up, a
+	-- listing that ended) is unticked, and ONE line, printed after
+	-- "WildGroups: ", names what was. The last %s is
+	-- SETTINGS_SHOW_ALL_LEVELS_LABEL, the setting as its row names it.
+	ACTIVITY_NO_LONGER_OFFERED_FORMAT = '%s is no longer offered at your level and was unselected.'
+		.. ' If you still want to join %s, turn on "%s" in the settings.',
+	ACTIVITIES_NO_LONGER_OFFERED_FORMAT = '%s are no longer offered at your level and were unselected.'
+		.. ' If you still want to join them, turn on "%s" in the settings.',
+	-- Two or more names: "A and B", "A, B and C", at most three and then a
+	-- count, "A, B, C and 2 more".
+	ACTIVITY_LIST_SEPARATOR = ", ",
+	ACTIVITY_LIST_LAST_SEPARATOR = " and ",
+	ACTIVITY_LIST_MORE_FORMAT = "%d more",
 	CATEGORY = Blizzard("CATEGORY", "Category"),
 
-	-- core/window.lua. COMBAT_WINDOW is printed after "LFG Forever: ".
+	-- core/window.lua. COMBAT_WINDOW is printed after "WildGroups: ".
 	COMBAT_WINDOW = "the group finder can't be opened during combat.",
 	TAB_CREATE_LISTING = Blizzard("LFG_LIST_TAB_1", "Create Listing"),
 	TAB_GROUP_BROWSER = Blizzard("LFG_LIST_TAB_2", "Group Browser"),
@@ -329,7 +406,7 @@ LFGF.L = L
 -- anything: it just shows English.
 LFGF.LANGUAGE_PACK_API = 1
 
--- The TOC field that marks an addon as an LFG Forever language pack. Read with
+-- The TOC field that marks an addon as an WildGroups language pack. Read with
 -- C_AddOns.GetAddOnMetadata, which answers for addons not loaded yet -- the way
 -- AtlasLoot Classic reads its LoadOnDemand modules' X- fields on this client.
 local PACK_FIELD = "X-LFGForever-LanguagePack"
@@ -365,7 +442,7 @@ end
 local function FindPack()
 	for i = 1, C_AddOns.GetNumAddOns() do
 		local name = C_AddOns.GetAddOnInfo(i)
-		if name and name ~= addonName and name ~= LFGF.UPSTREAM_ADDON_NAME then
+		if name and name ~= addonName then
 			local field = C_AddOns.GetAddOnMetadata(name, PACK_FIELD)
 			if field and field ~= "" then
 				local pack = LoadPack(name)

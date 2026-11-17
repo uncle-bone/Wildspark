@@ -1,0 +1,15 @@
+Highground stealth alert sounds
+
+stealth-enter.ogg and stealth-exit.ogg are altered versions of World of
+Warcraft's Sound/SPELLS/Stealth.ogg (FileDataID 569423, sound kit 3325).
+The original game audio belongs to Blizzard Entertainment and is not
+covered by this repository's MIT license.
+
+Source: https://wow.zamimg.com/sound-ids/live/enus/79/569423/Stealth.ogg
+File mapping: https://github.com/wowdev/wow-listfile/blob/master/parts/sound.csv
+Source SHA256: 15f43cf9a83e616eb6ffc2bf30d94b235d9116bd88e3c16a44040961ce588fa5
+
+Enter is pitched down three semitones; exit is pitched up three semitones.
+Both retain the original attack and approximate duration, with quieter
+volume, gentle frequency filtering and short fades.
+Regenerate with tools/sounds/stealth_source.py (requires ffmpeg).

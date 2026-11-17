@@ -18,6 +18,144 @@ StaticPopupDialogs.AUX_SCAN_ALERT = {
     preferredIndex = STATICPOPUP_NUMDIALOGS,
 }
 
+-- 1234567 as "1,234,567"
+local function thousands(n)
+    local text = tostring(n)
+    while true do
+        local done
+        text, done = gsub(text, '^(%d+)(%d%d%d)', '%1,%2')
+        if done == 0 then return text end
+    end
+end
+
+-- how many auctions a search keeps for its table. More than this and every redraw (sorting and
+-- grouping them) costs the player frame rate; the rest is still read for prices.
+M.TABLE_LIMIT = 2000
+
+-- 0.8.2.1 build 6 (outside review S-08, Tyler, 2026-11-11: "yes"). On Forever one popular piece of
+-- gear can be hundreds of auctions at one price (Linen Belt: 585 sellers at 1s), each a record, all
+-- shown as one row. A Full search for linen filled the table's 2,000 with a few such items and the
+-- items read later did not show. A search now keeps at most FOLD_KEEP real auctions per price row
+-- and only counts the rest ("folded"): the row still says how many are for sale and from how many
+-- sellers, and buying it buys one of the kept auctions, at the price shown. When a row is down to
+-- fewer than REFILL_AT kept auctions while more are counted, its item is read again.
+-- Trade goods come one record per price already and are never folded; nor are auctions without a
+-- buyout (each keeps its row), the player's own, or ones the player bid on.
+M.FOLD_KEEP = 20
+M.REFILL_AT = 5
+
+local function foldable(record)
+    return not (record.commodity or record.fast or record.own or record.high_bidder or record.contains_own)
+        and (record.buyout_price or 0) > 0
+end
+
+local function fold_key(record)
+    return record.item_search_key and scan.item_key_string(record.item_search_key) or record.item_key or ''
+end
+
+-- what a search holds: records (the table's), kept[row] (the real auctions kept for each price
+-- row), folded[row][item key] (the auctions only counted: how many, units, sellers, price),
+-- folded_seen (their signatures, so Live does not take them for new auctions) and not_shown (units
+-- past the table's limit). A Live round fills one of its own and takes it over when it ends.
+function M.new_collection()
+    return {records = {}, kept = {}, folded = {}, folded_seen = {}}
+end
+
+function M.reset_collection(c)
+    c.records, c.kept, c.folded, c.folded_seen, c.not_shown = {}, {}, {}, {}, nil
+end
+
+local function fold(c, record)
+    local row, key = record.fold_group, fold_key(record)
+    c.folded[row] = c.folded[row] or {}
+    local entry = c.folded[row][key]
+    if not entry then
+        -- named: auctions per named seller; ids: the auctions counted, to take one off when bought
+        entry = {auctions = 0, units = 0, unnamed = 0, named = {}, ids = {}, name = record.name, unit_price = record.unit_buyout_price}
+        c.folded[row][key] = entry
+    end
+    local auctions = record.auction_count or 1
+    entry.auctions = entry.auctions + auctions
+    entry.units = entry.units + auctions * (record.count or 1)
+    if record.owner then
+        entry.named[record.owner] = (entry.named[record.owner] or 0) + 1
+    else
+        entry.unnamed = entry.unnamed + max(1, record.seller_count or 1)
+    end
+    if record.auction_id then
+        entry.ids[record.auction_id] = {auctions, record.owner or max(1, record.seller_count or 1)}
+    end
+    if record.sniping_signature then
+        c.folded_seen[record.sniping_signature] = true
+    end
+end
+
+local function not_shown(c, record)
+    c.not_shown = (c.not_shown or 0) + (record.count or 1) * (record.auction_count or 1)
+end
+
+-- one auction read by a search: into the table, counted on its row, or past the table's limit.
+-- validator: the search's own check, used again when the row's item is read again (refill)
+function M.collect(c, record, validator)
+    if not foldable(record) then
+        if #c.records < TABLE_LIMIT then
+            tinsert(c.records, record)
+        else
+            not_shown(c, record)
+        end
+        return
+    end
+    local row = auction_listing.price_group(record)
+    record.fold_group, record.refill_validator = row, validator
+    local kept = c.kept[row]
+    if kept and (#kept >= FOLD_KEEP or #c.records >= TABLE_LIMIT) then
+        -- the row is shown already: count this auction. The row offers the lowest starting bid
+        -- of its auctions, so an auction with a lower bid than the highest kept one takes its place.
+        local high, high_i
+        for i, r in ipairs(kept) do
+            if not high or (r.bid_price or 0) > (high.bid_price or 0) then
+                high, high_i = r, i
+            end
+        end
+        local index = high and (record.bid_price or 0) < (high.bid_price or 0) and aux.key(c.records, high)
+        if index then
+            c.records[index], kept[high_i] = record, record
+            fold(c, high)
+        else
+            fold(c, record)
+        end
+    elseif #c.records < TABLE_LIMIT then
+        c.kept[row] = kept or {}
+        tinsert(c.kept[row], record)
+        tinsert(c.records, record)
+    else
+        not_shown(c, record)
+    end
+end
+
+-- the units a search counted without keeping, on rows the table still shows
+function M.folded_units(c)
+    local units = 0
+    for row, entries in pairs(c.folded or empty) do
+        if c.kept[row] and #c.kept[row] > 0 then
+            for _, entry in pairs(entries) do
+                units = units + entry.units
+            end
+        end
+    end
+    return units
+end
+
+-- the Clear button
+function M.clear_results(search)
+    while tremove(search.records) do end
+    aux.wipe(search.kept)
+    aux.wipe(search.folded)
+    aux.wipe(search.folded_seen)
+    search.not_shown = nil
+    search.table:SetDatabase()
+end
+
 NORMAL_MODE, LIVE_MODE = {}, {}
 
 mode = nil
@@ -48,7 +186,7 @@ do
         return searches[search_index]
     end
 
-    -- WildAuctions: /wa memory detail
+    -- auxForever: /aux memory detail
     function M.memory_counts()
         local records = 0
         for _, search in ipairs(searches) do
@@ -76,7 +214,7 @@ do
         searches[search_index].table:Show()
 
         search_box:SetText(searches[search_index].filter_string or '')
-        -- WildAuctions: the arrows stay in place and fade when there is nowhere to go, so the row
+        -- auxForever: the arrows stay in place and fade when there is nowhere to go, so the row
         -- of buttons never shifts
         set_nav_enabled(previous_button, search_index > 1)
         set_nav_enabled(next_button, search_index < #searches)
@@ -91,7 +229,8 @@ do
         while #searches > search_index do
             tremove(searches)
         end
-        local search = { records = {}, filter_string = filter_string, mode = mode }
+        local search = new_collection()
+        search.filter_string, search.mode = filter_string, mode
         tinsert(searches, search)
         if #searches > 5 then
             tremove(searches, 1)
@@ -104,7 +243,7 @@ do
         search.table = tables[#searches]
         search.table:SetSort(1, 2, 3, 4, 5, 6, 7, 8, 9)
         search.table:Reset()
-        search.table:SetDatabase(search.records)
+        search.table:SetDatabase(search.records, search.folded)
 
         update_search(#searches)
     end
@@ -137,7 +276,7 @@ function update_continuation()
     search_box:SetPoint('RIGHT', fast_button, 'LEFT', -4, 0)
 end
 
--- WildAuctions: the Fast / Full switch next to Search; the choice is kept
+-- auxForever: the Fast / Full switch next to Search; the choice is kept
 function M.set_full_search(full)
     aux.account_data.full_search = full and true or false
     update_fast_switch()
@@ -164,7 +303,7 @@ function update_start_stop()
     end
 end
 
--- WildAuctions: Live mode (aux's real time mode). Forever has no result pages to watch, so a round
+-- auxForever: Live mode (aux's real time mode). Forever has no result pages to watch, so a round
 -- reads the whole search again and replaces the table with what is listed now. After a round the
 -- Live button counts down LIVE_INTERVAL seconds to the next one ("Live 4s"), and says "Updating"
 -- during a round. Pause stops it until Resume; leaving the Search tab holds it and coming back
@@ -195,8 +334,12 @@ function start_live_scan(query, search)
     for _, record in pairs(search.records) do
         seen[record.sniping_signature] = true
     end
+    for signature in pairs(search.folded_seen or empty) do
+        seen[signature] = true
+    end
 
-    local new_records = {}
+    -- the round's own records and counts (S-08), taken over when it ends
+    local round = new_collection()
     local alerted
     scan.start {
         type = 'list',
@@ -215,22 +358,36 @@ function start_live_scan(query, search)
                     FlashClientIcon()
                 end
             end
-            tinsert(new_records, auction_record)
+            collect(round, auction_record, query.validator)
         end,
-        on_complete = function()
+        on_complete = function(result)
             aux.status_bar:update_status(1, 1)
-            if #new_records > 2000 then
-                aux.show_popup('AUX_SEARCH_TABLE_FULL')
+            if result and (result.no_list or result.partial_list) then
+                -- 0.8.2.1 (outside review, R-02): a round that got no item list, or part of one,
+                -- keeps the table as it is (it emptied it, or dropped the items past the cut); the
+                -- next round reads again
+            elseif round.not_shown then
+                -- the table keeps what it has; said next to the results and once in chat, without
+                -- the popup that came up again at every round (build 5)
+                if not search.live_too_many then
+                    aux.print(format('Live: this search finds more than %s auctions, too many to keep updated. Narrow the search.', thousands(TABLE_LIMIT)))
+                end
+                search.live_too_many = true
             else
+                search.live_too_many = nil
                 local selected = search.table.selected and search.table.selected.search_signature
-                search.records = new_records
-                search.table:SetDatabase(search.records)
+                search.records, search.kept, search.folded, search.folded_seen = round.records, round.kept, round.folded, round.folded_seen
+                search.not_shown = nil
+                search.table:SetDatabase(search.records, search.folded)
                 if current_search() == search then
                     reselect(search, selected)
                 end
             end
             search.live_round = (search.live_round or 0) + 1
-            search.completed_at = time()
+            -- "updated just now" only for a round that brought the list
+            if not (result and (result.no_list or result.partial_list)) then
+                search.completed_at = time()
+            end
             search.live_next = GetTime() + LIVE_INTERVAL
             update_live_button(true)
         end,
@@ -375,7 +532,7 @@ do
         end
         if force or look ~= last_look then
             last_look = look
-            -- WildAuctions (0.6): on is lit like a selected tab, paused like a chosen option
+            -- auxForever (0.6): on is lit like a selected tab, paused like a chosen option
             if look == 'on' then
                 gui.set_selected(mode_button, true)
             elseif look == 'paused' then
@@ -392,7 +549,7 @@ local held_for_buying = false
 
 function M.update_live()
     local search = live_search
-    -- WildAuctions: a purchase talks to the auction house too. A live round during a trade good's
+    -- auxForever: a purchase talks to the auction house too. A live round during a trade good's
     -- price quote ended it with "Internal auction error" (Tyler, 0.4.1), so rounds wait while the
     -- buy bar is buying, and a round under way is held and carries on afterwards.
     local buying = buy_bar.busy() or aux.bid_in_progress()
@@ -414,25 +571,16 @@ function M.update_live()
     update_live_button()
 end
 
--- WildAuctions: the status bar turns gold while the results of a finished search are shown, and goes
+-- auxForever: the status bar turns gold while the results of a finished search are shown, and goes
 -- back to normal on a new search, another search in the history, Clear, another sub tab or tab.
 function M.update_done()
     local search = current_search()
     aux.status_bar:set_done(frame:IsShown() and frame.results:IsShown() and search and search.complete)
 end
 
--- WildAuctions: "Search Results 37" on the sub tab, and next to the sub tabs what the results hold:
+-- auxForever: "Search Results 37" on the sub tab, and next to the sub tabs what the results hold:
 -- "37 items, 403 for sale, searched 2m ago" for a search over many items, or for one item
 -- "11 price levels, 6,180 for sale". The first number is the one on the sub tab.
-local function thousands(n)
-    local text = tostring(n)
-    while true do
-        local done
-        text, done = gsub(text, '^(%d+)(%d%d%d)', '%1,%2')
-        if done == 0 then return text end
-    end
-end
-
 -- the rows the table shows for these records: one per price (0.8, review H-004, finding 7)
 function count_price_levels(records)
     local seen, n = {}, 0
@@ -475,6 +623,8 @@ function M.results_summary(search)
             item_count = item_count + 1
         end
     end
+    -- the auctions counted on a row without being kept (S-08)
+    units = units + folded_units(search)
     local text
     if item_count > 1 then
         text = thousands(item_count) .. ' items, '
@@ -483,6 +633,11 @@ function M.results_summary(search)
         text = thousands(levels) .. (levels == 1 and ' price level, ' or ' price levels, ')
     end
     text = text .. thousands(units) .. ' for sale'
+    if search.not_shown then
+        text = text .. aux.color.red(', table full: ' .. thousands(search.not_shown) .. ' more not shown')
+    elseif search.live_too_many then
+        text = text .. aux.color.red(', too many for Live: narrow the search')
+    end
     if search.fast then
         text = text .. ', fast'
     elseif search.full_reason then
@@ -498,7 +653,7 @@ function M.results_summary(search)
     elseif search.active then
         return text .. ', still searching'
     elseif search.complete and search.completed_at then
-        return text .. ', searched ' .. time_ago(search.completed_at)
+        return text .. ', searched ' .. time_ago(search.completed_at) .. (search.incomplete and aux.color.red(', some items missing: search again') or '')
     end
     return text
 end
@@ -531,9 +686,13 @@ end
 
 function start_search(queries, continuation)
     local current_query, current_page, total_queries, start_query, start_page
+    local alerted, validator
 
     local search = current_search()
+    search.next_redraw, search.redraw_due = nil, nil
     search.complete = false
+    search.incomplete = nil
+    search.not_shown = nil
     update_done()
 
     total_queries = #queries
@@ -567,28 +726,50 @@ function start_search(queries, continuation)
             current_page = min(current_page, total_scan_pages)
             aux.status_bar:update_status(current_page / total_scan_pages, current_query / #queries)
         end,
+        -- 0.8.2.1 (outside review, R-12): the table is drawn again at most four times a second while
+        -- the search runs, and once when it ends. It was after every item read, and each time sorts
+        -- every row: a search of a few hundred items sorted up to 2,000 rows a few hundred times.
         on_page_scanned = function()
-            search.table:SetDatabase()
+            if GetTime() >= (search.next_redraw or 0) then
+                search.next_redraw = GetTime() + .25
+                search.redraw_due = nil
+                search.table:SetDatabase()
+            else
+                search.redraw_due = true
+            end
         end,
-        on_start_query = function(query)
+        on_start_query = function(index)
             current_query = current_query and current_query + 1 or start_query
             current_page = current_page and 0 or start_page - 1
+            -- the search's own check, kept with each row to read its item again (S-08)
+            validator = queries[index] and queries[index].validator
         end,
         on_auction = function(auction_record)
-            if (search.alert_validator or pass)(auction_record) then
-                aux.show_popup('AUX_SCAN_ALERT') -- TODO retail improve this
+            -- once per search, as in Live mode (it was shown again for every matching auction)
+            if not alerted and (search.alert_validator or pass)(auction_record) then
+                alerted = true
+                aux.show_popup('AUX_SCAN_ALERT')
             end
-            if #search.records < 2000 then
-                tinsert(search.records, auction_record)
-                if #search.records == 2000 then
-                    aux.show_popup('AUX_SEARCH_TABLE_FULL')
-                end
-            end
+            -- 0.8.2.1 build 5 (Tyler, build 4 test, on the "Table full!" popup of a Full search for
+            -- linen: "I had to close this error"): past the table's limit nothing pops up; the line
+            -- next to the results says how much is not shown, and chat says it once at the end
+            -- 0.8.2.1 build 6 (S-08): gear at one price keeps about 20 auctions and counts the rest
+            collect(search, auction_record, validator)
         end,
-        on_complete = function()
+        on_complete = function(result)
             aux.status_bar:update_status(1, 1)
             search.complete = true
             search.completed_at = time()
+            -- 0.8.2.1 (outside review, R-02): said next to the results too, not only in chat
+            search.incomplete = result and (result.no_list or result.partial_list) and true or nil
+            if search.not_shown then
+                aux.print(format('The results table is full (%s auctions). %s more for sale were read for prices but are not shown: narrow the search to see them.',
+                    thousands(TABLE_LIMIT), thousands(search.not_shown)))
+            end
+            if search.redraw_due then
+                search.redraw_due = nil
+                search.table:SetDatabase()
+            end
             update_done()
             remember_search_result(search.filter_string, search.records)
 
@@ -613,6 +794,10 @@ function start_search(queries, continuation)
         end,
         on_abort = function()
             aux.status_bar:update_status(1, 1)
+            if search.redraw_due then
+                search.redraw_due = nil
+                search.table:SetDatabase()
+            end
 
             if current_query then
                 search.continuation = { current_query, current_page + 1 }
@@ -629,7 +814,7 @@ function start_search(queries, continuation)
     }
 end
 
--- WildAuctions: fast mode reads only the item list (each item once, with its lowest price). A search
+-- auxForever: fast mode reads only the item list (each item once, with its lowest price). A search
 -- for one exact item, or one using a condition the list does not have (seller, time left, bid),
 -- reads every auction as before; so does every search when Full is chosen. Tooltip text is checked
 -- on the list since 0.8.2 (FB-025, util/filter.lua uses_tooltip).
@@ -661,14 +846,14 @@ function M.execute(_, resume, mode)
         search_box:SetText(current_search().filter_string)
     end
     local filter_string = search_box:GetText()
-    -- WildAuctions: an empty search bar listed the whole auction house up to the table's limit of
+    -- auxForever: an empty search bar listed the whole auction house up to the table's limit of
     -- 2,000 rows, with a "Table full" popup (Tyler pressed Search by accident, 0.4.1)
     if aux.trim(filter_string) == '' then
         aux.print('Type something to search for.')
         return
     end
 
-    -- WildAuctions: a new search of any kind ends Live (Tyler, 0.4.1). A saved or recipe search
+    -- auxForever: a new search of any kind ends Live (Tyler, 0.4.1). A saved or recipe search
     -- started while Live was on was refused as a multi-query: the search bar showed the new search
     -- while Live kept updating the old one. Only the Live button itself starts a live search.
     if not resume and not mode_given and mode == LIVE_MODE and current_search() and filter_string ~= current_search().filter_string then
@@ -693,9 +878,9 @@ function M.execute(_, resume, mode)
         -- a fast list is quick to read again from the start
         resume = false
         local search = current_search()
-        search.records = {}
+        reset_collection(search)
         search.table:Reset()
-        search.table:SetDatabase(search.records)
+        search.table:SetDatabase(search.records, search.folded)
     elseif resume then
         current_search().table:SetSelectedRecord()
     end
@@ -715,9 +900,9 @@ function M.execute(_, resume, mode)
                 new_recent_search(filter_string, prettified, recipe)
             end
             local search = current_search()
-            search.records = {}
+            reset_collection(search)
             search.table:Reset()
-            search.table:SetDatabase(search.records)
+            search.table:SetDatabase(search.records, search.folded)
         end
         local search = current_search()
         search.mode = mode
@@ -756,14 +941,152 @@ end
 -- single-item auction in Classic. Both are bought from the buy bar under the results (gui/buy_bar.lua).
 do
     local checked
+    local remove_record
 
     local function failure(search, record)
         return function(error)
             if error == 'timeout' then
                 buy_bar.show_message('No answer from the auction house yet', 'It may still go through: check your mail before buying again', aux.color.red)
             elseif error == Enum.AuctionHouseError.ItemNotFound or error == Enum.AuctionHouseError.ItemNotAvailable then
-                search.table:RemoveAuctionRecord(record)
+                remove_record(search, record)
             end
+        end
+    end
+
+    -- 0.8.2.1 build 6 (S-08): what was just read of one item takes the place of its auctions in the
+    -- table and of its counts
+    local function replace_key(search, key, fresh)
+        local key_string = scan.item_key_string(key)
+        for i = #search.records, 1, -1 do
+            local record = search.records[i]
+            if not record.commodity and record.item_search_key and scan.item_key_string(record.item_search_key) == key_string then
+                tremove(search.records, i)
+                local kept = record.fold_group and search.kept[record.fold_group]
+                local j = kept and aux.key(kept, record)
+                if j then tremove(kept, j) end
+            end
+        end
+        for row, entries in pairs(search.folded) do
+            entries[key_string] = nil
+            if not next(entries) then
+                search.folded[row] = nil
+            end
+        end
+        for _, record in ipairs(fresh) do
+            collect(search, record, record.refill_validator)
+        end
+        search.table:SetDatabase()
+        -- the row ran out of kept auctions before this read came back (remove_record): select it again
+        local row = search.reselect_row
+        search.reselect_row = nil
+        if row and not search.table.selected and current_search() == search then
+            for _, info_row in ipairs(search.table.rowInfo) do
+                for _, child in ipairs(info_row.children) do
+                    if child.record.price_group == row then
+                        search.table:SetSelectedRecord(child.record)
+                        return
+                    end
+                end
+            end
+        end
+    end
+
+    -- A row of folded auctions is down to its last few kept ones: read its item again so the row
+    -- keeps real auctions to buy while the count says more are listed. It waits for a search under
+    -- way (a new scan would stop it) and for a trade good's quote (a request in between ends it with
+    -- "Internal auction error", Tyler, 0.4.1), not for gear purchases: a player buying one after
+    -- another always has one on its way, and the row would run out first. aux already reads an item
+    -- again after buying from it (sync_bucket). Live rounds read everything again anyway.
+    local function refill(search, record)
+        local row, key = record.fold_group, record.item_search_key
+        search.refilling = search.refilling or {}
+        if not key or search.refilling[row] or (search.mode == LIVE_MODE and search.active) then
+            return
+        end
+        search.refilling[row] = true
+        local records, validator = search.records, record.refill_validator
+        -- only for the search on screen: a read started after the player left the Search tab would
+        -- come between another tab's own reads (found by a test that went on to the Sniper)
+        local function wanted()
+            return search.records == records and current_search() == search and frame:IsShown()
+        end
+        aux.coro_thread(function()
+            local t0 = GetTime()
+            while wanted() and (scan.is_scanning() or buy_bar.busy()) and GetTime() - t0 < 30 do
+                aux.coro_wait()
+            end
+            if not wanted() or scan.is_scanning() or buy_bar.busy() then
+                search.refilling[row] = nil
+                return
+            end
+            local fresh = {}
+            scan.start{
+                type = 'list',
+                quiet = true,
+                no_view = true, -- one version of an item is not a look at the whole item
+                queries = {{item_keys = {key}, validator = validator}},
+                on_auction = function(auction_record)
+                    auction_record.refill_validator = validator
+                    tinsert(fresh, auction_record)
+                end,
+                on_complete = function(result)
+                    search.refilling[row] = nil
+                    if wanted() and not (result and result.unread) then
+                        replace_key(search, key, fresh)
+                    end
+                end,
+                on_abort = function()
+                    search.refilling[row] = nil
+                end,
+            }
+        end)
+    end
+
+    -- an auction left the table (bought, or gone from the auction house)
+    function remove_record(search, record)
+        local row = record.fold_group
+        if row and not aux.key(search.records, record) then
+            -- bought while its item was read again (refill): what was read may hold the same
+            -- auction, kept or counted
+            for _, other in ipairs(search.records) do
+                if other ~= record and other.auction_id == record.auction_id and other.fold_group == row then
+                    return remove_record(search, other)
+                end
+            end
+            local entry = search.folded[row] and search.folded[row][fold_key(record)]
+            local counted = entry and record.auction_id and entry.ids[record.auction_id]
+            if counted then
+                entry.ids[record.auction_id] = nil
+                entry.auctions = max(0, entry.auctions - counted[1])
+                entry.units = max(0, entry.units - counted[1] * (record.count or 1))
+                local seller = counted[2]
+                if type(seller) == 'string' then
+                    entry.named[seller] = (entry.named[seller] or 1) - 1
+                    if entry.named[seller] <= 0 then entry.named[seller] = nil end
+                else
+                    entry.unnamed = max(0, entry.unnamed - seller)
+                end
+                search.table:SetDatabase()
+            end
+            return
+        end
+        local kept = row and search.kept[row]
+        local i = kept and aux.key(kept, record)
+        if i then
+            tremove(kept, i)
+        end
+        if i and #kept == 0 and search.folded[row] and search.table.selected == record then
+            -- the row's last kept auction, with more counted: the row is gone until its item is
+            -- read again. Nothing else is selected meanwhile (the next row is another price), and
+            -- the row is selected again when the read comes back (replace_key).
+            search.reselect_row = row
+            search.table:SetSelectedRecord()
+            checked = nil
+            buy_bar.show_note(record.name, 'Reading more of its auctions...')
+        end
+        search.table:RemoveAuctionRecord(record)
+        if i and #kept < REFILL_AT and search.folded[row] then
+            refill(search, record)
         end
     end
 
@@ -789,7 +1112,7 @@ do
     local function sync_bucket(search, record)
         record.auction_count = record.auction_count - 1
         if record.auction_count <= 0 then
-            search.table:RemoveAuctionRecord(record)
+            remove_record(search, record)
             return
         end
         record.syncing = true
@@ -838,7 +1161,7 @@ do
                 record.auction_count = max(1, bucket.quantity or 1)
                 search.table:SetDatabase()
             else
-                search.table:RemoveAuctionRecord(record)
+                remove_record(search, record)
             end
         end)
     end
@@ -932,7 +1255,7 @@ do
                         info.bid_update(record)
                         search.table:SetDatabase()
                     else
-                        search.table:RemoveAuctionRecord(record)
+                        remove_record(search, record)
                     end
                 end, failure(search, record))
             end,
@@ -954,7 +1277,7 @@ do
         end
     end
 
-    -- WildAuctions: fast mode. The rows of an opened item replace its list row and stay expanded;
+    -- auxForever: fast mode. The rows of an opened item replace its list row and stay expanded;
     -- the cheapest one is selected for the buy bar.
     function replace_item(search, fast_record, loaded)
         for i = #search.records, 1, -1 do
@@ -965,10 +1288,16 @@ do
         end
         local cheapest
         for _, record in ipairs(loaded) do
-            tinsert(search.records, record)
+            -- S-08: an opened item's rows keep about 20 auctions each too
+            collect(search, record, fast_record.validator)
             if not record.own and record.buyout_price > 0 and (not cheapest or record.unit_buyout_price < cheapest.unit_buyout_price) then
                 cheapest = record
             end
+        end
+        -- the cheapest may have been counted, not kept: select a kept auction of its row
+        if cheapest and not aux.key(search.records, cheapest) then
+            local kept = cheapest.fold_group and search.kept[cheapest.fold_group]
+            cheapest = kept and kept[1]
         end
         if loaded[1] then
             search.table.expanded[loaded[1].price_key or loaded[1].item_key] = true
@@ -989,7 +1318,7 @@ do
         end
     end
 
-    -- WildAuctions: fast mode. Clicking an item reads its auctions (about half a second).
+    -- auxForever: fast mode. Clicking an item reads its auctions (about half a second).
     function M.open_item(search, record)
         search.open = search.open or {}
         search.open[record.item_key] = true
@@ -1016,13 +1345,9 @@ do
     end
 
     function on_update()
-        -- Saved search state is initialized from ADDON_LOADED; stay quiet if that
-        -- initialization is unavailable instead of raising this error every frame.
-        local search = current_search()
-        if not search or not search.table then return end
         update_live()
         update_results_summary()
-        local selection = search.table:GetSelection()
+        local selection = current_search().table:GetSelection()
         if selection and selection.record ~= checked then
             find_auction(selection.record)
         elseif not selection and checked then

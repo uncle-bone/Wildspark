@@ -93,6 +93,18 @@ function M.container_item(bag, slot)
     end
 end
 
+-- 0.8.2.1 (outside review, R-11): a bag slot's price key and how many it holds, from its link alone.
+-- For counting an item in the bags: container_item also reads the slot's tooltip and asks the game
+-- whether it can be sold, which a count does not need. nil for an empty slot.
+function M.container_price_key(bag, slot)
+    local link = C_Container.GetContainerItemLink(bag, slot)
+    if not link then
+        return
+    end
+    local container_info = C_Container.GetContainerItemInfo(bag, slot)
+    return link_price_key(link), type(container_info) == 'table' and container_info.stackCount or 1
+end
+
 do
     local open = false
     function aux.event.AUX_LOADED()
@@ -145,7 +157,7 @@ function M.signatures(record)
     record.sniping_signature = aux.join({record.item_id, version, record.enchant_id, record.start_price, record.buyout_price, record.count, own, record.auction_id or 0}, ':')
 end
 
--- WildAuctions (0.7): equip slots whose item level means nothing to a player (bags, quivers)
+-- auxForever (0.7): equip slots whose item level means nothing to a player (bags, quivers)
 local NO_ITEM_LEVEL = {[''] = true, INVTYPE_NON_EQUIP = true, INVTYPE_NON_EQUIP_IGNORE = true, INVTYPE_BAG = true, INVTYPE_QUIVER = true}
 
 -- Returns name, texture, quality, requirement, usable, link and item level for an item, or nil if
@@ -279,7 +291,7 @@ function M.commodity_record(result)
     return record
 end
 
--- WildAuctions: one item of a browse list (fast mode): only the lowest price and how many are for
+-- auxForever: one item of a browse list (fast mode): only the lowest price and how many are for
 -- sale are known, not the single auctions. The row stands for the whole item: count 1 at the lowest
 -- price, auction_count the units for sale. Opening it reads the real auctions (tabs/search).
 -- Returns nil if the client has not loaded the item yet.
@@ -343,6 +355,39 @@ function M.replicate_record(index)
     record.sale_status = sale_status
     signatures(record)
     return record
+end
+
+-- 0.8.2.1 (outside review 2026-11-10, R-08, FB-027): what a Full scan needs of one listing: its
+-- price key, its buyout, how many it is for and its item ID. The scan built a whole auction record
+-- for each of 200,000 listings (a parsed link, about 25 fields, two signature texts) only to read
+-- these and drop it. The reader keeps each item's price keys while one scan lasts, so an ending
+-- is worked out once per item and name, not once per listing. Returns nil and the item ID while the
+-- game has not loaded the listing or its item yet (the item's own name tells the ending).
+function M.replicate_reader()
+    local keys = {} -- item ID -> {[full name, or 0 without a link] = price key}
+    return function(index)
+        local _, _, count, _, _, _, _, _, _, buyout_price, _, _, _, _, _, _, item_id, has_all_info = C_AuctionHouse.GetReplicateItemInfo(index)
+        if not has_all_info or not item_id then
+            return nil, item_id
+        end
+        local of_item = keys[item_id]
+        if not of_item then
+            if not GetItemInfo(item_id) then
+                return nil, item_id
+            end
+            learn_item(item_id)
+            of_item = {}
+            keys[item_id] = of_item
+        end
+        local link = C_AuctionHouse.GetReplicateItemLink(index)
+        local name = link and strmatch(link, '|h%[(.-)%]|h') or 0
+        local key = of_item[name]
+        if not key then
+            key = price_key(item_id, name ~= 0 and name or nil)
+            of_item[name] = key
+        end
+        return key, buyout_price or 0, max(1, count or 1), item_id
+    end
 end
 
 -- One of the player's own auctions (C_AuctionHouse.GetOwnedAuctionInfo)
@@ -536,7 +581,7 @@ local function base_name(item_id)
     return base
 end
 
--- WildAuctions (0.8, gear versions): the key aux keeps prices under. Gear with a random ending ("of
+-- auxForever (0.8, gear versions): the key aux keeps prices under. Gear with a random ending ("of
 -- the Wolf") is priced per ending, as Blizzard's Sell window groups it: on Forever a link's suffix
 -- field is empty (Medicine Staff of the Wolf, seen 2026-10-20), so every ending looked alike, and
 -- the auction house's own versions of one name have the same stats (two Medicine Staffs of Arcane
@@ -547,7 +592,7 @@ function M.price_key(item_id, name)
         return (item_id or 0) .. ':0'
     end
     local base = base_name(item_id)
-    -- any letter case: a typed name (/wa price) as well as the game's (0.8, review H-002)
+    -- any letter case: a typed name (/aux price) as well as the game's (0.8, review H-002)
     if base and #name > #base and strlower(strsub(name, 1, #base)) == strlower(base) then
         local ending = strlower(aux.trim(strsub(name, #base + 1)))
         if ending ~= '' then
@@ -728,7 +773,7 @@ function M.item_quality_index(item_quality)
     end
 end
 
--- WildAuctions: the backpack, the four bags and Forever's reagent bag (bag 5, Enum.BagIndex.ReagentBag
+-- auxForever: the backpack, the four bags and Forever's reagent bag (bag 5, Enum.BagIndex.ReagentBag
 -- in Blizzard's Forever code); Classic aux stopped at bag 4, so reagent bag items never showed
 function M.last_bag()
 	return max(4, tonumber(NUM_TOTAL_EQUIPPED_BAG_SLOTS) or 5)

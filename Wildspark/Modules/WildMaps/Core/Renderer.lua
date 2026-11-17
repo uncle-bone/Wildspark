@@ -335,6 +335,7 @@ function Renderer:Clear(frame)
         tile:SetTexture(nil)
     end
     frame.marker:Hide()
+    for _, tile in ipairs(frame.exploredTiles or {}) do tile:Hide() end
     frame:Hide()
 end
 
@@ -344,6 +345,107 @@ function Renderer:EnsureTiles(frame, count)
         texture:SetTexCoord(0, 1, 0, 1)
         frame.tiles[#frame.tiles + 1] = texture
     end
+end
+
+-- Draw Blizzard's live outdoor zone-map art directly in the compact viewport.
+-- This uses map texture file IDs from C_Map and never opens WorldMapFrame.
+function Renderer:LayoutLiveMap(frame, uiMapID)
+    if not C_Map or type(C_Map.GetMapArtLayers) ~= "function"
+        or type(C_Map.GetMapArtLayerTextures) ~= "function" then return false end
+    local ok, layers = pcall(C_Map.GetMapArtLayers, uiMapID)
+    if not ok or type(layers) ~= "table" or #layers == 0 then return false end
+    local layer = layers[1]
+    local tileW, tileH = tonumber(layer.tileWidth), tonumber(layer.tileHeight)
+    local artW, artH = tonumber(layer.layerWidth), tonumber(layer.layerHeight)
+    if not tileW or not tileH or not artW or not artH or tileW <= 0 or tileH <= 0 or artW <= 0 or artH <= 0 then return false end
+    local parent = frame:GetParent()
+    local pw, ph = parent:GetWidth(), parent:GetHeight()
+    if pw <= 0 or ph <= 0 then return false end
+    local scale = math.min(pw / artW, ph / artH)
+    local drawW, drawH = artW * scale, artH * scale
+    frame:ClearAllPoints()
+    frame:SetSize(drawW, drawH)
+    frame:SetPoint("CENTER", parent, "CENTER")
+    frame.liveLayerTiles = frame.liveLayerTiles or {}
+    local tileIndex = 1
+    for layerIndex, layerInfo in ipairs(layers) do
+        local okTextures, textures = pcall(C_Map.GetMapArtLayerTextures, uiMapID, layerIndex)
+        local layerW, layerH = tonumber(layerInfo.layerWidth), tonumber(layerInfo.layerHeight)
+        local layerTileW, layerTileH = tonumber(layerInfo.tileWidth), tonumber(layerInfo.tileHeight)
+        if okTextures and type(textures) == "table" and layerW and layerH and layerTileW and layerTileH
+            and layerW > 0 and layerH > 0 and layerTileW > 0 and layerTileH > 0 then
+            local cols = math.ceil(layerW / layerTileW)
+            for i, fileID in ipairs(textures) do
+                local tile = frame.liveLayerTiles[tileIndex]
+                if not tile then
+                    tile = frame:CreateTexture(nil, "ARTWORK", nil, layerIndex)
+                    frame.liveLayerTiles[tileIndex] = tile
+                end
+                local col, row = (i - 1) % cols, math.floor((i - 1) / cols)
+                local w, h = math.min(layerTileW, layerW - col * layerTileW), math.min(layerTileH, layerH - row * layerTileH)
+                tile:ClearAllPoints()
+                tile:SetPoint("TOPLEFT", frame, "TOPLEFT", col * layerTileW * scale, -row * layerTileH * scale)
+                tile:SetSize(w * scale, h * scale)
+                tile:SetTexCoord(0, w / layerTileW, 0, h / layerTileH)
+                tile:SetTexture(fileID)
+                tile:Show()
+                tileIndex = tileIndex + 1
+            end
+        end
+    end
+    for i = tileIndex, #frame.liveLayerTiles do frame.liveLayerTiles[i]:Hide() end
+    -- Draw the explored-area mosaics above the map art so Blizzard's
+    -- exploration masks do not leave known regions blank.
+    frame.exploredTiles = frame.exploredTiles or {}
+    local overlays
+    if C_MapExplorationInfo and type(C_MapExplorationInfo.GetExploredMapTextures) == "function" then
+        local okExplored, result = pcall(C_MapExplorationInfo.GetExploredMapTextures, uiMapID)
+        if okExplored and type(result) == "table" then overlays = result end
+    end
+    local overlayIndex = 1
+    for _, overlay in ipairs(overlays or {}) do
+        local ids = overlay.fileDataIDs
+        local overlayW, overlayH = tonumber(overlay.textureWidth), tonumber(overlay.textureHeight)
+        local offsetX, offsetY = tonumber(overlay.offsetX), tonumber(overlay.offsetY)
+        if type(ids) == "table" and overlayW and overlayH and offsetX and offsetY then
+            local cols = math.ceil(overlayW / 256)
+            for j, fileID in ipairs(ids) do
+                local tile = frame.exploredTiles[overlayIndex]
+                if not tile then
+                    tile = frame:CreateTexture(nil, "OVERLAY", nil, 2)
+                    frame.exploredTiles[overlayIndex] = tile
+                end
+                local col, row = (j - 1) % cols, math.floor((j - 1) / cols)
+                local w, h = math.min(256, overlayW - col * 256), math.min(256, overlayH - row * 256)
+                tile:ClearAllPoints()
+                tile:SetPoint("TOPLEFT", frame, "TOPLEFT", (offsetX + col * 256) * scale, -(offsetY + row * 256) * scale)
+                tile:SetSize(w * scale, h * scale)
+                tile:SetTexCoord(0, w / 256, 0, h / 256)
+                tile:SetTexture(fileID)
+                tile:Show()
+                overlayIndex = overlayIndex + 1
+            end
+        end
+    end
+    for i = overlayIndex, #frame.exploredTiles do frame.exploredTiles[i]:Hide() end
+    frame.marker:ClearAllPoints()
+    frame.marker:Hide()
+    if type(C_Map.GetPlayerMapPosition) == "function" then
+        local okPos, position = pcall(C_Map.GetPlayerMapPosition, uiMapID, "player")
+        local x, y
+        if okPos and position then
+            if type(position.GetXY) == "function" then x, y = position:GetXY() else x, y = position.x, position.y end
+        end
+        if type(x) == "number" and type(y) == "number" and x >= 0 and x <= 1 and y >= 0 and y <= 1 then
+            frame.marker:ClearAllPoints()
+            frame.marker:SetPoint("CENTER", frame, "TOPLEFT", x * drawW, -y * drawH)
+            frame.marker:SetSize(24, 24)
+            frame.marker:Show()
+        end
+    end
+    setRectEdgeTreatmentShown(frame, true)
+    frame:Show()
+    return true
 end
 
 function Renderer:Layout(frame, map)

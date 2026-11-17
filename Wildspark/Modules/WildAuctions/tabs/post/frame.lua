@@ -63,9 +63,10 @@ do
 	        if button == 'LeftButton' then
 	            update_item(self.item_record)
 	        elseif button == 'RightButton' then
+	            -- the ID is read first: leaving the Post tab clears the selection
+	            local item_id = self.item_record.item_id
 	            aux.set_tab(1)
-	            search_tab.set_filter(strlower(info.item(self.item_record.item_id).name) .. '/exact')
-	            search_tab.execute(nil, false)
+	            search_tab.search_item(item_id)
 	        end
 	    end,
 	    function(item_record)
@@ -78,7 +79,7 @@ bid_listing = listing.new(frame.bid_listing)
 bid_listing:SetSelection(function(data)
 	return selected_item and (data.record == get_bid_selection() or data.record.historical_value and get_bid_selection() and get_bid_selection().historical_value)
 end)
--- WildAuctions (0.5, docs/clicks.md): the price lists follow the click standard. Click a price to use
+-- auxForever (0.5, docs/clicks.md): the price lists follow the click standard. Click a price to use
 -- it, click the chosen one again to let go of it; right-click searches the item like every other
 -- row in aux. (Right-click used to clear the price and double-click set the quantity.)
 function M.search_selected_item()
@@ -127,7 +128,7 @@ bid_listing:SetHandler('OnEnter', price_hint(bid_selected))
 bid_listing:SetHandler('OnLeave', hide_hint)
 
 buyout_listing = listing.new(frame.buyout_listing)
--- WildAuctions: same structure as the other tables: units for sale (aux's Auctions and Stack Size
+-- auxForever: same structure as the other tables: units for sale (aux's Auctions and Stack Size
 -- in one), time left, price, and its share of the usual price
 buyout_listing:SetColInfo{
     {name='For sale', width=.18, align='CENTER'},
@@ -150,13 +151,13 @@ end)
 buyout_listing:SetHandler('OnEnter', price_hint(buyout_selected))
 buyout_listing:SetHandler('OnLeave', hide_hint)
 
--- WildAuctions (0.6, option A of the Post panel mockup, Tyler 2026-10-09): three columns. Left, what
+-- auxForever (0.6, option A of the Post panel mockup, Tyler 2026-10-09): three columns. Left, what
 -- is posted: the item, Count or Quantity, Duration, the post message and Hide from this list.
 -- Middle, the price: Match lowest / Undercut with ?, narrow price fields with "% of usual" as plain
 -- text, and a note on how the price was chosen. Right, a receipt: total, the auction house cut,
 -- what you get, the vendor comparison (a red warning when a vendor pays more), the deposit, Post.
 -- The widgets keep the names the posting logic in core.lua uses.
-AUCTION_CUT = .05 -- the auction house keeps 5% of a sale
+AUCTION_CUT = aux.AUCTION_CUT -- the share of a sale the auction house keeps (aux-addon.lua)
 local LEFT_X = 12 -- the left column
 local COUNT_X, DURATION_X = 99, 72 -- where the Count field and the Duration buttons start
 local PRICE_X = 247 -- the middle column
@@ -351,7 +352,7 @@ end
 do
     -- the pricing mode: Match lowest (default) or Undercut with the goblin
     local switch = CreateFrame('Frame', nil, frame.parameters, 'BackdropTemplate')
-    -- WildAuctions (0.6, the UI Kit): a sunken track with one lit option
+    -- auxForever (0.6, the UI Kit): a sunken track with one lit option
     gui.set_frame_style(switch, aux.color.status.track, aux.color.input.border)
     gui.set_size(switch, 204, 30)
     switch:SetPoint('TOPLEFT', PRICE_X, -8)
@@ -363,7 +364,7 @@ do
     undercut:GetFontString():SetPoint('LEFT', 30, 0)
     undercut:GetFontString():SetPoint('RIGHT', -6, 0)
     local goblin = undercut:CreateTexture(nil, 'ARTWORK')
-    goblin:SetTexture([[Interface\AddOns\WildSpark\Modules\WildAuctions\textures\goblin.tga]])
+    goblin:SetTexture([[Interface\AddOns\auxForever\textures\goblin.tga]])
     goblin:SetSize(18, 18)
     goblin:SetPoint('LEFT', 8, 0)
     match:SetScript('OnClick', function() set_undercut_mode(false) end)
@@ -388,8 +389,8 @@ do
         GameTooltip:AddLine('Match lowest or undercut?')
         -- the newest listing selling first is not confirmed on Forever (E6 in docs/forever-auction-house.md)
         GameTooltip:AddLine('Matching the lowest price keeps prices from sliding. On the modern auction house the newest listing at a price is said to sell first, so matching may sell as fast as going below it. Not yet confirmed on Forever.', 1, 1, 1, true)
-        GameTooltip:AddLine('Undercut goes one step below: 1 copper for trade goods, 1 silver for gear. It stays on until the auction house closes, and starts off each time it opens.', 1, 1, 1, true)
-        GameTooltip:AddLine('/wa undercut for more', .6, .6, .6)
+        GameTooltip:AddLine('Undercut goes 1 copper below the lowest listing. It stays on until the auction house closes, and starts off each time it opens.', 1, 1, 1, true)
+        GameTooltip:AddLine('/aux undercut for more', .6, .6, .6)
         GameTooltip:Show()
     end)
     help:SetScript('OnLeave', function() GameTooltip:Hide() end)
@@ -498,7 +499,7 @@ do
     price_note = label
 end
 do
-    -- WildAuctions (0.5, FB-003): what happened to the last post, or why Post is faded; left column,
+    -- auxForever (0.5, FB-003): what happened to the last post, or why Post is faded; left column,
     -- under Duration, above the line
     local label = gui.label(frame.parameters, gui.font_size.small)
     label:SetJustifyH('LEFT')
@@ -517,7 +518,7 @@ do
     btn:SetText('Post')
     gui.set_primary(btn)
     btn:SetScript('OnClick', post_auction)
-    -- WildAuctions (0.5): hovering a faded Post button says why (Tyler, build 3: "hovering the greyed
+    -- auxForever (0.5): hovering a faded Post button says why (Tyler, build 3: "hovering the greyed
     -- out button does nothing"); the same reason is shown in the left column
     btn:SetMotionScriptsWhileDisabled(true)
     btn:SetScript('OnEnter', function(self)
@@ -576,7 +577,7 @@ do
     warning:SetPoint('TOPRIGHT', frame.parameters, 'TOPRIGHT', -12, -102)
     warning:SetHeight(26)
     local icon = warning:CreateTexture(nil, 'ARTWORK')
-    icon:SetTexture([[Interface\AddOns\WildSpark\Modules\WildAuctions\textures\warning.tga]])
+    icon:SetTexture([[Interface\AddOns\auxForever\textures\warning.tga]])
     icon:SetSize(20, 20)
     icon:SetPoint('LEFT', 6, 0)
     gui.vertex_color(icon, aux.color.red)
@@ -645,7 +646,7 @@ function M.layout_parameters(commodity)
 end
 layout_parameters(true)
 
--- the bid column (/wa post bid, Settings): bids and buyouts side by side, or buyouts alone. Applied
+-- the bid column (/aux post bid, Settings): bids and buyouts side by side, or buyouts alone. Applied
 -- at login and again whenever the setting changes (0.6: it used to need a reload).
 function M.apply_bid_layout()
     if aux.account_data.post_bid then

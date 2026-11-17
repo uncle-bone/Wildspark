@@ -4,11 +4,11 @@ local aux = require 'aux'
 local gui = require 'aux.gui'
 local completion = require 'aux.util.completion'
 
--- WildAuctions: the right side of the Filter Builder, "Only show auctions where". Conditions in plain
+-- auxForever: the right side of the Filter Builder, "Only show auctions where". Conditions in plain
 -- words, Match All / Any, a "not" switch on every row and group, and groups inside groups (aux's
 -- and/or/not). The tree lives in filter.lua; this file draws it as rows and edits it.
 
-local TEXTURES = [[Interface\AddOns\WildSpark\Modules\WildAuctions\textures\]]
+local TEXTURES = [[Interface\AddOns\auxForever\textures\]]
 local RIGHT_X = 348
 local ROW_HEIGHT = 30
 local ROW_GAP = 4

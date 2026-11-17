@@ -57,6 +57,7 @@ end
 --- Safe to call repeatedly: every branch is idempotent.
 function WildLayer:SyncRuntimeState()
 	local profile = self.db.profile
+	if not profile.enabled and self.CloseHopper then self:CloseHopper() end
 
 	if profile.enabled and profile.mutesounds then
 		self:MuteAnnoyingSounds()
@@ -64,13 +65,13 @@ function WildLayer:SyncRuntimeState()
 		self:UnmuteAnnoyingSounds()
 	end
 
-	if profile.hideAutoWhispers then
+	if profile.enabled and profile.hideAutoWhispers then
 		self:filterChatEventWildLayerWhisperMessages()
 	else
 		self:unfilterChatEventWildLayerWhisperMessages()
 	end
 
-	if profile.hideSystemGroupMessages then
+	if profile.enabled and profile.hideSystemGroupMessages then
 		self:filterChatEventSystemGroupMessages()
 	else
 		self:unfilterChatEventSystemGroupMessages()

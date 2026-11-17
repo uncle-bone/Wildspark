@@ -8,7 +8,7 @@ local gui = require 'aux.gui'
 local auction_listing = require 'aux.gui.auction_listing'
 local search_tab = require 'aux.tabs.search'
 
--- WildAuctions (0.4): the Auctions tab from the approved mockup: Check prices and a summary on the
+-- auxForever (0.4): the Auctions tab from the approved mockup: Check prices and a summary on the
 -- left, Cancel undercut on the right, each auction's price against the cheapest other seller.
 
 frame = CreateFrame('Frame', nil, aux.frame)
@@ -122,7 +122,7 @@ M.columns = {
 }
 
 listing = auction_listing.new(frame.listing, 22, columns)
--- WildAuctions (0.7.1, FB-015): every auction on its own row, as in Blizzard's list. Folding other
+-- auxForever (0.7.1, FB-015): every auction on its own row, as in Blizzard's list. Folding other
 -- prices of an item under one row hid them, and on Forever several posted items are several
 -- identical auctions, which the Qty column showed as one.
 listing.one_row_each = true
@@ -135,9 +135,9 @@ listing:SetHandler('OnClick', function(row, button)
             cancel_button:Click()
 		end
 	elseif button == 'RightButton' then
+		local item_id = row.record.item_id
 		aux.set_tab(1)
-		search_tab.set_filter(strlower(info.item(row.record.item_id).name) .. '/exact')
-		search_tab.execute(nil, false)
+		search_tab.search_item(item_id)
 	end
 end)
 
@@ -226,7 +226,9 @@ local function selection_text(record)
     elseif status == 'lowest' then
         return 'Yours is the cheapest.'
     elseif status == 'sold' then
-        return 'The money is in your mailbox.'
+        -- the money comes by mail after a sale; how soon is not known on Forever (experiment E1 in
+        -- docs/forever-auction-house.md), so this does not say it is there already
+        return 'Sold. The money comes by mail.'
     elseif status == 'cancelled' then
         return 'Cancelled. It comes back by mail.'
     elseif status == 'cancelling' then

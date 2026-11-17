@@ -32,7 +32,7 @@
 local _, root = ...
 local LFGF = root.WildGroups
 
-local TAB_NAME = "WildSparkWildGroupsBlizzardTab"
+local TAB_NAME = "LFGForeverBlizzardTab"
 
 -- The icon comes from core/window.lua (LFGF.ICON_ATLAS), shared so the tab and
 -- the window it opens read as one feature and cannot drift apart. It must not be
@@ -46,9 +46,38 @@ local TAB_NAME = "WildSparkWildGroupsBlizzardTab"
 local TAB_TOOLTIP = LFGF.TITLE
 
 local tab
+function LFGF.UpdateBlizzardTab()
+	if tab then tab:SetShown(LFGF.IsEnabled()) end
+end
+
+-- Close Blizzard's Group Finder, which the player just left by clicking our tab.
+--
+-- HideUIPanel, because it hands the hide to Blizzard's panel manager -- the
+-- forbidden FramePositionDelegate, "Dispatch to secure code"
+-- (UIParentPanelManager.lua:930-933) -- which also clears the left slot. A
+-- bare LFGParentFrame:Hide() would leave the manager treating the slot as taken.
+--
+-- Not LFGVanilla_ToggleFrame: it reads LFGParentFrame.selectedTab before
+-- anything else (Blizzard_LFGVanilla_ParentFrame.lua:138), the field whose
+-- taint once broke the player's own Group Finder key in combat
+-- (.claude/rules/whisper-location-lookup.md, History).
+--
+-- Hiding runs Blizzard's OnHide, not their OnShow: UpdateMicroButtons and a
+-- sound (ParentFrame.lua:60-63), SetWhoToUi(false) and one EventRegistry
+-- unregister (WhoList.lua:158, :253). None of it writes a field their opener
+-- reads before its combat check, and none of it reads C_LFGList.
+--
+-- In combat HideUIPanel refuses addon code with Blizzard's red "blocked"
+-- message (UIParentPanelManager.lua:854-861), so we do not ask: both windows
+-- stay open, by the author's decision.
+local function CloseBlizzardGroupFinder()
+	if InCombatLockdown() then
+		return
+	end
+	HideUIPanel(_G.LFGParentFrame)
+end
 
 local function BuildTab()
-	if not LFGF.IsEnabled() then return nil end
 	local parent = _G.LFGParentFrame
 
 	-- LargeSideTabButtonTemplate (SharedUIPanelTemplates.xml:1008-1068) is what
@@ -61,7 +90,6 @@ local function BuildTab()
 	-- declares OnLoad/OnMouseDown/OnMouseUp/OnEnter/OnLeave against
 	-- SidePanelTabButtonMixin, so all we supply is an icon and a handler.
 	local t = _G.CreateFrame("Frame", TAB_NAME, parent, "LargeSideTabButtonTemplate")
-	t:SetID(4)
 
 	-- Transcribed from LFGParentFrameRightTabMixin:OnLoad
 	-- (Blizzard_LFGVanilla_ParentFrame.lua:101-112) so the icon is inset and
@@ -90,15 +118,17 @@ local function BuildTab()
 	-- press animation and click sound (:361-371). Using it rather than
 	-- SetScript("OnMouseUp") keeps both.
 	t:SetCustomOnMouseUpHandler(function(_, button, upInside)
-    if button == "LeftButton" and upInside then
-        if not LFGF.IsEnabled() then return end
-        if InCombatLockdown() then
-            LFGF.Print("Open WildGroups after leaving combat.")
-            return
-        end
-        LFGF.OpenWindow()
-    end
-end)
+		if button == "LeftButton" and upInside and LFGF.IsEnabled() then
+			-- Open, not toggle: a launcher means "show me that window". Ours
+			-- first, so it opens whatever happens to theirs. Our handler is the
+			-- last thing the mixin's OnMouseUp does (SharedUIPanelTemplates.lua
+			-- :361-371), so hiding this tab's parent here leaves nothing of
+			-- Blizzard's to run on a hidden tab.
+			LFGF.OpenWindow()
+			CloseBlizzardGroupFinder()
+		end
+	end)
+
 	return t
 end
 
@@ -117,16 +147,8 @@ end
 -- groupfinder_check.py recognises this guard textually and cannot resolve a
 -- constant through to the call.
 EventUtil.ContinueOnAddOnLoaded("Blizzard_GroupFinder_VanillaStyle", function()
-	LFGF.UpdateBlizzardTab()
-end)
-
-function LFGF.UpdateBlizzardTab()
-	if not LFGF.IsEnabled() then
-		if tab then tab:Hide() end
-		return
-	end
-	if not tab and _G.LFGParentFrame and _G.LFGParentFrame.WhoListingTab then
+	if not tab then
 		tab = BuildTab()
+		tab:SetShown(LFGF.IsEnabled())
 	end
-	if tab then tab:Show() end
-end
+end)

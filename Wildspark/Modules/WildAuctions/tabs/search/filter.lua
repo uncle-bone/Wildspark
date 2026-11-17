@@ -5,7 +5,7 @@ local info = require 'aux.util.info'
 local money = require 'aux.util.money'
 local filter_util = require 'aux.util.filter'
 
--- WildAuctions: the Filter Builder. The left side ("Which items") is the part of a search the auction
+-- auxForever: the Filter Builder. The left side ("Which items") is the part of a search the auction
 -- house itself understands; the right side ("Only show auctions where") is aux's post filter, kept
 -- here as a tree of conditions and groups. A group matches All (and) or Any (or) of its items, and
 -- any condition or group can be negated (not), which is exactly aux's and/or/not language. The

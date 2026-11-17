@@ -18,6 +18,11 @@ function util.EscapePattern(text)
 	return (text:gsub(PATTERN_MAGIC, "%%%1"))
 end
 
+--- Anchored pattern for a localized WoW global string with its first %s captured.
+function util.MessagePattern(globalString)
+	return "^" .. util.EscapePattern(globalString):gsub("%%%%s", "(.+)", 1) .. "$"
+end
+
 --- Trims leading and trailing whitespace.
 ---@param text string
 ---@return string
@@ -287,6 +292,68 @@ end
 ---@return boolean
 function util.IsOpenWorldMapType(mapType)
 	return mapType == 1 or mapType == 2 or mapType == 3
+end
+
+--- Resolve a town or micro-map to its owning zone; reject dungeons, continents and orphans.
+function util.ResolveZoneMapID(mapID, getMapInfo, overrides)
+	for _ = 1, 32 do
+		if (issecretvalue and issecretvalue(mapID)) or type(mapID) ~= "number" or mapID == 0 then
+			return nil
+		end
+		local override = overrides and overrides[mapID]
+		if type(override) == "number" and override > 0 then return override end
+		local mapInfo = getMapInfo(mapID)
+		if not mapInfo or type(mapInfo.mapType) ~= "number"
+			or (issecretvalue and issecretvalue(mapInfo.mapType)) then return nil end
+		if mapInfo.mapType == 3 then return mapID end
+		if mapInfo.mapType ~= 5 then return nil end
+		mapID = mapInfo.parentMapID
+	end
+	return nil
+end
+
+local ZONE_HEADER_PREFIX, ZONE_HEADER_LENGTH, ZONE_HEADER_BASE = "ALZ", 4, 26
+local ZONE_HEADER_MAX = ZONE_HEADER_BASE ^ ZONE_HEADER_LENGTH - 1
+
+function util.EncodeZoneID(zoneID)
+	if type(zoneID) ~= "number" or zoneID ~= math.floor(zoneID) or zoneID < 1 or zoneID > ZONE_HEADER_MAX then return nil end
+	local chars = {}
+	for i = ZONE_HEADER_LENGTH, 1, -1 do
+		local remainder = zoneID % ZONE_HEADER_BASE
+		chars[i] = string.char(65 + remainder)
+		zoneID = (zoneID - remainder) / ZONE_HEADER_BASE
+	end
+	return table.concat(chars)
+end
+
+function util.DecodeZoneID(token)
+	if type(token) ~= "string" or #token ~= ZONE_HEADER_LENGTH or token:find("[^A-Z]") then return nil end
+	local zoneID = 0
+	for i = 1, ZONE_HEADER_LENGTH do zoneID = zoneID * ZONE_HEADER_BASE + (string.byte(token, i) - 65) end
+	return zoneID > 0 and zoneID or nil
+end
+
+function util.BuildZoneHeader(zoneID)
+	local token = util.EncodeZoneID(zoneID)
+	return token and ("<" .. ZONE_HEADER_PREFIX .. token .. "> ") or nil
+end
+
+function util.ParseZoneHeader(message)
+	local token, body = tostring(message or ""):match("^<" .. ZONE_HEADER_PREFIX .. "([A-Z]+)>%s+(.*)$")
+	local zoneID = util.DecodeZoneID(token)
+	if not zoneID then return nil end
+	return zoneID, body
+end
+
+function util.GetForeverGroupAction(opts)
+	if not opts.forever or opts.isLeader or not opts.inviteCorrelated then return "none" end
+	if not opts.playerZone or not opts.leaderZone then return "retry" end
+	if opts.playerZone ~= opts.leaderZone then
+		if opts.leaveWrongZone then return "leave" end
+		if opts.warningsEnabled then return "warn" end
+		return "none"
+	end
+	return opts.warningsEnabled and "warn" or "none"
 end
 
 ---@param number number

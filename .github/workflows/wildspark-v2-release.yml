@@ -7,6 +7,9 @@ on:
       - ".github/workflows/wildspark-v2-release.yml"
       - ".github/releases/v*.md"
       - "README.md"
+      - "Wildspark/**"
+      - "Wildspark/Menu.lua"
+      - "Wildspark/Locales/**"
       - "Wildspark/WildSpark.toc"
       - "Wildspark/CHANGELOG.txt"
       - "Wildspark/Media/WildFire/tent_*.tga"
@@ -15,6 +18,11 @@ on:
       - "Wildspark/Modules/WildMaps/**"
       - "Wildspark/Modules/WildMapsModule.lua"
       - "Wildspark/Modules/WildAuctions/**"
+      - "Wildspark/Modules/WildPvPModule.lua"
+      - "Wildspark/Modules/WildGroupsNotifications.lua"
+      - "WildPvP/Packages/**"
+      - "scripts/build_wildpvp.py"
+      - "scripts/embed_wildpvp.py"
 
 permissions:
   contents: write
@@ -42,7 +50,7 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
-      - name: Package single-folder WildSpark with embedded quest databases
+      - name: Package WildSpark and unified WildPvP with embedded quest databases
         env:
           VERSION: ${{ steps.release.outputs.version }}
         run: |
@@ -71,7 +79,10 @@ jobs:
 
           MAIN_TOC="dist/stage/WildSpark/WildSpark.toc"
           META_FILE="$RUNNER_TEMP/questiedb-metadata.txt"
-          grep -E '^## X-[^:]+:' "$QIE_DIR/QuestieDB_Forever.toc" > "$META_FILE"
+          awk -F: '
+            NR == FNR { if ($1 ~ /^## X-/) present[$1] = 1; next }
+            /^## X-/ { if (!present[$1] && !seen[$1]++) print }
+          ' "$MAIN_TOC" "$QIE_DIR/QuestieDB_Forever.toc" > "$META_FILE"
           awk -v meta_file="$META_FILE" '
             BEGIN {
               while ((getline line < meta_file) > 0) metadata = metadata line "\n"
@@ -102,19 +113,32 @@ jobs:
           grep -Fx '## X-Flavor: Forever' "$MAIN_TOC"
           grep -Fq 'Libs\QuestDB\Data\Forever\_core\Drops.lua' "$MAIN_TOC"
           grep -Fq 'Libs\QuestieDB\src\api.lua' "$MAIN_TOC"
+          python scripts/build_wildpvp.py "$GITHUB_WORKSPACE" "$RUNNER_TEMP/wildpvp-module"
+          python scripts/embed_wildpvp.py "$RUNNER_TEMP/wildpvp-module" "$GITHUB_WORKSPACE/dist/stage/WildSpark"
           cd dist/stage
           zip -qr "../WildSpark-$VERSION.zip" WildSpark
           cd ../..
+          test "$(unzip -Z1 "dist/WildSpark-$VERSION.zip" | awk -F/ '{print $1}' | sort -u)" = "WildSpark"
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/WildSpark.toc$'
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Libs/QuestDB/LibQuestDB-1.0.lua$'
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Libs/QuestDB/LICENSE$'
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Libs/QuestieDB/QuestieDB_Forever.toc$'
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Libs/QuestieDB/LICENSE.md$'
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildDrops/QuestDropRates-LICENSE.txt$'
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildPvP/Features/Awareness/Spy.lua$'
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildPvP/Features/Timers/Core.lua$'
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildPvP/Features/Intel/Main.lua$'
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildPvP/Features/EnemyFrames/Main.lua$'
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildPvP/LICENSES/ATTRIBUTION.txt$'
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildPvP/LICENSES/EnemyFrames-GPL-2.0.txt$'
+          if unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -qE '^(WildPvP|Spy|Capping|Capping_Options|HighgroundBattlegrounds|BattleGroundEnemiesFixed)/'; then
+            echo "All PvP features must load from the single WildSpark addon folder."
+            exit 1
+          fi
           grep -Fqx 'Modules\WildGroups\core\whisperlog.lua' "$MAIN_TOC"
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildGroups/core/whisperlog.lua$'
           if unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -qE '^(QuestDB|QuestieDB)/'; then
-            echo "The install ZIP must contain only the WildSpark root folder."
+            echo "The quest database folders must remain embedded beneath WildSpark/Libs."
             exit 1
           fi
 

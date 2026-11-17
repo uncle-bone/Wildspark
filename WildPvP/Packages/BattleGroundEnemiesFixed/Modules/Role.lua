@@ -1,0 +1,72 @@
+---@class BattleGroundEnemies
+local BattleGroundEnemies = BattleGroundEnemies
+local GetTexCoordsForRoleSmallCircle = GetTexCoordsForOldRoleSmallCircle
+
+local defaultSettings = {
+  Enabled = true,
+  Parent = "healthBar",
+  Width = 12,
+  Height = 12,
+  ActivePoints = 1,
+  Points = {
+    {
+      Point = "LEFT",
+      RelativeFrame = "healthBar",
+      RelativePoint = "LEFT",
+      OffsetX = 4,
+      OffsetY = 0,
+    },
+  },
+}
+
+local role = BattleGroundEnemies:NewButtonModule({
+  moduleName = "Role",
+  localizedModuleName = ROLE,
+  defaultSettings = defaultSettings,
+  options = nil,
+  enabledInThisExpansion = not not GetSpecializationRole,
+  attachSettingsToButton = false,
+  flags = {
+    SetZeroWidthWhenDisabled = true,
+  },
+})
+
+function role:AttachToPlayerButton(playerButton)
+  playerButton.Role = CreateFrame("Frame", nil, playerButton)
+  playerButton.Role.Icon = playerButton.Role:CreateTexture(nil, "OVERLAY")
+  playerButton.Role.Icon:SetAllPoints()
+
+  playerButton.Role.ApplyAllSettings = function(self)
+    if not self.config then
+      return
+    end
+    local playerDetails = playerButton.PlayerDetails
+    if not playerDetails then
+      return
+    end
+    local specData = playerButton:GetSpecData()
+    -- Use spec-based role first, then fall back to PlayerRole (which includes group role fallback)
+    local roleID = (specData and specData.roleID) or playerDetails.PlayerRole
+    -- Guard against secret strings leaking into equality compare.
+    local safeRole = roleID
+    if safeRole and issecretvalue and issecretvalue(safeRole) then
+      safeRole = nil
+    end
+    if safeRole == "TANK" or safeRole == "HEALER" or safeRole == "DAMAGER" then
+      self.Icon:SetTexture("Interface\\LFGFrame\\UI-LFG-ICON-PORTRAITROLES")
+      self.Icon:SetTexCoord(GetTexCoordsForRoleSmallCircle(safeRole))
+      -- Restore configured width so the frame reserves its slot.
+      self:SetWidth(self.config.Width or 12)
+    else
+      -- 12.0.5: clear stale role when PlayerRole is nil/secret/unrecognized.
+      -- Buttons recycle on every scoreboard update; without this branch the
+      -- icon keeps whatever texture it had from the previous player.
+      self.Icon:SetTexture(nil)
+      -- Collapse the slot so Name (anchored LEFT to Role RIGHT) shifts left
+      -- to fill the space. 0.01 rather than 0 — some frame anchors misbehave
+      -- with exact-zero widths.
+      self:SetWidth(0.01)
+    end
+  end
+  return playerButton.Role
+end

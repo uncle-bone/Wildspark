@@ -1,3 +1,6 @@
+local function wild_auctions_enabled()
+    return not (_G.WildAuctions and _G.WildAuctions.IsEnabled and not _G.WildAuctions.IsEnabled())
+end
 select(2, ...).WildAuctions 'aux.core.tooltip'
 
 local aux = require 'aux'
@@ -46,6 +49,7 @@ local function tooltip_quantity(tooltip)
 end
 
 function aux.event.AUX_LOADED()
+    if not wild_auctions_enabled() then return end
     settings = aux.character_data.tooltip
     TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, function(tooltip, data)
         if tooltip ~= GameTooltip and tooltip ~= ItemRefTooltip then
@@ -63,7 +67,7 @@ function aux.event.AUX_LOADED()
     end)
 end
 
--- WildAuctions: whether an item can be auctioned is read from a hidden tooltip of the item, which
+-- auxForever: whether an item can be auctioned is read from a hidden tooltip of the item, which
 -- the game has to build. aux did that on every hover of every item, anywhere in the game; the
 -- answer never changes for an item, so it is kept (one entry per item hovered).
 local auctionable_cache = {}
@@ -77,7 +81,7 @@ function M.is_auctionable(item_id, item_info)
     return known
 end
 
--- WildAuctions (0.5): how fresh the usual price is, after Value: "  seen 3 days ago", gray, darker when
+-- auxForever (0.5): how fresh the usual price is, after Value: "  seen 3 days ago", gray, darker when
 -- the newest price is a week old or more
 function M.age_suffix(age)
     local text = history.age_text(age)
@@ -91,11 +95,11 @@ end
 function extend_tooltip(tooltip, link, quantity, data)
     local item_id, suffix_id = info.parse_link(link)
     quantity = IsShiftKeyDown() and quantity or 1
-    -- WildAuctions (0.5): with Shift held the prices are for the whole stack; say so ("for 3"). In build
+    -- auxForever (0.5): with Shift held the prices are for the whole stack; say so ("for 3"). In build
     -- 1 a stack's Value read as a far too high price per item (Windows' screenshot keys hold Shift).
     local per = quantity > 1 and ('  ' .. aux.color.label.enabled('for ' .. quantity)) or ''
     local item_info = info.item(item_id)
-    -- WildAuctions: the disenchant table is only worked out when one of its lines is shown
+    -- auxForever: the disenchant table is only worked out when one of its lines is shown
     if item_info and (settings.disenchant_distribution or settings.disenchant_value) then
         local distribution = disenchant.distribution(item_info.slot, item_info.quality, item_info.level)
         if #distribution > 0 then
@@ -139,7 +143,7 @@ function extend_tooltip(tooltip, link, quantity, data)
     local auctionable = not item_info or is_auctionable(item_id, item_info)
     -- 0.8: gear is priced per ending, which on Forever only the name tells (info.price_key)
     local item_key = info.link_price_key(link)
-    -- WildAuctions (0.5, build 3): Value is the latest look at the item (what players just saw at the
+    -- auxForever (0.5, build 3): Value is the latest look at the item (what players just saw at the
     -- auction house); the multi-day usual price shows under it only when the two differ a lot
     local latest, age = history.latest(item_key)
     local value = history.value(item_key)
@@ -169,9 +173,10 @@ function extend_tooltip(tooltip, link, quantity, data)
         end
     end
 
-    -- WildAuctions (0.8, FB-020): a Waylaid Crate lists its bundles and what each costs. Its tooltip
-    -- is read once per item (kept by the crate code), so other items cost one table lookup.
-    local bundles = search_tab.crate_bundles(item_id, function() return search_tab.tooltip_texts(tooltip, data) end)
+    -- auxForever (0.8, FB-020): a Waylaid Crate lists its bundles and what each costs. Its tooltip
+    -- is read once per item (kept by the crate code), so other items cost one table lookup. Its
+    -- switch: "Waylaid Crates" in Settings, /aux tooltip crate (0.8.2.1 build 7, FB-041).
+    local bundles = settings.crate ~= false and search_tab.crate_bundles(item_id, function() return search_tab.tooltip_texts(tooltip, data) end)
     if bundles then
         search_tab.add_crate_lines(tooltip, bundles, settings.money_icons)
     end
@@ -182,7 +187,7 @@ function extend_tooltip(tooltip, link, quantity, data)
     tooltip:Show()
 end
 
--- WildAuctions: /wa memory detail
+-- auxForever: /aux memory detail
 function M.memory_counts()
     local n = 0
     for _ in pairs(auctionable_cache) do n = n + 1 end

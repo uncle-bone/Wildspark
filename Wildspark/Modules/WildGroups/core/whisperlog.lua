@@ -54,29 +54,10 @@ LFGF.WHISPERS_TAB_TITLE = L.WHISPERS_TAB_TITLE
 -- GlobalString: English unless a language pack replaces it (core/locale.lua).
 LFGF.WHISPERS_SECTION_TITLE = L.WHISPERS_SECTION_TITLE
 
--- THE ROW IS SHAPED LIKE A PLAYER ROW in the results list -- the same regions
--- in the same order, the same gaps, the same separator. A whisper from someone
--- in the list should read as the same person.
---
--- ONE DELIBERATE DIVERGENCE: the font size. The player row sets its name in
--- GameFontNormalLarge (Browse.xml:160), which is SystemFont_Shadow_Large and a
--- size up from everything beside it -- it can afford that, being a 48-tall row
--- whose name is its heading. The whisper is one line, so all three of its regions are set
--- at GameFontNormal's size instead: GameFontNormalLeft, GameFontDisableLeft and
--- GameFontHighlightLeft all inherit GameFontNormal -> SystemFont_Shadow_Med1
--- (FontStyles.xml:54, :90, :74, :62, :86, :50). They differ only in COLOUR --
--- the name is overwritten with the class colour anyway, the level is grey, the
--- message white, because the message is the thing being read.
---
--- 24 is the class icon's size there (:176) and what sets the row height; the
--- player row is 48 only because it carries a second line for the activity.
-local ROW_HEIGHT = 26
-
--- THE FIRST LINE IS PINNED TO ITS OWN CENTRE, not the row's. Every region on it
--- hangs off a centre-bearing LEFT or RIGHT point, and on a row that grows an
--- action line the ROW's centre would drag the whole line down between the two.
--- Half the one-line height, so a one-line row is laid out exactly as before.
-local LINE_ONE_CENTER_Y = ROW_HEIGHT / 2
+-- THE ROW is the shared one-line player row (core/playerrow.lua): name,
+-- guild / friend icon, level, class icon and the text slot, which holds the
+-- whisper. This file adds the action line under it, the tooltip and the menu.
+local Row = LFGF.PlayerRow
 
 -- THE ACTION LINE: "Remove | Location | Invite" under every whisper,
 -- right-aligned to the row's end, on a line that starts at the name's column.
@@ -84,7 +65,7 @@ local LINE_ONE_CENTER_Y = ROW_HEIGHT / 2
 -- links are the same controls at the same size wherever they appear. Every row
 -- carries one -- Remove is on every row -- so every row is the same height.
 local ACTION_LINE_HEIGHT = 16
-local ACTIONS_ROW_HEIGHT = ROW_HEIGHT + ACTION_LINE_HEIGHT
+local ACTIONS_ROW_HEIGHT = Row.HEIGHT + ACTION_LINE_HEIGHT
 local ACTION_LINK_GAP = 4
 
 -- No global says it, so the addon does -- as ASK_TO_JOIN_LABEL does in
@@ -98,45 +79,6 @@ local LOCATION_LABEL = L.LOCATION
 -- Two separators at most: between Remove and Location, and between Location and
 -- Invite. Fewer links show fewer of them.
 local MAX_SEPARATORS = 2
-
-local CLASS_ICON_SIZE = 24
-
--- Gaps copied from the player row: Level sits 4 after the name (:170),
--- ClassIcon 3 after the level (:178).
-local NAME_TO_LEVEL_GAP = 4
-local LEVEL_TO_ICON_GAP = 3
-local ICON_TO_MESSAGE_GAP = 4
-
--- THE PLAYER ROW'S SEPARATOR, copied exactly (Browse.xml:149-155): white at
--- alpha 0.04, inset TOPLEFT (3, -2) and BOTTOMRIGHT (-3, 0). The -2 is what
--- separates one row from the next -- the panel does not reach the top edge, so
--- consecutive rows leave a 2px band of the darker background between them.
---
--- THAT IS THE WHOLE OF THE PLAYERS LIST'S ROW SPACING. Its view is built with
--- zero padding and zero spacing (Browse.lua:66-68), and so is this one: the gap
--- is drawn, not laid out. Adding view spacing on top would double it.
-local ROW_BG_COLOR = { r = 1, g = 1, b = 1, a = 0.04 }
-local ROW_BG_INSET_X, ROW_BG_INSET_TOP = 3, -2
-
--- The search-entry row's own hover bar (Browse.xml:206), so a whisper row
--- lights up the same colour a result does.
-local ROW_HIGHLIGHT_ATLAS = "groupfinder-highlightbar-blue"
-
--- The name begins at the PartyIcon's slot, x = 8 (Browse.xml:158-162) -- which
--- is where a SOLO search result's name begins too, since it is anchored to that
--- icon's TOPLEFT (Browse.lua:388). A whisper reads as the same person as a
--- player in the list.
-local NAME_INSET_X = 8
-
--- Where the name begins: pinned to the first line's own centre (see
--- LINE_ONE_CENTER_Y). With a guild / friend icon the ICON takes this anchor and
--- the name follows it (core/relations.lua, LayOutRelationIcon).
-local NAME_ANCHOR = { point = "LEFT", relativePoint = "TOPLEFT", x = NAME_INSET_X, y = -LINE_ONE_CENTER_Y }
-
--- The name auto-sizes so the level sits right after it, exactly as the player
--- row does -- and is clamped for the same reason that row clamps with
--- NameMaxWidth: without it one long name shoves the message off the panel.
-local NAME_MAX_WIDTH = 140
 
 local EMPTY_TEXT = L.NO_WHISPERS
 
@@ -152,134 +94,31 @@ local EMPTY_TEXT = L.NO_WHISPERS
 local TOOLTIP_MAX_CHARS = 1000
 LFGF.WHISPER_TOOLTIP_MAX_CHARS = TOOLTIP_MAX_CHARS
 
--- The menu Blizzard opens for a player you are not grouped with, and the tag it
--- carries: UnitPopupManager:OpenMenu tags every root description
--- "MENU_UNIT_"..which (UnitPopupShared.lua:110), which is what Menu.ModifyMenu
--- keys on.
-local MENU_WHICH = "FRIEND"
-local MENU_TAG = "MENU_UNIT_" .. MENU_WHICH
-
--- A private key on the contextData, so the modifier below can tell a menu this
--- file opened from one Blizzard opened. Namespaced because contextData is
--- Blizzard's table, not ours.
-local MENU_MARKER = "lfgfWhisperLog"
-
-local menuModifierRegistered = false
-
---- Open Blizzard's own chat menu on this row.
----
---- REUSED WHOLE, NOT REBUILT. FriendsFrame_ShowDropdown builds a contextData
---- and hands it to UnitPopup_OpenMenu("FRIEND", ...)
---- (Camelot/FriendsFrame.lua:200-222) -- the same menu a player's name in chat
---- opens (ItemRefHandlers.lua:41-42). That brings Invite, Whisper, Ignore,
---- Report Player and Copy Character Name with it, each with its own CanShow, in
---- Blizzard's own words and Blizzard's own order
---- (UnitPopupSharedMenus.lua:193-211).
----
---- THE PRECEDENT IS ONE TAB OVER: Blizzard's own Group Finder Who List
---- right-clicks a row into exactly this call, with nothing but a name
---- (WhoList.lua:26, :223).
----
---- IT ALL LOADS HERE, and the TOC is not obvious about it.
---- UnitPopupSharedButtonMixins leaves Invite:CanShow and Whisper:CanShow as
---- error("Unimplemented") (:549, :491); the implementations arrive from
---- [Family]\UnitPopupButtons.lua [AllowLoadGameType standard, camelot]
---- (Blizzard_UnitPopup.toc:11), which is Mainline's. Camelot loads its own
---- UnitPopupMenus.lua too, but it overrides eight menus and FRIEND is not one.
+--- Open Blizzard's player menu on this row: the shared one both lists open
+--- (Row.OpenMenu, core/playerrow.lua), with what only a whisper carries.
 ---
 --- WHAT WE PASS THAT THE WHO LIST CANNOT:
 ---   * lineID -- the 11th payload field, NeverSecret
 ---     (ChatInfoDocumentation.lua:2610). UnitPopupReportChatButtonMixin:CanShow
----     needs a playerLocation that IsChatLineID (:1398-1408), so this is what
+---     needs a playerLocation that IsChatLineID (:1479-1490), so this is what
 ---     puts REPORT PLAYER in the menu, against this very whisper.
 ---   * guid -- the 12th, which is what a playerLocation is built from.
 ---   * chatType "WHISPER", which UnitPopupPopoutChatButtonMixin:CanShow tests
----     for (:352-356), earning Pop Out Chat a place.
----   * DEFAULT_CHAT_FRAME, because both Pop Out Chat and Whisper pass it
----     straight through -- FCF_OpenTemporaryWindow (:367) and
----     ChatFrameUtil.SendTell (:452).
+---     for (:412-424), earning Pop Out Chat a place.
 ---
---- REFUSED OUTRIGHT WHEN THE NAME CANNOT BE READ, which is the one thing that
---- has to be decided out here. UnitPopupManager:OpenMenu runs
---- NameUtil.SplitPlayerNameIntoParts on the name (UnitPopupShared.lua:46) -- a
---- string operation -- before any entry gets a say, so a secret name errors
---- inside Blizzard's file. There is no reaching in to grey two items out the
---- way a menu of our own could, so in chat-messaging lockdown this opens
---- nothing at all.
----
---- TAINT, stated rather than hidden: the menu is built in our tainted stack,
---- exactly as core/listpanel.lua's reuse of their search-entry menu is. It is
---- the same already-accepted trade, not a new one.
+--- In chat-messaging lockdown the sender's name cannot be read, and the menu
+--- does not open at all (Row.OpenMenu says why).
 local function ShowRowMenu(row)
 	local entry = row.entry
 	if not entry then
 		return
 	end
 
-	local name = LFGF.Readable(entry.name, nil)
-	if name == nil then
-		return
-	end
-
-	-- UnitPopup_OpenMenu DIRECT rather than through FriendsFrame_ShowDropdown,
-	-- for one reason: that wrapper builds its own contextData
-	-- (Camelot/FriendsFrame.lua:202-217) and there is nowhere in it to put a
-	-- marker. Without a marker the Menu.ModifyMenu callback below cannot tell
-	-- OUR menu from the friends list's, and would change both. Everything the
-	-- wrapper would have set is set here, with two improvements it cannot make:
-	-- the marker, and an ownerFrame that is the ROW rather than the chat frame,
-	-- so the menu closes when the row does while Whisper and Pop Out Chat still
-	-- act on a real chat frame.
-	UnitPopup_OpenMenu(MENU_WHICH, {
-		name = name,
+	Row.OpenMenu(row, entry.name, {
 		chatType = "WHISPER",
-		chatTarget = name,
-		chatFrame = DEFAULT_CHAT_FRAME,
 		lineID = LFGF.Readable(entry.lineID, nil),
 		guid = LFGF.Readable(entry.guid, nil),
-		ownerFrame = row,
-		[MENU_MARKER] = true,
 	})
-end
-
---- Grey out the one entry that cannot work from an addon.
----
---- CopyToClipboard is HasRestrictions (OsDocumentation.lua:12) and the menu is
---- built in OUR tainted stack, so clicking Copy Character Name raises
---- ADDON_ACTION_FORBIDDEN naming this addon and copies nothing. It is the ONLY
---- entry taint actually breaks: C_FriendList.AddOrDelIgnore and
---- C_PartyInfo.InviteUnit carry no restriction at all, and Whisper only opens
---- an edit box.
----
---- DISABLED, NOT REMOVED, because removing is not on offer. Blizzard's own
---- guide describes Menu.ModifyMenu as appending -- "a function that appends
---- elements to the menu" (11_0_0_MenuImplementationGuide.lua:402) -- and the
---- description mixin has an Insert (Menu.lua:427) with no matching Remove.
---- SetEnabled (:830) is the supported lever, so the entry stays visible and
---- greyed rather than firing an error.
----
---- SCOPED BY THE MARKER, and that is the important part. A modifier registered
---- for this tag fires for EVERY FRIEND menu in the game -- the friends list, a
---- player's name in chat -- where Copy Character Name works perfectly, because
---- Blizzard's code is untainted. Disabling it there would be a far worse bug
---- than the one being fixed.
----
---- Matched on the LABEL because the description does not carry the mixin that
---- made it -- CreateMenuDescription captures it in closures
---- (UnitPopupSharedButtonMixins.lua:187-193) -- and MenuUtil.GetElementText
---- (MenuUtil.lua:176-178) is the supported way to read one back. The label is
---- the same global the entry is built from, so it stays localised.
-local function DisableCopyCharacterName(_, rootDescription, contextData)
-	if not (contextData and contextData[MENU_MARKER]) then
-		return
-	end
-
-	for _, elementDescription in rootDescription:EnumerateElementDescriptions() do
-		if MenuUtil.GetElementText(elementDescription) == COPY_CHARACTER_NAME then
-			elementDescription:SetEnabled(false)
-			return
-		end
-	end
 end
 
 --- Cut a whisper down to something a tooltip can hold.
@@ -314,82 +153,20 @@ local function TruncateForTooltip(text)
 	return string.sub(readable, 1, TOOLTIP_MAX_CHARS) .. L.CONTINUED
 end
 
---- Build a row's regions, once per pooled frame.
----
---- WHY THE ROW IS BUILT HERE AND NOT INHERITED. The addon's only XML is the
---- settings row (core/settings.xml), so there is no row template of ours to
---- name -- the view is given the FRAME TYPE
---- "Frame" instead, which SetElementInitializer accepts as an alternative to a
---- template (its argument is `frameTemplateOrFrameType`,
---- ScrollBoxListView.lua:496; FrameFactoryMixin:Create falls back to treating
---- it as a native type when there is no template info, FrameFactory.lua:17-25).
----
---- The ScrollBox pools these frames, so the initializer runs many times on one
---- frame. Building is therefore guarded and the FILLING is not.
+--- Build a row, once per pooled frame: the shared player row
+--- (core/playerrow.lua), then the action line and the row's own scripts.
 ---
 --- NO SetHeight HERE, deliberately. The VIEW sizes each row, from the extent
---- calculator in CreateWhisperLog, BEFORE it runs this initializer
+--- in CreateWhisperLog, BEFORE it runs this initializer
 --- (ScrollBoxListView.lua:383, :397-421) -- so a height set here would override
 --- the view's on a new frame, and flatten every two-line row built from scratch.
 local function BuildRow(row)
-	-- BACKGROUND layer, as the player row has it, so nothing else in the row
-	-- has to know it is there.
-	local bg = row:CreateTexture(nil, "BACKGROUND")
-	bg:SetColorTexture(ROW_BG_COLOR.r, ROW_BG_COLOR.g, ROW_BG_COLOR.b, ROW_BG_COLOR.a)
-	bg:SetPoint("TOPLEFT", row, "TOPLEFT", ROW_BG_INSET_X, ROW_BG_INSET_TOP)
-	bg:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -ROW_BG_INSET_X, 0)
-	row.ResultBG = bg
+	Row.Build(row)
 
-	-- HOVER HIGHLIGHT, and THE ENGINE DRAWS IT. A texture in the HIGHLIGHT draw
-	-- layer is shown while the mouse is over its frame with no script of
-	-- anyone's, which is exactly how the search-entry row highlights
-	-- (Mainline/Blizzard_LFGVanilla_Browse.xml:205-212) -- same atlas, same ADD
-	-- blend. So there is no OnEnter of ours to write, and none to get wrong.
-	--
-	-- THE INSETS ARE OURS, NOT THEIRS. Blizzard's highlight is cut (3, -3) /
-	-- (-3, -1) for a 48-tall two-line row; on a 26-tall one those numbers would
-	-- leave it short of the band the separator draws. Sharing ResultBG's insets
-	-- makes the highlight sit exactly on that band.
-	local highlight = row:CreateTexture(nil, "HIGHLIGHT")
-	highlight:SetAtlas(ROW_HIGHLIGHT_ATLAS)
-	highlight:SetBlendMode("ADD")
-	highlight:SetPoint("TOPLEFT", row, "TOPLEFT", ROW_BG_INSET_X, ROW_BG_INSET_TOP)
-	highlight:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -ROW_BG_INSET_X, 0)
-	row.Highlight = highlight
-
-	-- PLACED IN FillRow, not here: whether a guild / friend icon stands before
-	-- it changes from whisper to whisper (see NAME_ANCHOR).
-	local name = row:CreateFontString(nil, "ARTWORK", "GameFontNormalLeft")
-	name:SetJustifyH("LEFT")
-	name:SetWordWrap(false)
-	row.Name = name
-
-	-- The guild / friend icon, hidden until FillRow says who sent this
-	-- (core/relations.lua). Clicks go through it, so right-clicking it still
-	-- opens this row's menu.
-	row.Relation = LFGF.CreateRelationIcon(row)
-
-	local level = row:CreateFontString(nil, "ARTWORK", "GameFontDisableLeft")
-	level:SetPoint("LEFT", name, "RIGHT", NAME_TO_LEVEL_GAP, 0)
-	level:SetJustifyH("LEFT")
-	row.Level = level
-
-	local classIcon = row:CreateTexture(nil, "ARTWORK")
-	classIcon:SetSize(CLASS_ICON_SIZE, CLASS_ICON_SIZE)
-	classIcon:SetPoint("LEFT", level, "RIGHT", LEVEL_TO_ICON_GAP, 0)
-	row.ClassIcon = classIcon
-
-	-- No width: two opposite anchors determine the rect, so the message takes
-	-- whatever the panel's width leaves. See .claude/context/patterns-ui.md.
-	-- BOTH ARE SET IN FillRow, which re-anchors on every fill -- the left one
-	-- depends on whether the class icon shows.
-	--
-	-- GameFontHighlightLeft is the same size as the name and the level -- see
-	-- the note at the top of this file -- and differs only in being white.
-	local message = row:CreateFontString(nil, "ARTWORK", "GameFontHighlightLeft")
-	message:SetJustifyH("LEFT")
-	message:SetWordWrap(false)
-	row.Message = message
+	-- PLAYER RATINGS, PHASE 3: the sender's rating as a 2 px strip over the
+	-- band's left edge (LFGF.CreateRatingStrip, core/main.lua), written on every
+	-- fill.
+	row.RatingStrip = LFGF.CreateRatingStrip(row)
 
 	-- THE ACTION LINE, under the name: Remove | Location | Invite. Text links
 	-- drawn the way the filter panel draws its links. Location and Invite come
@@ -401,11 +178,11 @@ local function BuildRow(row)
 	-- right-click between the links still reaches the row. Two corner anchors
 	-- and a height make it rectangle-valid without a centre-bearing point.
 	local actions = CreateFrame("Frame", nil, row)
-	actions:SetPoint("TOPLEFT", row, "TOPLEFT", NAME_INSET_X, -ROW_HEIGHT)
-	-- MIRRORS THE NAME: the line ends NAME_INSET_X in from the row's right edge,
-	-- as the name starts NAME_INSET_X in from its left -- so the rightmost link
+	actions:SetPoint("TOPLEFT", row, "TOPLEFT", Row.NAME_INSET_X, -Row.HEIGHT)
+	-- MIRRORS THE NAME: the line ends Row.NAME_INSET_X in from the row's right edge,
+	-- as the name starts that far in from its left -- so the rightmost link
 	-- sits as far inside the row's background box as the name does.
-	actions:SetPoint("TOPRIGHT", row, "TOPRIGHT", -NAME_INSET_X, -ROW_HEIGHT)
+	actions:SetPoint("TOPRIGHT", row, "TOPRIGHT", -Row.NAME_INSET_X, -Row.HEIGHT)
 	actions:SetHeight(ACTION_LINE_HEIGHT)
 	row.Actions = actions
 
@@ -444,6 +221,14 @@ local function BuildRow(row)
 			return
 		end
 		LFGF.ShowTextTooltip(self, TruncateForTooltip(entry.text), true)
+		-- PLAYER RATINGS, PHASE 3: under the message, the sender's rating as the
+		-- stars tooltip words it, in the rating's colour (the author's decisions,
+		-- 2026-11-13). Nothing for a sender not rated or not readable.
+		local line, r, g, b = LFGF.PlayerRatingLine(entry.name)
+		if line then
+			GameTooltip:AddLine(line, r, g, b, true)
+			GameTooltip:Show()
+		end
 	end)
 	row:SetScript("OnLeave", GameTooltip_Hide)
 
@@ -582,21 +367,14 @@ local function UpdateActions(row, entry)
 	LayOutActions(row, links)
 end
 
---- Fill a row from one entry.
+--- Fill a row from one entry: the shared player row's regions
+--- (core/playerrow.lua, which says why every property is written on every
+--- pass), then the action line.
 ---
---- EVERY BRANCH-DEPENDENT PROPERTY IS WRITTEN ON EVERY PASS, because rows are
---- pooled: a row that showed a mage is reused for a sender whose class nobody
---- knows, and a one-way rule would leave the mage's icon and colour on it. That
---- is the trap .claude/context/patterns-ui.md opens the borrowed-template
---- section with, and it applies to a row we built ourselves just as much.
----
---- BOTH OR NEITHER for level and class icon, as the player row does
---- (Browse.lua:380-387): a class icon with no level reads as a rendering fault,
---- and the level here is Nilable even when the class is known
---- (PlayerScriptDocumentation.lua:856).
----
---- THE NAME AND THE MESSAGE GO IN THROUGH SETTERS AND NOTHING ELSE. Either can
---- be a secret; a setter is the one operation that takes one.
+--- The entry's class and level came from GetPlayerInfoByGUID when the whisper
+--- was recorded, and its level is Nilable even when the class is known
+--- (PlayerScriptDocumentation.lua:856), which the shared row's "both or
+--- neither" rule covers.
 local function FillRow(row, entry)
 	if not row.Name then
 		BuildRow(row)
@@ -607,49 +385,8 @@ local function FillRow(row, entry)
 	-- whisper whoever last occupied that frame.
 	row.entry = entry
 
-	-- A GUILDMATE OR FRIEND gets an icon where the name begins, and the name
-	-- moves after it. ASKED ON EVERY FILL, from the whisper's GUID, and only
-	-- then -- nothing listens for the roster or the friend list changing, by
-	-- decision -- so a row that stays on screen keeps its answer, and a row
-	-- drawn again (scrolled back into view) asks afresh.
-	local relation = LFGF.RelationByGUID(entry.guid)
-	local relationWidth = LFGF.LayOutRelationIcon(row.Relation, row.Name, relation,
-		NAME_ANCHOR.point, row, NAME_ANCHOR.relativePoint, NAME_ANCHOR.x, NAME_ANCHOR.y)
-
-	-- Clamped, shorter by the icon's width when there is one, so the level and
-	-- the message keep the room they had. A secret name's width is left at its
-	-- natural size (LFGF.SetClampedText; ColourRow in core/listpanel.lua says
-	-- why that beats pinning it).
-	local maxWidth = NAME_MAX_WIDTH - relationWidth
-	LFGF.SetClampedText(row.Name, entry.name, maxWidth)
-
-	local nameColor = LFGF.ClassColor(entry.classFilename) or NORMAL_FONT_COLOR
-	row.Name:SetTextColor(nameColor.r, nameColor.g, nameColor.b)
-
-	local classAtlas = LFGF.ClassIconAtlas(entry.classFilename)
-	local level = LFGF.Readable(entry.level, nil)
-	local decorated = classAtlas ~= nil and level ~= nil
-
-	if decorated then
-		row.ClassIcon:SetAtlas(classAtlas, false)
-		row.Level:SetFormattedText("%s %s", L.LEVEL_ABBR, level)
-	end
-	row.ClassIcon:SetShown(decorated)
-	row.Level:SetShown(decorated)
-
-	-- Re-anchored, not merely re-shown: an anchor to a hidden region still
-	-- resolves, so leaving the message on the class icon would open a gap the
-	-- width of a level and an icon nobody can see the cause of.
-	row.Message:ClearAllPoints()
-	row.Message:SetPoint("LEFT", decorated and row.ClassIcon or row.Name, "RIGHT",
-		ICON_TO_MESSAGE_GAP, 0)
-	-- The first line's centre, like every other region on it: RIGHT is
-	-- centre-bearing, and the row's own centre moves when it grows an action line.
-	-- NAME_INSET_X in from the right, mirroring the name and matching the action
-	-- line below, so a long whisper is cut off inside the row's box.
-	row.Message:SetPoint("RIGHT", row, "TOPRIGHT", -NAME_INSET_X, -LINE_ONE_CENTER_Y)
-
-	row.Message:SetText(entry.text)
+	Row.Fill(row, entry)
+	LFGF.ShowRatingStrip(row.RatingStrip, entry.name)
 
 	UpdateActions(row, entry)
 end
@@ -777,6 +514,20 @@ function LFGF.CreateWhisperLog(parent)
 		self.EmptyText:SetShown(self.Provider:GetSize() == 0)
 	end
 
+	-- A RATING SAVED OR CLEARED, or the Player ratings setting switched: the
+	-- drawn rows are re-marked in place. Hidden or not: the log is on another
+	-- tab than the Player ratings tab where a rating is made or cleared, and its
+	-- rows are not refilled when the tab comes back.
+	local function RemarkRows()
+		scrollBox:ForEachFrame(function(row, entry)
+			if row.RatingStrip and entry then
+				LFGF.ShowRatingStrip(row.RatingStrip, entry.name)
+			end
+		end)
+	end
+	EventRegistry:RegisterCallback(LFGF.EVENT_PLAYER_RATING_CHANGED, RemarkRows, log)
+	EventRegistry:RegisterCallback(LFGF.EVENT_PLAYER_RATINGS_CHANGED, RemarkRows, log)
+
 	-- The size setting moved (core/settings.lua). The log is the owner, so one
 	-- log registers once however often the setting changes.
 	EventRegistry:RegisterCallback(LFGF.EVENT_WHISPER_LOG_SIZE_CHANGED, function()
@@ -802,13 +553,9 @@ function LFGF.CreateWhisperLog(parent)
 		self.ScrollBox:ScrollToEnd()
 	end)
 
-	-- ONCE PER SESSION. Menu.ModifyMenu appends to a callback registry
-	-- (Menu.lua:2744), so registering per log would stack duplicates -- each
-	-- harmless on its own, all doing the same work.
-	if not menuModifierRegistered then
-		menuModifierRegistered = true
-		Menu.ModifyMenu(MENU_TAG, DisableCopyCharacterName)
-	end
+	-- The menu's one fix (Copy Character Name greyed out), registered once per
+	-- session by whichever list is built first.
+	Row.RegisterMenuModifier()
 
 	-- REGISTERED ON THE LOG, NOT ON WHATEVER IS SHOWING. It lives in a tab, so
 	-- most of the time it is hidden -- and a frame that is hidden still receives

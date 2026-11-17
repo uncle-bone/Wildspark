@@ -1,3 +1,6 @@
+local function wild_auctions_enabled()
+    return not (_G.WildAuctions and _G.WildAuctions.IsEnabled and not _G.WildAuctions.IsEnabled())
+end
 select(2, ...).WildAuctions 'aux.core.shortcut'
 
 local aux = require 'aux'
@@ -9,9 +12,9 @@ local search_tab = require 'aux.tabs.search'
 -- searches for it, and any other tab switches to the Search tab and searches for it.
 -- Forever: a Shift-click normally goes into Blizzard's own auction house search box, which aux
 -- keeps hidden, so it is taken over here. With a chat box open, Shift-click still links to chat.
--- WildAuctions (0.4): Alt-click on a recipe in the profession window searches its item and materials
+-- auxForever (0.4): Alt-click on a recipe in the profession window searches its item and materials
 -- (Shift-click on a recipe is Blizzard's "track recipe", so only Alt is used for recipes)
--- WildAuctions (0.8): Alt-click on a Waylaid Crate searches its bundles (Shift-click and right-click
+-- auxForever (0.8): Alt-click on a Waylaid Crate searches its bundles (Shift-click and right-click
 -- still bring the crate itself into aux)
 
 -- the current tab uses the item, or the Search tab searches it
@@ -45,7 +48,7 @@ function M.on_modified_click(item_link)
     if aux.frame:IsMouseOver() then
         return
     end
-    -- WildAuctions (0.8, FB-020): Alt-click a Waylaid Crate searches every bundle that fills it
+    -- auxForever (0.8, FB-020): Alt-click a Waylaid Crate searches every bundle that fills it
     if IsAltKeyDown() and search_tab.search_crate(item_link) then
         return
     end
@@ -59,7 +62,7 @@ hooksecurefunc('HandleModifiedItemClick', function(item_link)
     on_modified_click(item_link)
 end)
 
--- WildAuctions (0.5, FB-002): a plain right-click on a bag item with the auction house open is sent by
+-- auxForever (0.5, FB-002): a plain right-click on a bag item with the auction house open is sent by
 -- Blizzard's bag code (ContainerFrameItemButton_OnClick, Forever's UI source) to
 -- AuctionHouseFrame:SetPostItem, which puts the item into Blizzard's own Sell tab. aux keeps that
 -- window open but invisible, so the item went there and nothing visible happened (Darkhorse:

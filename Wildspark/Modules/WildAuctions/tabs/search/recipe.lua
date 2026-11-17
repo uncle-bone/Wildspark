@@ -6,14 +6,14 @@ local money = require 'aux.util.money'
 local history = require 'aux.core.history'
 local gui = require 'aux.gui'
 
--- WildAuctions (0.4): recipe search. Forever has retail's profession window, which can tell an addon
+-- auxForever (0.4): recipe search. Forever has retail's profession window, which can tell an addon
 -- the materials of any recipe at the moment it is asked (C_TradeSkillUI.GetRecipeSchematic). A
 -- "Search in aux" button on that window, or Alt-click on a recipe, searches the item the recipe
 -- makes and every material in one search, and the line next to the sub tabs adds up the cost.
 -- Nothing is read or kept before the click. (Shift-click is Blizzard's "track recipe", which aux
 -- cannot stop, so it is not used.)
 
-local AUCTION_CUT = .05
+local AUCTION_CUT = aux.AUCTION_CUT -- one number for every tab (aux-addon.lua)
 
 -- the recipe ID of a recipe link (the profession window's recipe links are not item links)
 function M.recipe_id_from_link(link)
@@ -213,7 +213,7 @@ function M.recipe_entry_name(entry)
         .. '  ' .. aux.color.label.enabled('(' .. n .. (n == 1 and ' material)' or ' materials)'))
 end
 
--- WildAuctions (0.5, FB-007): what one craft's materials cost, anywhere in the world, from prices aux
+-- auxForever (0.5, FB-007): what one craft's materials cost, anywhere in the world, from prices aux
 -- already keeps. Each material at its vendor price when a vendor sells it without limit for less,
 -- else at its latest price (the latest look at it, as in tooltips; build 3, was the usual price).
 -- Returns the cost of the priced ones, how many have no price, and a row per material for the
@@ -349,7 +349,7 @@ function M.recipe_cost_tooltip(tooltip, parts)
         local dim = age and age >= history.OLD_DAYS
         local share = share_of_usual(gross / output.count, output.item_id .. ':0')
         tooltip:AddDoubleLine(name .. ' sells for', money.to_string(gross, true) .. share .. '  ' .. (dim and aux.color.label.disabled or aux.color.label.enabled)('seen ' .. (history.age_text(age) or '?')), 1, 1, 1, 1, 1, 1)
-        tooltip:AddDoubleLine('After the 5% auction house cut', money.to_string(net, true), r, g, b, 1, 1, 1)
+        tooltip:AddDoubleLine('After the ' .. AUCTION_CUT * 100 .. '% auction house cut', money.to_string(net, true), r, g, b, 1, 1, 1)
         local label, amount = profit_parts(parts, total, missing)
         tooltip:AddDoubleLine(label, amount, 1, 1, 1, 1, 1, 1)
     end
@@ -444,7 +444,7 @@ do
         button:SetSize(120, 22)
         place_button(button, form)
         hooksecurefunc(form, 'Init', function(self) place_button(button, self) end)
-        button:SetText('Search in WildAuctions')
+        button:SetText('Search in aux')
         button:SetScript('OnClick', function()
             local recipe = form:GetRecipeInfo()
             if recipe and recipe.recipeID then

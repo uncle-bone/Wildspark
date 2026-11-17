@@ -141,19 +141,26 @@ local SETTINGS_GEAR_HOVER_ALPHA = 1.0
 local SETTINGS_GEAR_GAP = ACTIVITY_TO_SEARCH_GAP
 local SETTINGS_GEAR_PRESS_X, SETTINGS_GEAR_PRESS_Y = 1, -1
 
--- THE TWO SECTION HEADERS END IN A TEXT LINK, not an icon: "Reset filters"
--- on "Find groups by role", "Clear chat" on "Messages from players". Five icons
--- were tried for Clear chat (common-search-clearbutton, GM-raidMarker-remove,
--- transmog-icon-remove, communities-icon-redx, communities-chat-icon-minus)
--- and none read right in the client, and Reset filters' funnel
--- (Map-Filter-Button) said "open filters" as readily as "reset them". Words
--- say it; see AddHeaderLink.
+-- THE SECTION HEADERS END IN A TEXT LINK, not an icon: "Reset filters" on
+-- "Find groups by role", "Clear chat" on "Messages from players", "Clear
+-- player rating" on "Recent allies". Five icons were tried for Clear chat
+-- (common-search-clearbutton, GM-raidMarker-remove, transmog-icon-remove,
+-- communities-icon-redx, communities-chat-icon-minus) and none read right in
+-- the client, and Reset filters' funnel (Map-Filter-Button) said "open
+-- filters" as readily as "reset them". Words say it; see AddHeaderLink.
 
 local TAB_STRIP_INSET_X = 18
 -- Flush: a top tab's art is drawn to meet the panel it belongs to, and
 -- FriendsFrame leaves no gap either. A seam here would be the first thing to
 -- adjust after seeing it in the client.
 local TAB_STRIP_GAP = 0
+
+-- The least tab a label gets on each side, by the author's request (a
+-- screenshot of the English Player ratings tab, its label all but touching
+-- both edges). About what Blizzard's Transmog top tabs give theirs: textPadding
+-- 17 plus the template's 10, halved (Blizzard_TransmogTemplates.xml:612,
+-- TabSystemTemplates.lua:233-235). See GiveTabLabelsRoom.
+local TAB_LABEL_MARGIN = 13
 
 -- WowStyle1DropdownTemplate's own height -- <Size x="120" y="25"/> at
 -- Blizzard_Menu/Mainline/MenuTemplates.xml:4, the file camelot loads
@@ -392,6 +399,71 @@ end
 local function ActivityReset(panel)
 	panel.selectedActivityIDs = {}
 	panel:UpdateActivityHeader()
+end
+
+-- How many dropped activities the chat line names before it counts the rest:
+-- "A, B, C and 2 more".
+local NAMED_DROPPED_ACTIVITIES = 3
+
+--- Two or more names for the chat line: "A and B", "A, B and C", then
+--- "A, B, C and 2 more". Every word from core/locale.lua.
+local function JoinDroppedNames(names)
+	local shown = {}
+	for index = 1, math.min(#names, NAMED_DROPPED_ACTIVITIES) do
+		shown[index] = names[index]
+	end
+	if #names > NAMED_DROPPED_ACTIVITIES then
+		table.insert(shown, L.ACTIVITY_LIST_MORE_FORMAT:format(#names - NAMED_DROPPED_ACTIVITIES))
+	end
+	return table.concat(shown, L.ACTIVITY_LIST_SEPARATOR, 1, #shown - 1)
+		.. L.ACTIVITY_LIST_LAST_SEPARATOR .. shown[#shown]
+end
+
+--- Untick every activity that `offered` does not hold, and say so in ONE
+--- chat line. Returns whether anything was unticked. It never searches.
+---
+--- WHY. The ticks are kept apart from the list they were picked from, and
+--- that list changes under them: LFGF.Activities leaves out an activity the
+--- player's level has left, or one offered only while it was in the player's
+--- own listing, and the server can stop offering one. A tick the menu no
+--- longer shows cannot be unticked, and Search would keep sending it.
+--- Blizzard's Browse tab has the same gap: its selectedValues are never
+--- checked again (LFGBrowseActivityDropdownMixin, Blizzard_LFGVanilla_Browse.lua).
+---
+--- `offered` is LFGF.Activities for the category, so "Show all level
+--- activities" counts as it does everywhere: while it is on, nothing drops
+--- for level, only what the server stopped offering.
+---
+--- The names are the menu's (LFGUtil_GetActivityInfoName), in the order they
+--- were ticked. An activity the client no longer describes is unticked with no
+--- name (GetActivityInfoTable is MayReturnNothing,
+--- LFGListInfoDocumentation.lua:186). See .claude/rules/level-range-filter.md.
+local function DropUnofferedActivities(panel, offered)
+	local kept, names, dropped = {}, {}, false
+	for _, activityID in ipairs(panel.selectedActivityIDs) do
+		if tContains(offered, activityID) then
+			table.insert(kept, activityID)
+		else
+			dropped = true
+			local activityInfo = C_LFGList.GetActivityInfoTable(activityID)
+			if activityInfo then
+				table.insert(names, LFGUtil_GetActivityInfoName(activityInfo))
+			end
+		end
+	end
+	if not dropped then
+		return false
+	end
+
+	panel.selectedActivityIDs = kept
+	panel:UpdateActivityHeader()
+	local setting = L.SETTINGS_SHOW_ALL_LEVELS_LABEL
+	if #names == 1 then
+		LFGF.Print(L.ACTIVITY_NO_LONGER_OFFERED_FORMAT:format(names[1], names[1], setting))
+	elseif #names > 1 then
+		LFGF.Print(L.ACTIVITIES_NO_LONGER_OFFERED_FORMAT:format(JoinDroppedNames(names), setting))
+	end
+	return true
 end
 
 -------------------------------------------------------
@@ -724,6 +796,9 @@ function LFGF.SetupActivityMenu(panel)
 		dropdown:SetEnabled(true)
 
 		local activities = LFGF.Activities(panel.selectedCategoryID)
+		-- A tick this menu would not show could never be unticked, so it goes
+		-- first. The menu is built on every open (DropdownButton.lua:117-118).
+		DropUnofferedActivities(panel, activities)
 		if #activities == 0 then
 			return
 		end
@@ -1102,14 +1177,19 @@ end
 ---
 --- Results are NOT handed to the list panel directly. Both panels listen to the
 --- same game events, so neither knows the other exists -- see core/listpanel.lua.
+---
+--- Answers true when the search went out, and false when it could not: a
+--- search still running, or no category. Those are the two reasons the Search
+--- button is greyed (UpdateSearchState), which is what keeps the Search key
+--- (LFGF.SearchFromKey, core/window.lua) as silent as a click on that button.
 local function RequestSearch(panel)
 	if panel.searching then
-		return
+		return false
 	end
 
 	local categoryID = panel.selectedCategoryID
 	if categoryID <= 0 then
-		return
+		return false
 	end
 
 	-- NO RESTRICTION PRE-CHECK, and that is deliberate. This used to refuse the
@@ -1178,13 +1258,16 @@ local function RequestSearch(panel)
 	panel.searchTimer = C_Timer.NewTimer(SEARCH_TIMEOUT_SECONDS, function()
 		SearchTimedOut(panel)
 	end)
+	return true
 end
 
 -------------------------------------------------------
 ---------- The tabs
 -------------------------------------------------------
--- TWO TABS over one column: FILTERS, holding all three filter sections, and
--- WHISPERS, holding the log core/whisperlog.lua builds.
+-- THREE TABS over one column: FILTERS, holding the filter sections; WHISPERS,
+-- holding the log core/whisperlog.lua builds; and PLAYER RATINGS, holding
+-- Blizzard's Recent Allies (core/playerratings.lua), shown only while its
+-- setting is on.
 --
 -- BLIZZARD'S TabSystem, not a pair of buttons of ours. Shared\TabSystem\ is
 -- gated only [ExcludeLoadGameType vanilla tbc] (Blizzard_SharedXML.toc:131-134),
@@ -1249,6 +1332,8 @@ end
 --     open;
 --   * "Save new filter" adds to My filters only, with the level range as
 --     typed; the current filters are not saved;
+--   * a name already saved is OVERWRITTEN: the popup warns in red and Okay
+--     stays on, and saving deletes the old filter and saves the new one last;
 --   * 20 filters, 20 letters, names trimmed and case-sensitive.
 
 -- The whisper log's gap around its separators (core/whisperlog.lua,
@@ -1260,24 +1345,20 @@ local HEADER_LINK_GAP = 4
 local MY_FILTER_PROMPT = L.MY_FILTER_PROMPT
 local MY_FILTERS_FULL = L.MY_FILTERS_FULL_FORMAT:format(LFGF.MY_FILTERS_MAX)
 
--- Each reason answers LFGF.MyFilterNameProblem, given the name as SHOWN. A
--- function each, so only the words that hold a %d or %s are ever formatted:
--- a % in the others reaches no string.format.
+-- Each reason answers LFGF.MyFilterNameProblem. A function each, so only the
+-- words that hold a %d are ever formatted: a % in the others reaches no
+-- string.format.
 local MY_FILTER_PROBLEMS = {
 	empty = function() return L.MY_FILTER_EMPTY end,
 	long = function() return L.MY_FILTER_TOO_LONG_FORMAT:format(LFGF.MY_FILTER_NAME_MAX_LETTERS) end,
-	taken = function(name) return L.MY_FILTER_TAKEN_FORMAT:format(name) end,
 	full = function() return MY_FILTERS_FULL end,
 }
 
---- A name as it is SHOWN: every | doubled, because a font string reads | as
---- the start of an escape sequence (patterns-ui.md, "| In A FontString Needs
---- Doubling"). The saved name stays as typed.
-local function ShownName(name)
-	return (string.gsub(name, "|", "||"))
-end
+--- A name as it is SHOWN, every | doubled (core/main.lua). The saved name stays
+--- as typed.
+local ShownName = LFGF.ShownName
 
---- One chat line about a filter: 'LFG Forever: filter "Tanks" saved.'
+--- One chat line about a filter: 'WildGroups: filter "Tanks" saved.'
 --- `sentence` is the whole line after the title, with a %s for the name, so a
 --- translation can put the name wherever its language wants it.
 local function PrintAboutFilter(name, sentence)
@@ -1290,7 +1371,7 @@ local function MyFilterReason(text)
 	if problem == nil then
 		return nil
 	end
-	return MY_FILTER_PROBLEMS[problem](ShownName(LFGF.CleanMyFilterName(text)))
+	return MY_FILTER_PROBLEMS[problem]()
 end
 
 --- Okay follows the name: on only when nothing is wrong with it. Blizzard's
@@ -1300,74 +1381,132 @@ local function UpdateMyFilterOkay(dialog)
 	dialog:GetButton1():SetEnabled(MyFilterReason(dialog:GetEditBox():GetText()) == nil)
 end
 
---- Save what the popup was opened for under the typed name. Checked again
---- here, because a filter may have been saved since the box was last typed in.
---- Returns true to keep the dialog open (StaticPopup_OnClick hides it
---- otherwise, StaticPopup.lua:728-752), so a refused name stays on screen with
---- Okay off and its reason one hover away.
+-- THE OVERWRITE WARNING. A name already saved turns Okay off no more: the
+-- popup says, in red, that saving will overwrite that filter (the author's
+-- decisions, 2026-11-16, .claude/rules/my-filters.md). It goes on Blizzard's
+-- own second line, the popup's SubText, small text ABOVE the box
+-- (GameDialog.xml, parentKey="SubText"). Blizzard shows and lays out that line
+-- only for a dialog that defines `subText` (GameDialogMixin:SetupText and
+-- SetupElementAnchoring, GameDialog.lua), so the dialog below sets one, a
+-- blank, and its text is ours from then on.
+--
+-- THE SPACE IS ALWAYS KEPT, so the popup never changes size while the player
+-- types: as many lines as the longest warning any saved name can make,
+-- counted when the popup opens, with every state padded to that many lines
+-- ("\n " per line). Counting needs the line's real width, which Blizzard's
+-- Resize gives it (SubText:SetDesiredWidth, GameDialog.lua), hence a Resize
+-- before counting. After a change, Resize again, as Blizzard does after
+-- changing a shown dialog's second line (StaticPopup_OnUpdate, StaticPopup.lua).
+--
+-- TAINT: nothing new. StaticPopup_Show runs from our click, so Blizzard's Init
+-- and Resize already run in our call for this popup; Blizzard's SetupText puts
+-- the line right for the next dialog in the frame (its own text, or hidden).
+-- Nothing is written onto Blizzard's frame: what we remember about it is kept
+-- in weak tables of ours.
+local warningLines = setmetatable({}, { __mode = "k" })   -- dialog -> lines kept
+local shownWarning = setmetatable({}, { __mode = "k" })   -- dialog -> the text last shown
+
+-- The popup from its OnShow to its OnHide, so a delete from the menu (or
+-- Blizzard's Defaults) can bring its Okay and its warning up to date. Cleared
+-- on hide: the frame is one of Blizzard's four, and the next dialog shown in
+-- it is not ours.
+local openMyFilterPopup
+
+--- Red, Blizzard's error colour, generated at load from the client's colour
+--- table; plain text if it is ever missing.
+local function Red(text)
+	if RED_FONT_COLOR then
+		return RED_FONT_COLOR:WrapTextInColorCode(text)
+	end
+	return text
+end
+
+--- The warning for overwriting the filter saved as `name` (trimmed already).
+local function WarningFor(name)
+	return Red(L.MY_FILTER_OVERWRITE_WARNING_FORMAT:format(ShownName(name)))
+end
+
+--- The warning for what the box holds, or nil when no filter has that name.
+local function OverwriteWarning(text)
+	if not LFGF.IsMyFilterSaved(text) then
+		return nil
+	end
+	return WarningFor(LFGF.CleanMyFilterName(text))
+end
+
+--- How many lines `text` takes on `line`. GetNumLines is
+--- SecretWhenAnchoringSecret (SimpleFontStringAPIDocumentation.lua); our own
+--- text never is, but an unreadable answer counts as one line.
+local function LinesOf(line, text)
+	line:SetText(text)
+	local lines = LFGF.ReadableNumbers(line:GetNumLines())
+	return math.max(lines or 1, 1)
+end
+
+--- Count the lines to keep: the longest warning any saved name can make.
+local function ReserveWarningLines(dialog)
+	local most = 1
+	for _, filter in ipairs(LFGF.MyFilters()) do
+		most = math.max(most, LinesOf(dialog.SubText, WarningFor(filter.name)))
+	end
+	warningLines[dialog] = most
+end
+
+--- The warning for what the box holds, or the kept space blank, padded to the
+--- kept lines. Resize only when the line changed.
+local function UpdateOverwriteWarning(dialog)
+	local line = dialog.SubText
+	local warning = OverwriteWarning(dialog:GetEditBox():GetText())
+	local text, used = " ", 1
+	if warning then
+		text, used = warning, LinesOf(line, warning)
+	end
+	text = text .. string.rep("\n ", (warningLines[dialog] or 1) - used)
+	line:SetText(text)
+	if shownWarning[dialog] ~= text then
+		shownWarning[dialog] = text
+		dialog:Resize()
+	end
+end
+
+--- Okay and the warning, both following what the box holds.
+local function UpdateMyFilterPopup(dialog)
+	UpdateMyFilterOkay(dialog)
+	UpdateOverwriteWarning(dialog)
+end
+
+--- After My filters changed under an open popup (a delete from the menu,
+--- Blizzard's Defaults): Okay and the warning again.
+local function RefreshMyFilterPopup()
+	if openMyFilterPopup then
+		UpdateMyFilterPopup(openMyFilterPopup)
+	end
+end
+
+--- Save what the popup was opened for under the typed name, overwriting a
+--- filter of that name. Checked again here, because My filters may have
+--- changed since the box was last typed in. Returns true to keep the dialog
+--- open (StaticPopup_OnClick hides it otherwise, StaticPopup.lua:728-752), so
+--- a refused name stays on screen with Okay off and its reason one hover away.
 local function SaveMyFilterFromPopup(dialog, data)
 	local name = dialog:GetEditBox():GetText()
-	if not LFGF.AddMyFilter(name, data.filters) then
-		UpdateMyFilterOkay(dialog)
+	local saved, overwritten = LFGF.SaveMyFilter(name, data.filters)
+	if not saved then
+		UpdateMyFilterPopup(dialog)
 		return true
 	end
-	PrintAboutFilter(LFGF.CleanMyFilterName(name), L.MY_FILTER_SAVED_FORMAT)
+	if overwritten then
+		PrintAboutFilter(LFGF.CleanMyFilterName(name), L.MY_FILTER_OVERWRITTEN_FORMAT)
+	else
+		PrintAboutFilter(LFGF.CleanMyFilterName(name), L.MY_FILTER_SAVED_FORMAT)
+	end
 	data.panel:UpdateMyFilterControls()
 	return false
 end
 
--- THE OKAY TOOLTIP, and why it is put back. Blizzard's popup has no tooltip for
--- its buttons, so ours goes on the button itself. But that button is
--- Blizzard's: the popups are four reused frames (GameDialog.xml:348-367), each
--- owning its buttons (:181-184), and per dialog Blizzard resets only their
--- text, enabled state and pulse (GameDialogMixin:SetupButtons,
--- GameDialog.lua:319-341). Left in place, our scripts would reach the next
--- dialog in that frame -- one of Blizzard's own, say. So OnShow keeps what was
--- there, and OnHide puts it back. Kept here, in a table of ours, not on
--- Blizzard's frame. OnClick is never touched.
-local okayRestore = setmetatable({}, { __mode = "k" })
-
-local function HookOkayTooltip(dialog)
-	local okay = dialog:GetButton1()
-	okayRestore[okay] = {
-		motion = okay:GetMotionScriptsWhileDisabled(),
-		onEnter = okay:GetScript("OnEnter"),
-		onLeave = okay:GetScript("OnLeave"),
-	}
-	-- A disabled button fires no OnEnter unless told to; Blizzard sets the
-	-- same flag on its own Role Check button for its reason tooltip
-	-- (Blizzard_LFGVanilla_Listing.xml:413).
-	okay:SetMotionScriptsWhileDisabled(true)
-	okay:SetScript("OnEnter", function(self)
-		local reason = MyFilterReason(dialog:GetEditBox():GetText())
-		if self:IsEnabled() or reason == nil then
-			return
-		end
-		-- Titled with what the popup is for, the same title as the Save new
-		-- filter link's own tooltip (the author's choice).
-		LFGF.ShowTooltip(self, LFGF.SAVE_NEW_FILTER_LABEL, reason)
-	end)
-	okay:SetScript("OnLeave", function(self)
-		if GameTooltip:GetOwner() == self then
-			GameTooltip:Hide()
-		end
-	end)
-end
-
-local function RestoreOkay(dialog)
-	local okay = dialog:GetButton1()
-	local saved = okayRestore[okay]
-	if not saved then
-		return
-	end
-	okayRestore[okay] = nil
-	if GameTooltip:GetOwner() == okay then
-		GameTooltip:Hide()
-	end
-	okay:SetMotionScriptsWhileDisabled(saved.motion)
-	okay:SetScript("OnEnter", saved.onEnter)
-	okay:SetScript("OnLeave", saved.onLeave)
-end
+-- THE OKAY TOOLTIP is the shared one (LFGF.HookPopupOkayTooltip, core/main.lua),
+-- titled with what the popup is for, the same title as the Save new filter
+-- link's own tooltip (the author's choice).
 
 -- Defined once, at file scope: StaticPopupDialogs is a shared registry. The
 -- data -- the panel and the snapshot taken when Save new filter was clicked --
@@ -1384,20 +1523,33 @@ end
 -- second check would be the same question twice.
 StaticPopupDialogs[LFGF.MY_FILTER_POPUP] = {
 	text = MY_FILTER_PROMPT,
+	-- A blank: Blizzard then shows and lays out its second line, which holds
+	-- the overwrite warning (above).
+	subText = " ",
 	button1 = L.OKAY,
 	button2 = L.CANCEL,
 	hasEditBox = 1,
 	maxLetters = LFGF.MY_FILTER_NAME_MAX_LETTERS,
 	OnShow = function(dialog)
-		HookOkayTooltip(dialog)
+		openMyFilterPopup = dialog
+		LFGF.HookPopupOkayTooltip(dialog, LFGF.SAVE_NEW_FILTER_LABEL, MyFilterReason)
+		dialog:Resize()   -- gives the second line its width before counting
+		ReserveWarningLines(dialog)
+		shownWarning[dialog] = nil
 		dialog:GetEditBox():SetText("")
 		dialog:GetEditBox():SetFocus()
-		UpdateMyFilterOkay(dialog)
+		UpdateMyFilterPopup(dialog)
 	end,
-	OnHide = RestoreOkay,
+	OnHide = function(dialog)
+		LFGF.RestorePopupOkay(dialog)
+		warningLines[dialog], shownWarning[dialog] = nil, nil
+		if openMyFilterPopup == dialog then
+			openMyFilterPopup = nil
+		end
+	end,
 	OnAccept = SaveMyFilterFromPopup,
 	EditBoxOnTextChanged = function(editBox)
-		UpdateMyFilterOkay(editBox:GetParent())
+		UpdateMyFilterPopup(editBox:GetParent())
 	end,
 	EditBoxOnEnterPressed = function(editBox, data)
 		local dialog = editBox:GetParent()
@@ -1438,6 +1590,7 @@ local function DeleteMyFilter(panel, name)
 		return
 	end
 	PrintAboutFilter(name, L.MY_FILTER_DELETED_FORMAT)
+	RefreshMyFilterPopup()
 	local dropdown = panel.MyFiltersDropdown
 	if #LFGF.MyFilters() == 0 then
 		dropdown:CloseMenu()
@@ -1516,18 +1669,9 @@ local function BuildMyFilterControls(panel)
 		StaticPopup_Show(LFGF.MY_FILTER_POPUP, nil, nil,
 			{ panel = panel, filters = FilterSnapshot(panel) })
 	end)
-	-- The reason it is off, at 20 filters -- the Role Check button's shape: the
-	-- tooltip only when that is why, and motion scripts while disabled.
-	save:SetMotionScriptsWhileDisabled(true)
-	save:SetScript("OnEnter", function(self)
-		if self:IsEnabled() then
-			return
-		end
-		LFGF.ShowTooltip(self, LFGF.SAVE_NEW_FILTER_LABEL, MY_FILTERS_FULL)
-	end)
-	save:SetScript("OnLeave", function()
-		GameTooltip:Hide()
-	end)
+	-- Never off, not even at 20: a name already saved overwrites, which adds
+	-- none (the author's decision). A new name at 20 is refused by the
+	-- popup's Okay, which says why.
 	RaiseOverHeader(section, save)
 	panel.SaveNewFilterLink = save
 
@@ -1577,13 +1721,11 @@ local function BuildMyFilterControls(panel)
 
 	panel.MyFiltersSeparators = { leftSeparator, rightSeparator }
 
-	--- Show the dropdown and its separator only when something is saved, and
-	--- turn Save new filter off at 20.
+	--- Show the dropdown and its separator only when something is saved.
 	function panel:UpdateMyFilterControls()
 		local count = #LFGF.MyFilters()
 		self.MyFiltersDropdown:SetShown(count > 0)
 		leftSeparator:SetShown(count > 0)
-		self.SaveNewFilterLink:SetEnabled(count < LFGF.MY_FILTERS_MAX)
 	end
 
 	SetupMyFiltersMenu(panel)
@@ -1594,6 +1736,7 @@ local function BuildMyFilterControls(panel)
 	EventRegistry:RegisterCallback(LFGF.EVENT_MY_FILTERS_FORGOTTEN, function()
 		dropdown:CloseMenu()
 		panel:UpdateMyFilterControls()
+		RefreshMyFilterPopup()
 	end, panel)
 end
 
@@ -1656,7 +1799,46 @@ local function BuildTabGlow(panel)
 	end, panel)
 end
 
---- Build the strip and hand the two tabs their contents.
+--- Show or hide the Player ratings tab, by its setting.
+---
+--- SetTabShown HIDES ONLY THE BUTTON (TabSystemTemplates.lua:328-331), as
+--- Blizzard's camelot Friends frame uses it for its own Recent Allies tab
+--- (Camelot/FriendsFrame.lua:622). So a tab hidden while it is the current one
+--- would leave its content on screen: move to Filters first, which hides it
+--- (TabSystemOwner.lua:46-51). Blizzard's Friends frame does the same after
+--- hiding a tab (TryUpdateInvalidTabSelection, :634-640).
+local function ShowRatingsTab(panel, shown)
+	if not shown and panel:GetTab() == panel.ratingsTabID then
+		panel:SetTab(panel.filtersTabID)
+	end
+	panel.TabSystem:SetTabShown(panel.ratingsTabID, shown)
+end
+
+--- Widen any tab whose label has less than TAB_LABEL_MARGIN of tab on a side.
+---
+--- Blizzard sizes a tab once, when it is added: the two side pieces plus 20
+--- (92), or a label wider than that plus 10, which leaves it 5 px a side
+--- (UpdateTabWidth, TabSystemTemplates.lua:225-254). Its own knob,
+--- textPadding, is no way to promise a margin: it counts only once label and
+--- padding pass 92, so a label near that width (the English "Player ratings")
+--- gains nothing from it. So the width is set here, with the art mixin's own
+--- setter (:78-80), and only ever raised: a short label keeps Blizzard's 92.
+---
+--- The label stays centred: Text is anchored to the tab's CENTER (:70) and
+--- keeps the width Blizzard gave it. No relayout is asked for: adding a tab
+--- has already marked the strip dirty, and it lays out on the next frame
+--- (LayoutFrame.lua:78-100), with these widths.
+local function GiveTabLabelsRoom(panel)
+	for _, tabID in ipairs({ panel.filtersTabID, panel.whispersTabID, panel.ratingsTabID }) do
+		local button = panel:GetTabButton(tabID)
+		local needed = button.Text:GetStringWidth() + 2 * TAB_LABEL_MARGIN
+		if button:GetWidth() < needed then
+			button:SetTabWidth(needed)
+		end
+	end
+end
+
+--- Build the strip and hand the three tabs their contents.
 ---
 --- THE POOL IS REBUILT ON PURPOSE. TabSystemMixin:OnLoad reads self.tabTemplate
 --- when it creates the button pool (TabSystemTemplates.lua:281), and that field
@@ -1716,6 +1898,21 @@ local function BuildTabs(panel)
 	whispers:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -ROW_PADDING, ROW_PADDING)
 	panel.WhisperLog = whispers
 
+	-- THE PLAYER RATINGS TAB: one section, "Recent allies", built and placed
+	-- exactly as the Whispers one, with the list under its rule.
+	local ratingsSection = BuildSection(panel, L.RECENT_ALLIES_SECTION_TITLE)
+	ratingsSection:SetHeight(ratingsSection.Title:GetStringHeight()
+		+ SECTION_TITLE_TO_RULE_GAP + SECTION_RULE_HEIGHT)
+	ratingsSection:SetPoint("TOPLEFT", panel.CategoryDropdown, "BOTTOMLEFT", 0,
+		-(FILTER_ROW_OVERHANG + SECTION_TOP_GAP))
+	panel.RatingsSection = ratingsSection
+
+	local ratings = LFGF.CreatePlayerRatings(panel)
+	ratings:SetPoint("TOPLEFT", ratingsSection.Divider, "BOTTOMLEFT", 0,
+		-SECTION_RULE_TO_CONTENT_GAP)
+	ratings:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -ROW_PADDING, ROW_PADDING)
+	panel.PlayerRatings = ratings
+
 	-- Listed top to bottom, matching the stack. Membership is a REGISTRATION,
 	-- not an order -- the tracker shows all of a tab's elements whatever order
 	-- they arrive in -- so this is for the reader. Every section must be here:
@@ -1725,6 +1922,8 @@ local function BuildTabs(panel)
 		panel.MiscellaneousSection)
 	panel.whispersTabID = panel:AddNamedTab(LFGF.WHISPERS_TAB_TITLE,
 		whispersSection, whispers)
+	panel.ratingsTabID = panel:AddNamedTab(L.PLAYER_RATINGS, ratingsSection, ratings)
+	GiveTabLabelsRoom(panel)
 
 	-- One link per section header, in the same place on both tabs. Each is a
 	-- child of its section, so the tabs show and hide it with no callback.
@@ -1733,13 +1932,26 @@ local function BuildTabs(panel)
 	BuildMyFilterControls(panel)
 	panel.ClearChatLink = AddHeaderLink(whispersSection,
 		LFGF.CLEAR_CHAT_LABEL, function() whispers:Clear() end)
+	-- Always on, by the author's decision (2026-11-14): with nobody rated the
+	-- popup still opens, and its Okay says why it is off. Looked up when
+	-- clicked; core/playerratings.lua owns the popup.
+	panel.ClearPlayerRatingLink = AddHeaderLink(ratingsSection,
+		L.CLEAR_PLAYER_RATING, function() LFGF.ShowClearPlayerRating() end)
 
 	BuildTabGlow(panel)
 
 	-- Filters is where a Group Finder starts. SetTab rather than
 	-- SetTabVisuallySelected: the first one has to run the tracker too, or every
-	-- element of both tabs is left showing.
+	-- element of every tab is left showing.
 	panel:SetTab(panel.filtersTabID)
+
+	-- The Player ratings tab follows its setting, now and on every change
+	-- (core/settings.lua announces it). Owned by the panel, whose other
+	-- callbacks are on other events: one callback per owner per event.
+	ShowRatingsTab(panel, LFGF.ShowPlayerRatings())
+	EventRegistry:RegisterCallback(LFGF.EVENT_PLAYER_RATINGS_CHANGED, function(_, shown)
+		ShowRatingsTab(panel, shown == true)
+	end, panel)
 end
 
 -------------------------------------------------------
@@ -1996,7 +2208,8 @@ local function MeasureLayout(panel)
 	local separatorWidth = HEADER_LINK_GAP + Width(LFGF.SEPARATOR, separator) + HEADER_LINK_GAP
 	-- Every Filters-tab title starts after its +/- and the gap, and is followed
 	-- by room for the warning a collapsed section can show (BuildHeader,
-	-- core/filterpanel_shared.lua). The Whispers title has neither.
+	-- core/filterpanel_shared.lua). The Whispers and Recent allies titles have
+	-- neither.
 	local headerIcons = Shared.COLLAPSE_ICON_WIDTH + Shared.COLLAPSE_ICON_TO_TITLE_GAP
 		+ Shared.TITLE_TO_WARNING_GAP + Shared.WARNING_ICON_SIZE
 	local function TitleWidth(text) return headerIcons + Width(text, "GameFontNormalLarge") end
@@ -2006,6 +2219,8 @@ local function MeasureLayout(panel)
 		+ separatorWidth + Width(LFGF.RESET_FILTERS_LABEL, link)
 	local whispersTitleLine = Width(LFGF.WHISPERS_SECTION_TITLE, "GameFontNormalLarge")
 		+ MIN_ROW_GAP + Width(LFGF.CLEAR_CHAT_LABEL, link)
+	local ratingsTitleLine = Width(L.RECENT_ALLIES_SECTION_TITLE, "GameFontNormalLarge")
+		+ MIN_ROW_GAP + Width(L.CLEAR_PLAYER_RATING, link)
 	-- The Miscellaneous row (core/filterpanel_miscellaneous.lua): the Playstyle
 	-- label in the checkbox labels' font, the gap and its dropdown's fixed
 	-- width; then the least gap, and the Languages label, gap and dropdown,
@@ -2032,7 +2247,8 @@ local function MeasureLayout(panel)
 	local content = math.max(MostColumns(PLAYER_ROLE_ROWS) * playerColumn,
 		MostColumns(classRows) * playerColumn,
 		MostColumns(GROUP_FILTER_ROWS) * groupColumn,
-		searchRow, groupTitleLine, whispersTitleLine, playstyleRow, groupClassRow,
+		searchRow, groupTitleLine, whispersTitleLine, ratingsTitleLine, playstyleRow,
+		groupClassRow,
 		TitleWidth(LFGF.ROLE_SECTION_TITLE), TitleWidth(LFGF.CLASS_SECTION_TITLE),
 		TitleWidth(LFGF.MISCELLANEOUS_SECTION_TITLE))
 	local panelWidth = math.max(FILTER_PANEL_WIDTH, 2 * ROW_PADDING + content)
@@ -2077,6 +2293,17 @@ function LFGF.CreateFilterPanel(parent)
 	panel:SetScript("OnEvent", function(self, event)
 		if event == "LFG_LIST_AVAILABILITY_UPDATE" then
 			SelectFirstCategory(self)
+			-- The activity list may have changed: Blizzard's finder asks the
+			-- server for a new one on every level-up
+			-- (Blizzard_LFGVanilla_ParentFrame.lua:54-55). An open menu is
+			-- rebuilt, or a click on a row it still shows would tick that
+			-- activity again; GenerateMenu on an open dropdown rebuilds it in
+			-- place (DropdownButton.lua:195-200).
+			if self.selectedCategoryID > 0
+				and DropUnofferedActivities(self, LFGF.Activities(self.selectedCategoryID))
+				and self.ActivityDropdown:IsMenuOpen() then
+				self.ActivityDropdown:GenerateMenu()
+			end
 			return
 		end
 		self.searching = false
@@ -2132,7 +2359,7 @@ function LFGF.CreateFilterPanel(parent)
 		self.SearchButton:SetEnabled(self.selectedCategoryID > 0 and not self.searching)
 	end
 
-	function panel:RequestSearch() RequestSearch(self) end
+	function panel:RequestSearch() return RequestSearch(self) end
 
 	--- What the Filters tab says right now, as a fresh snapshot: what Search
 	--- would send. core/window.lua hands it to the list when both are built,
@@ -2148,6 +2375,15 @@ function LFGF.CreateFilterPanel(parent)
 	--- shape is what is saved and what My filters keep, and activities are
 	--- neither (.claude/rules/saved-filters.md).
 	function panel:SelectedActivityIDs() return CopyTable(self.selectedActivityIDs) end
+
+	--- Switch to the Player ratings tab, while its setting shows it. Called by
+	--- LFGF.OpenPlayerRatings (core/window.lua). SetTab, so the tab's list is
+	--- shown and the other tabs' content hidden (TabSystemOwner.lua:46-51).
+	function panel:ShowPlayerRatingsTab()
+		if LFGF.ShowPlayerRatings() then
+			self:SetTab(self.ratingsTabID)
+		end
+	end
 
 	local category = CreateFrame("DropdownButton", nil, panel, "WowStyle1DropdownTemplate")
 	category:SetWidth(CATEGORY_DROPDOWN_WIDTH)
@@ -2169,7 +2405,7 @@ function LFGF.CreateFilterPanel(parent)
 
 	-- NOTHING BETWEEN THE FILTER ROW AND THE SECTIONS. A one-line notice with a
 	-- link to the settings page ("You can configure the addon and report bugs
-	-- in LFG Forever settings") sat here from 0.3.0 until 0.10.0-dev.1, when the
+	-- in WildGroups settings") sat here from 0.3.0 until 0.10.0-dev.1, when the
 	-- author removed it to give the role section room for its Level row. The
 	-- settings page is still one click away: right-click the minimap button or
 	-- the addon compartment entry (core/minimap.lua), or Options > AddOns.

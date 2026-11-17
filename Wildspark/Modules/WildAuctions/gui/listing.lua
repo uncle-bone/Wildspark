@@ -115,7 +115,7 @@ local methods = {
 		    self:AddColumn()
 	    end
 
-	    -- WildAuctions (0.5, FB-006): the last column reaches the right edge by its anchor, not by a width
+	    -- auxForever (0.5, FB-006): the last column reaches the right edge by its anchor, not by a width
 	    -- worked out earlier, so the header can never stick out of the window when that width is stale
 	    local last = #self.colInfo
 	    for i, col in ipairs(self.headCols) do
@@ -209,7 +209,7 @@ local methods = {
         col.st = self
         col.colNum = colNum
 
-        -- WildAuctions (0.6, the UI Kit): a raised plate with a black edge, hidden for a table without
+        -- auxForever (0.6, the UI Kit): a raised plate with a black edge, hidden for a table without
         -- a header
         local plate = CreateFrame('Frame', nil, col)
         plate:SetAllPoints()
@@ -303,7 +303,7 @@ function M.new(parent)
     st:SetScript('OnSizeChanged', function(self)
         if self.colInfo then self:Update() end
     end)
-    -- WildAuctions (0.5, FB-006): a table resized or rescaled while hidden (another sub tab open) is laid
+    -- auxForever (0.5, FB-006): a table resized or rescaled while hidden (another sub tab open) is laid
     -- out again when shown, and when its content area changes size (the scroll bar appearing)
     st:SetScript('OnShow', function(self)
         if self.colInfo then self:Update() end

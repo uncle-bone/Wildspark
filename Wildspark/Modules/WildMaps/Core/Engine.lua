@@ -23,7 +23,8 @@ function HM:RefreshMap(reason)
     local changed = map ~= HM.currentMap
 
     HM.currentMap = map
-    HM.WorldMap:SetMap(map)
+    if HM.ZoneMap and HM.ZoneMap.SetMap then HM.ZoneMap:SetMap(map) end
+    if HM.ZoneMap and HM.ZoneMap.Refresh and HM.ZoneMap.frame and HM.ZoneMap.frame:IsShown() then HM.ZoneMap:Refresh() end
 
     if changed and HM:IsDebugEnabled() then
         HM:Print(reason or "map update", "->", map and map.name or "none")
@@ -36,7 +37,6 @@ local function initialize()
     end
 
     initializeDatabase()
-    HM.WorldMap:Ensure()
     HM:RefreshMap("initialize")
 
     HM.initialized = true
@@ -56,8 +56,6 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
     if event == "ADDON_LOADED" then
         if arg1 == addonName then
             initializeDatabase()
-        elseif arg1 == "Blizzard_WorldMap" then
-            HM.WorldMap:Ensure()
         end
         return
     end
@@ -83,10 +81,8 @@ eventFrame:SetScript("OnUpdate", function(_, elapsed)
     if updateAccumulator >= 0.10 then
         updateAccumulator = 0
         -- Movement can cross spatial coverage without changing any zone text.
-        -- Reuse the existing 10 Hz tick, including while the World Map is shut.
-        -- Explicit diagnostic/calibration overrides retain their old behavior.
-        if (not addonNS.WildMapsModule or addonNS.WildMapsModule.IsEnabled())
-            and not (HM.MapOverride and HM.MapOverride:IsActive()) then
+        -- Reuse the 10 Hz tick so the compact Zone Map stays current.
+        if not addonNS.WildMapsModule or addonNS.WildMapsModule.IsEnabled() then
             local indoorStatus = HM.Detection:GetIndoorStatus()
             local indoorChanged = indoorStatus ~= lastIndoorStatus
             lastIndoorStatus = indoorStatus
@@ -103,10 +99,6 @@ eventFrame:SetScript("OnUpdate", function(_, elapsed)
                     HM:RefreshMap("indoor status changed")
                 end
             end
-        end
-        if HM.WorldMap.initialized and WorldMapFrame and WorldMapFrame:IsShown() then
-            HM.WorldMap:UpdateMarker()
-            HM.WorldMap:RefreshLocationHint()
         end
     end
 

@@ -17,10 +17,11 @@ function M.SetEnabled(value)
     if not core then return end
 
     if not enabled then
-        if core.frame then core.frame:Hide() end
-        if AuctionHouseFrame and AuctionHouseFrame:IsShown()
-            and type(M.SetBlizzardUIVisible) == "function" then
-            M.SetBlizzardUIVisible(true)
+        if type(M.DisableRuntime) == "function" then
+            M.DisableRuntime()
+        else
+            if core.frame then core.frame:Hide() end
+            if type(M.SetBlizzardUIVisible) == "function" then M.SetBlizzardUIVisible(true) end
         end
     end
 

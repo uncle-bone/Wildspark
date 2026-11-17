@@ -3,7 +3,7 @@ select(2, ...).WildAuctions 'aux.gui'
 local aux = require 'aux'
 local completion = require 'aux.util.completion'
 
--- WildAuctions: Forever does not load fonts from addons (it rejected Barlow, a basic rebuild of it and
+-- auxForever: Forever does not load fonts from addons (it rejected Barlow, a basic rebuild of it and
 -- PT Sans Narrow, while its own fonts load), so aux's original game font is used.
 M.font = (function()
     local font = CreateFrame'Frame':CreateFontString()
@@ -18,7 +18,7 @@ M.font_size = aux.immutable-{
     large = 18,
 }
 
--- WildAuctions (0.5, docs/clicks.md): the gray lines at the bottom of a row's tooltip that say what its
+-- auxForever (0.5, docs/clicks.md): the gray lines at the bottom of a row's tooltip that say what its
 -- clicks do. The text is "Click: select  ·  Right-click: search"; each click gets its own line, the
 -- click on the left and what it does on the right (one wrapped paragraph was hard to read, Tyler
 -- build 1). A tooltip holding only the hint (alone) has no blank line above it.
@@ -63,7 +63,7 @@ function M.set_size(frame, width, height)
     frame:SetHeight(height or width)
 end
 
--- WildAuctions (0.6): the look, New or Classic (Settings, aux.theme). It is known only once the saved
+-- auxForever (0.6): the look, New or Classic (Settings, aux.theme). It is known only once the saved
 -- settings load, after every file has built its widgets with New's colors. Until then shapes wait
 -- to be built, and everything painted through `themed` is also kept; settle_theme then builds the
 -- shapes in the chosen look and, for Classic, paints the kept list again with Classic's colors. After
@@ -125,8 +125,8 @@ end
 -- replaced so every existing caller recolors the shape instead of a backdrop. New: square, 1px
 -- outline (the UI Kit). Classic: rounded corners (the 0.5 look) of the given radius; radius 0 is
 -- square in both.
-local CORNER_FILL = [[Interface\AddOns\WildSpark\Modules\WildAuctions\textures\corner-fill.tga]]
-local CORNER_LINE = [[Interface\AddOns\WildSpark\Modules\WildAuctions\textures\corner-line.tga]]
+local CORNER_FILL = [[Interface\AddOns\auxForever\textures\corner-fill.tga]]
+local CORNER_LINE = [[Interface\AddOns\auxForever\textures\corner-line.tga]]
 local WHITE = [[Interface\Buttons\WHITE8X8]]
 -- texture coordinates that turn the top left corner texture into each corner
 local CORNERS = {
@@ -380,7 +380,7 @@ function M.row_hover(row)
     return hover
 end
 
--- WildAuctions (0.6): zebra rows, every second row a little lighter (Tyler, 2026-10-08: "I want to add
+-- auxForever (0.6): zebra rows, every second row a little lighter (Tyler, 2026-10-08: "I want to add
 -- these back, make them a dark grey"). Under the hover and the selection.
 function M.row_stripe(row, index)
     if index % 2 ~= 0 then return end
@@ -391,7 +391,7 @@ function M.row_stripe(row, index)
     return stripe
 end
 
--- WildAuctions: background opacity. The main window and the panels made by gui.panel are registered,
+-- auxForever: background opacity. The main window and the panels made by gui.panel are registered,
 -- and only their fill fades: text, buttons, inputs and the buy bar stay solid. Never below 50%.
 local backgrounds = {}
 local background_opacity = 1
@@ -437,7 +437,7 @@ function M.checkbutton(parent, text_height)
     return button
 end
 
--- WildAuctions (0.6, the UI Kit): a button has a look, kept in button.aux_look and drawn by
+-- auxForever (0.6, the UI Kit): a button has a look, kept in button.aux_look and drawn by
 -- apply_look; Enable and Disable redraw it. Each look (New, Classic) has its own colors:
 --   default   New: raised gray, gold label. Classic: slate, light label
 --   primary   the main action of a view. New: warm raised, gold outline and label. Classic: amber
@@ -556,7 +556,7 @@ function M.set_selected(btn, selected)
     apply_look(btn, selected and 'selected' or 'default')
 end
 
--- WildAuctions: the main action of a view (Search, Post, Buy): gold outline and label
+-- auxForever: the main action of a view (Search, Post, Buy): gold outline and label
 function M.set_primary(button)
     apply_look(button, 'primary')
     local label = button:GetFontString()
@@ -569,7 +569,7 @@ do
     function mt.__index:create_tab(text)
         local id = #self._tabs + 1
 
-        -- WildAuctions (0.6): every tab is a raised button, 1px apart; the selected one has the gold
+        -- auxForever (0.6): every tab is a raised button, 1px apart; the selected one has the gold
         -- outline and a white label
         local tab = CreateFrame('Button', unique_name(), self._frame, 'BackdropTemplate')
         tab.id = id
@@ -638,7 +638,7 @@ function M.editbox(parent)
     editbox:SetHeight(24)
     editbox:SetTextColor(0, 0, 0, 0)
     set_frame_style(editbox, aux.color.input.background, aux.color.input.border)
-    -- WildAuctions (0.6): a border set while not typing (red for a bad value, gold for the buy bar's
+    -- auxForever (0.6): a border set while not typing (red for a bad value, gold for the buy bar's
     -- own quantity) is remembered and comes back when typing ends; while typing it is gold
     local set_border = editbox.SetBackdropBorderColor
     editbox.aux_rest_border = {aux.color.input.border()}
@@ -663,7 +663,7 @@ function M.editbox(parent)
         end
         self.overlay:Hide()
         self:SetTextColor(1, 1, 1)
-        -- WildAuctions (0.6): a gold outline while typing
+        -- auxForever (0.6): a gold outline while typing
         self.focused = true
         set_border(self, aux.color.input.focus())
         self:HighlightText()
@@ -758,7 +758,7 @@ do
             set_gradient(shade, .3)
             self.shade = shade
         end
-        -- WildAuctions (0.6, the UI Kit): a sunken track; amber while loading, dark gold with a gold
+        -- auxForever (0.6, the UI Kit): a sunken track; amber while loading, dark gold with a gold
         -- outline when a search has finished (set_done), a faint fill otherwise. The darker bottom
         -- is New only.
         local function paint(self)
@@ -776,7 +776,7 @@ do
                 self:SetBackdropBorderColor(aux.color.input.border())
             end
         end
-        -- WildAuctions (0.5): a short text in the bar, e.g. what a Full scan is doing
+        -- auxForever (0.5): a short text in the bar, e.g. what a Full scan is doing
         local text = self.primary_status_bar:CreateFontString(nil, 'OVERLAY')
         text:SetFont(font, font_size.small, '')
         text:SetPoint('LEFT', 8, 0)
@@ -847,7 +847,7 @@ function M.horizontal_line(parent, y_offset, inverted_color)
     texture:SetPoint('TOPLEFT', parent, 'TOPLEFT', 2, y_offset)
     texture:SetPoint('TOPRIGHT', parent, 'TOPRIGHT', -2, y_offset)
     texture:SetHeight(1)
-    -- WildAuctions (0.6): edges are black (New)
+    -- auxForever (0.6): edges are black (New)
     texture_color(texture, aux.color.window.border)
     return texture
 end
@@ -867,7 +867,7 @@ do
     dropdown_frame:SetHeight(1)
     local dropdown_item_buttons = {}
     M.dropdown_menu, M.dropdown_items = dropdown_frame, dropdown_item_buttons
-    -- WildAuctions: the modern client takes focus from an edit box on any mouse press, so clicking an
+    -- auxForever: the modern client takes focus from an edit box on any mouse press, so clicking an
     -- option takes focus from the dropdown before the option gets the click. The menu stays open
     -- while the mouse is over it and closes once neither the dropdown nor the menu is in use.
     dropdown_frame:SetScript('OnUpdate', function(self)
@@ -1057,7 +1057,7 @@ function M.slider(parent)
     return slider
 end
 
--- WildAuctions (0.6): an on/off switch (Settings): a sunken track with a knob, on at the right in the
+-- auxForever (0.6): an on/off switch (Settings): a sunken track with a knob, on at the right in the
 -- accent color, off at the left in gray. Square in New, rounded ends in Classic. SetChecked(on)
 -- moves it; a click calls switch.on_click(switch).
 function M.switch(parent)

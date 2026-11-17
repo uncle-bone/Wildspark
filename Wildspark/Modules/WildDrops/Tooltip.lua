@@ -136,6 +136,14 @@ local function AddTooltipLines(tooltip, guid)
     for i = 1, shown do
         local row = rows[order[i]]
         local chance = ns.FormatChance(row.percent)
+        if not row.percent and ns.GetLocalDropRateEstimate then
+            local estimate = ns.GetLocalDropRateEstimate(npcID, row.itemID)
+            if estimate and estimate.percent then
+                chance = string.format("|cffffd100~%.1f%% local estimate (%d/%d looted corpses)|r", estimate.percent, estimate.drops, estimate.samples)
+            elseif estimate and estimate.samples then
+                chance = string.format("|cff808080rate unknown; local sample %d/%d looted corpses|r", estimate.samples, estimate.needed or 10)
+            end
+        end
         if row.questOnly then chance = chance .. " |cff808080(quest-only)|r" end
         tooltip:AddDoubleLine(ns.GetItemName(row.itemID), chance)
         if #row.quests > 0 then

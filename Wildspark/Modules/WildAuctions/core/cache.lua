@@ -26,7 +26,7 @@ do
 		return not not characters[name]
 	end
 	-- your characters on this realm, each with when it last logged in; one not seen for 30 days is
-	-- forgotten. WildAuctions: dated with time() (the date). aux used GetTime(), the computer's uptime,
+	-- forgotten. auxForever: dated with time() (the date). aux used GetTime(), the computer's uptime,
 	-- so the 30 days did not work; such an old stamp (far below any date) counts as seen today.
 	function M.update_characters()
 		characters = aux.realm_data.characters
@@ -139,21 +139,23 @@ function process_item(item_id)
     end
 
     local itemstring = 'item:' .. item_id
-    local name, quality = save_item(item_id)
+    local name, quality, listed = save_item(item_id)
     if name then
         local tooltip = tooltip('link', itemstring)
-        if auctionable(tooltip, quality) then
+        -- a name already offered for autocompletion is not added again (0.8.2.1, R-13)
+        if auctionable(tooltip, quality) and not listed then
             tinsert(aux.account_data.auctionable_items, strlower(name))
         end
         return true
     end
 end
 
--- writes an item the game knows into aux's item list; returns its name and quality, or nil when
--- the game has not loaded the item yet
+-- writes an item the game knows into aux's item list; returns its name, its quality and whether an
+-- item of that name was in the list already, or nil when the game has not loaded the item yet
 function save_item(item_id)
     local name, link, quality, level, requirement, class, subclass, max_stack, slot, texture, sell_price = GetItemInfo('item:' .. item_id)
     if name then
+        local listed = aux.account_data.item_ids[strlower(name)] ~= nil
         aux.account_data.item_ids[strlower(name)] = item_id
         aux.account_data.items[item_id] = persistence.write(items_schema, {
             name = name,
@@ -168,12 +170,12 @@ function save_item(item_id)
             texture = texture,
             sell_price = sell_price,
         })
-        return name, quality
+        return name, quality, listed
     end
 end
 
--- WildAuctions: an item seen at the auction house joins the item list at once (names for
--- autocompletion, exact searches and /wa price). The walk at login only goes up to item number
+-- auxForever: an item seen at the auction house joins the item list at once (names for
+-- autocompletion, exact searches and /aux price). The walk at login only goes up to item number
 -- MAX_ITEM_ID, and Forever adds many items Classic did not have (Tyler, 2026-10-11), whose
 -- numbers are likely higher. An item listed at the auction house can be auctioned, so no tooltip
 -- is read. Costs one table lookup for an item already known.
@@ -195,7 +197,7 @@ function M.learn_item(item_id)
 end
 
 -- aux's item list (names for autocompletion and exact searches): at login, every item number not
--- known yet is asked for once. WildAuctions: numbers the game itself says do not exist are skipped
+-- known yet is asked for once. auxForever: numbers the game itself says do not exist are skipped
 -- (each used to cost a server request and 7 frames of waiting at every login), and the walk pauses
 -- every 500 numbers, so a list that is already complete costs no single long frame at login.
 local function item_exists(item_id)
@@ -231,6 +233,11 @@ end
 
 function on_get_item_info_received(item_id, success)
     if success then
+        -- known already: nothing to do. 0.8.2.1 (outside review, R-13): looked at first; a thread was
+        -- made for every item the game loads, all game long, only to find this out.
+        if aux.account_data.items[item_id] or aux.account_data.unused_item_ids[item_id] then
+            return
+        end
         aux.coro_thread(function()
             if not aux.account_data.items[item_id] and not aux.account_data.unused_item_ids[item_id] then
                 process_item(item_id)

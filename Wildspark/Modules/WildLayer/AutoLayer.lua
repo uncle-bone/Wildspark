@@ -11,7 +11,7 @@ addonTable.flavor = isBurningCrusade and "bcc" or "classic"
 local compat = addonTable.compat
 local util = addonTable.util
 
-local ADDON_VERSION_FALLBACK = "1.9.14"
+local ADDON_VERSION_FALLBACK = "1.9.16"
 local addonVersion = GetAddOnMetadata(addonName, "X-WildLayer-Version") or ADDON_VERSION_FALLBACK
 addonTable.version = addonVersion
 
@@ -126,6 +126,11 @@ if compat.isForever then
 	addonTable.layerSegmentOverrides[2524] = "DI"
 	-- Zephras Isle also has a second, parentless world-map row for the same zone.
 	addonTable.layerSegmentOverrides[2665] = "ZI"
+	addonTable.layerZoneOverrides = {
+		[2521] = 2521,
+		[2524] = 2524,
+		[2665] = 2521,
+	}
 end
 
 -- Determine in which layer segment the given unitID is. Defaults to the player if no unitID is given.
@@ -156,6 +161,16 @@ function WildLayer:GetLayerSegment(unitID)
 	end
 
 	return nil, mapID
+end
+
+-- Forever layer hops are scoped to the owning open-world zone, including towns and
+-- known starter-island map rows that the game reports as separate/duplicate maps.
+function WildLayer:GetLayerZoneID(unitID)
+	return util.ResolveZoneMapID(
+		C_Map.GetBestMapForUnit(unitID or "player"),
+		C_Map.GetMapInfo,
+		addonTable.layerZoneOverrides
+	)
 end
 
 -- Determine if the party leader is in the same layer segment as the player, if layer segments are enabled.

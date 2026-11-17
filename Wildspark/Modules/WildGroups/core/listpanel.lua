@@ -85,8 +85,27 @@ local ASK_TO_JOIN_ICON_ATLAS = "transmog-icon-chat"
 -- as its filter-section titles.
 local ASK_TO_JOIN_LABEL = L.ASK_TO_JOIN
 
+-- A GROUP ALREADY ASKED keeps its bubble and gains a small check on the
+-- bubble's lower right, and its tooltip says "Ask to join again". No atlas in
+-- the running client's dump is a bubble with a check, so the check is a second
+-- texture. It is Blizzard's own Group Finder check, which their retail finder
+-- puts on this same button template (Blizzard_GroupFinder/Mainline/
+-- LFGList.xml:384); 11x13 in the dump, drawn at 9x11, the author's choice, so
+-- the bubble still reads. The offset is by eye. .claude/rules/asked-to-join-mark.md.
+local ASKED_CHECK_ATLAS = "groupfinder-icon-greencheckmark"
+local ASKED_CHECK_WIDTH, ASKED_CHECK_HEIGHT = 9, 11
+
+-- The groups asked this session, partyGUID -> true. Only a click on the Ask to
+-- Join button adds one, by the author's decision: nothing listens to whispers.
+-- Keyed by the GROUP'S ID, not the leader's name and not the searchResultID:
+-- partyGUID is NeverSecret (LFGListInfoDocumentation.lua:1013), and Blizzard's
+-- retail finder remembers declined groups across searches by it (Blizzard_
+-- GroupFinder/Mainline/LFGList.lua:321, :2842), while nothing says a
+-- searchResultID survives the next search. In memory only: a /reload forgets.
+local askedParties = {}
+
 -- THE WHISPER IS A SETTING NOW: "Auto-whisper on Ask to Join" and its message,
--- under Options -> AddOns -> LFG Forever (core/settings.lua). The text, with
+-- under Options -> AddOns -> WildGroups (core/settings.lua). The text, with
 -- its placeholders (%class%, %level%, %talents%, %role%) filled in, comes from
 -- LFGF.AskToJoinMessage in core/main.lua at CLICK time.
 
@@ -112,14 +131,26 @@ local function EnsureRowButtons(row)
 
 	row.LFGFInvite = CreateRowButton(row, INVITE_ICON_ATLAS, L.GROUP_INVITE)
 	row.LFGFAskToJoin = CreateRowButton(row, ASK_TO_JOIN_ICON_ATLAS, ASK_TO_JOIN_LABEL)
-	local requested = row.LFGFAskToJoin:CreateTexture(nil, "OVERLAY")
-	requested:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
-	requested:SetSize(10, 10)
-	requested:SetPoint("TOPRIGHT", row.LFGFAskToJoin, "TOPRIGHT", 3, 3)
-	requested:SetVertexColor(0.35, 1, 0.35)
-	requested:Hide()
-	row.LFGFAskToJoin.LFGFRequestedCheck = requested
 	row.DataDisplay:SetPoint("RIGHT", row.LFGFInvite, "LEFT", -2, -1)
+
+	-- Anchored to the bubble, so the template's press nudge, which moves only
+	-- self.Icon (SharedUIPanelTemplates.lua:929-945), moves the check too.
+	-- ApplyActionLockTo (core/main.lua) dims it with the bubble.
+	local button = row.LFGFAskToJoin
+	local check = button:CreateTexture(nil, "OVERLAY")
+	check:SetAtlas(ASKED_CHECK_ATLAS)
+	check:SetSize(ASKED_CHECK_WIDTH, ASKED_CHECK_HEIGHT)
+	check:SetPoint("CENTER", button.Icon, "BOTTOMRIGHT", -1, 3)
+	check:Hide()
+	button.Check = check
+end
+
+--- Show whether the group on this row was asked: the check and the tooltip,
+--- both ways, because rows are pooled. The template reads tooltipText when it
+--- is hovered (SharedUIPanelTemplates.lua:956-962).
+local function ShowAsked(button, asked)
+	button.Check:SetShown(asked)
+	button.tooltipText = asked and L.ASK_TO_JOIN_AGAIN or ASK_TO_JOIN_LABEL
 end
 
 --- Whether a row's actions (Invite, Ask to Join) may show at all: a live
@@ -225,13 +256,15 @@ end
 --- when the player walks into a dungeon. If that reading is wrong the branch is
 --- dead and costs nothing; if it is right, the alternative is a refused call
 --- the player sees as an error from this addon.
+---
+--- A CLICK MARKS THE GROUP as asked (askedParties, above), whichever way it
+--- goes, the whisper box included, by the author's decision. After the guard,
+--- so a click that does nothing marks nothing; a click the cooldown refuses
+--- never reaches the action (RunAction, core/main.lua). A tooltip showing
+--- under the mouse is shown again, so it says the new text at once.
 local function UpdateAskToJoinButton(row, info, isDelisted, isSolo)
 	local button = row.LFGFAskToJoin
-	local resultID = row.resultID
 	button.action = nil
-	if button.LFGFRequestedCheck then
-		button.LFGFRequestedCheck:SetShown(button.requestedResultID == resultID)
-	end
 	ApplyLockTo(button)
 
 	if isSolo or not CanActOnRow(row, info, isDelisted) then
@@ -239,24 +272,28 @@ local function UpdateAskToJoinButton(row, info, isDelisted, isSolo)
 		return
 	end
 
+	local partyGUID = Readable(info.partyGUID, nil)
+	ShowAsked(button, partyGUID ~= nil and askedParties[partyGUID] == true)
+
 	local leaderName = info.leaderName
 	button.action = function()
 		if not canaccessvalue(leaderName) then
 			return
 		end
+		if partyGUID ~= nil then
+			askedParties[partyGUID] = true
+			ShowAsked(button, true)
+			if GameTooltip:IsOwned(button) then
+				button:GetScript("OnEnter")(button)
+			end
+		end
 		local message = LFGF.AskToJoinMessage()
 		if message == nil then
 			ChatFrameUtil.SendTell(leaderName)
-			-- The player has started contacting this group, even though the
-			-- message is being composed rather than sent automatically.
-			button.requestedResultID = resultID
-			if button.LFGFRequestedCheck then button.LFGFRequestedCheck:Show() end
 			-- Nothing was sent, so no cooldown (see RunAction, core/main.lua).
 			return false
 		end
 		LFGF.Whisper(leaderName, message)
-		button.requestedResultID = resultID
-		if button.LFGFRequestedCheck then button.LFGFRequestedCheck:Show() end
 	end
 	button:Show()
 end
@@ -517,6 +554,56 @@ local function ColourRow(row, info, leaderInfo, isDelisted)
 	row.NewPlayerFriendlyIcon:SetDesaturated(isDelisted)
 end
 
+--- The rating a listing is marked and ordered by: the WORST (fewest stars) of
+--- its leader and every member, the author's decision (2026-11-14,
+--- .claude/rules/player-ratings.md): any 1-star member makes it 1, else any
+--- 2-star 2, else any 3-star 3; members nobody rated do not count. Nil while
+--- Player ratings is off or nobody in it is rated. A solo listing's one member
+--- is its player.
+---
+--- The members come from GetSearchResultPlayerInfo(resultID, 1..numMembers),
+--- as Blizzard's group tooltip reads them (Browse.lua:640-645), the leader
+--- among them. The leader's name is read as well, for a listing whose member
+--- data has not arrived (the fields are Nilable). Their names are
+--- "Firstname Surname", the rating key's form
+--- (probed in the client, 2026-11-14). Every member counts, a big raid
+--- listing's too. All of it is secret in chat-messaging lockdown
+--- (LFGListInfoDocumentation.lua:431): numMembers through Readable (unreadable,
+--- the leader alone counts), and each name through LFGF.PlayerRatingFor, whose
+--- key reads it through LFGF.Readable, so a hidden or missing name counts as
+--- not rated.
+local function ListingRating(resultID, info)
+	if not LFGF.ShowPlayerRatings() then
+		return nil
+	end
+	local worst = LFGF.PlayerRatingFor(info.leaderName)
+	local count = Readable(info.numMembers, nil) or 0
+	for index = 1, count do
+		local member = C_LFGList.GetSearchResultPlayerInfo(resultID, index)
+		local rating = member and LFGF.PlayerRatingFor(member.name)
+		if rating ~= nil and (worst == nil or rating < worst) then
+			worst = rating
+		end
+	end
+	return worst
+end
+
+--- PLAYER RATINGS, PHASE 3: a 2 px strip in the rating's colour over the left
+--- edge of the row's band, by ListingRating: a solo player by that player, a
+--- group by its worst-rated member. Your own listing is never marked, by the
+--- author's decision. Kept on a delisted row too: the rating is still true.
+--- Built once per pooled frame, written on every update.
+local function UpdateRatingStrip(row, resultID, info)
+	if not row.LFGFRatingStrip then
+		row.LFGFRatingStrip = LFGF.CreateRatingStrip(row)
+	end
+	local rating = nil
+	if not row.hasSelf then
+		rating = ListingRating(resultID, info)
+	end
+	LFGF.PaintRatingStrip(row.LFGFRatingStrip, rating)
+end
+
 local function UpdateRow(row, resultID, relation)
 	local info = C_LFGList.GetSearchResultInfo(resultID)
 	if not info then
@@ -551,6 +638,7 @@ local function UpdateRow(row, resultID, relation)
 	-- Before ColourRow too, whose name clamp makes room for it.
 	row.NewPlayerFriendlyIcon:SetShown(Readable(info.newPlayerFriendly, false) == true)
 	ColourRow(row, info, C_LFGList.GetSearchResultLeaderInfo(resultID), isDelisted)
+	UpdateRatingStrip(row, resultID, info)
 
 	-- activityIDs carries no NeverSecret either, but it is a TABLE of numbers
 	-- rather than a secret scalar; guard it the same way and fall back to an
@@ -1267,11 +1355,11 @@ end
 ---------- Sort players by: the Players box's order
 -------------------------------------------------------
 -- The setting (core/settings.lua) orders the PLAYERS box only, inside each of
--- its parts: your own listing, the players you know, everyone else. The
--- Groups box and the unboxed lockdown list stay NewestFirst. Every order
--- below puts a readable key before an unreadable one, as NewestFirst does,
--- so the comparison stays consistent whatever one search hands over, and
--- breaks ties NewestFirst. .claude/rules/player-sort-order.md
+-- its parts (PARTS, below). The Groups box and the unboxed lockdown list stay
+-- NewestFirst. Every order below puts a readable key before an unreadable
+-- one, as NewestFirst does, so the comparison stays consistent whatever one
+-- search hands over, and breaks ties NewestFirst.
+-- .claude/rules/player-sort-order.md
 
 --- The longest-listed first: the larger age first, the same tie-breaks.
 local function OldestFirst(a, b)
@@ -1359,6 +1447,42 @@ local function AddPlayerKey(node, order, classRanks)
 	end
 end
 
+-------------------------------------------------------
+---------- The parts of a box
+-------------------------------------------------------
+-- Each box is filled part by part, top to bottom: your own listing, friends,
+-- 3-star players, guild members, everyone else (2-star players stay here),
+-- then 1-star players. The same in both boxes, a group by its leader. With
+-- Player ratings off nobody is rated, so it is your listing, friends, guild,
+-- the rest. .claude/rules/player-ratings.md
+local PARTS = { "mine", "friends", "threeStars", "guild", "rest", "oneStar" }
+
+local function NewBucket()
+	local bucket = {}
+	for _, part in ipairs(PARTS) do
+		bucket[part] = {}
+	end
+	return bucket
+end
+
+--- The part a listing that is not your own goes in, from the relation the
+--- search decided and the leader's rating (nil while Player ratings is off,
+--- or when the name cannot be read). A 1-star player goes last whoever they
+--- are; a friend comes first otherwise; a 3-star player comes before guild
+--- members, a 3-star guild member with them.
+local function PartFor(relation, rating)
+	if rating == 1 then
+		return "oneStar"
+	elseif relation == LFGF.RELATION_FRIEND then
+		return "friends"
+	elseif rating == 3 then
+		return "threeStars"
+	elseif relation == LFGF.RELATION_GUILD then
+		return "guild"
+	end
+	return "rest"
+end
+
 --- Build the tree: one Groups box, then one Players box.
 ---
 --- TWO DIVERGENCES FROM BLIZZARD, both deliberate.
@@ -1392,10 +1516,11 @@ end
 --- THAT BEATS hasSelf, because pinning needs to know WHICH box to pin to, and
 --- in chat-messaging lockdown there is no way to ask.
 ---
---- GUILDMATES AND FRIENDS COME NEXT, after your own listing: a solo player, or
---- a group's leader, the player knows (core/relations.lua). It orders and never
---- exempts -- unlike your own listing, a guildmate the filters exclude stays
---- excluded.
+--- THEN FRIENDS, 3-STAR PLAYERS, GUILD MEMBERS, EVERYONE ELSE AND 1-STAR
+--- PLAYERS (PARTS, above), by a solo player or a group's leader: who the player
+--- knows (core/relations.lua) and how they rated them (core/main.lua). It
+--- orders and never exempts -- unlike your own listing, a guildmate the
+--- filters exclude stays excluded.
 ---
 --- EACH PART IS NEWEST FIRST (NewestFirst, below), and so is the unboxed list,
 --- so the order holds from one search to the next instead of following the
@@ -1406,11 +1531,13 @@ end
 --- icon UpdateRow draws and the place this gives it are one answer and cannot
 --- disagree. One lookup per search: it scans the Battle.net friends once, and
 --- it is thrown away with the tree. Nothing listens for the roster or the
---- friend list changing, by decision -- the next search sees the change.
+--- friend list changing, by decision -- the next search sees the change. The
+--- rating is read here too, once per search: a rating saved or cleared later
+--- changes the strip at once (RemarkRows) and the place on the next search.
 local function BuildDataProvider(results, filters, collapsedByDivider)
-	-- Per bucket: your own listings, then the ones you know, then the rest.
-	local groups = { mine = {}, known = {}, rest = {} }
-	local solos = { mine = {}, known = {}, rest = {} }
+	-- Per bucket, one list per part (PARTS).
+	local groups = NewBucket()
+	local solos = NewBucket()
 	local unsorted = {}
 	local lookup = LFGF.NewRelationLookup()
 	-- The one filter that narrows both boxes (MatchesPlaystyleFilter).
@@ -1422,9 +1549,9 @@ local function BuildDataProvider(results, filters, collapsedByDivider)
 	local playerOrder = LFGF.PlayerSortOrder()
 	local classRanks = playerOrder == "class" and ClassRanks() or nil
 
-	--- Mine first, then known, then the rest. Each list is filled in arrival
-	--- order and sorted when the tree is built (InsertBucket); the arrival
-	--- position rides on the node as the last tie-break. Returns the node.
+	--- Into its part (PartFor). Each list is filled in arrival order and sorted
+	--- when the tree is built (InsertBucket); the arrival position rides on
+	--- the node as the last tie-break. Returns the node.
 	local function File(bucket, resultID, info, hasSelf, index)
 		if hasSelf then
 			local node = ListingNode(resultID, info, index)
@@ -1435,7 +1562,10 @@ local function BuildDataProvider(results, filters, collapsedByDivider)
 		-- lockdown, and ByName answers nil for that without handing it on.
 		local relation = lookup:ByName(info.leaderName)
 		local node = ListingNode(resultID, info, index, relation)
-		table.insert(relation and bucket.known or bucket.rest, node)
+		-- The strip's own rating (ListingRating), so the place and the mark
+		-- agree: a group by its worst-rated member. The relation stays the
+		-- leader's, the one name the lookup has.
+		table.insert(bucket[PartFor(relation, ListingRating(resultID, info))], node)
 		return node
 	end
 
@@ -1470,13 +1600,17 @@ local function BuildDataProvider(results, filters, collapsedByDivider)
 	local dataProvider = CreateTreeDataProvider()
 
 	local function InsertBucket(dividerType, bucket, order)
-		if #bucket.mine == 0 and #bucket.known == 0 and #bucket.rest == 0 then
+		local count = 0
+		for _, part in ipairs(PARTS) do
+			count = count + #bucket[part]
+		end
+		if count == 0 then
 			return
 		end
 		local subtree = dataProvider:Insert({ dividerType = dividerType })
-		for _, part in ipairs({ bucket.mine, bucket.known, bucket.rest }) do
-			table.sort(part, order)
-			for _, node in ipairs(part) do
+		for _, part in ipairs(PARTS) do
+			table.sort(bucket[part], order)
+			for _, node in ipairs(bucket[part]) do
 				subtree:Insert(node)
 			end
 		end
@@ -1835,6 +1969,24 @@ function LFGF.CreateListPanel(parent)
 			panel:FinishSearch(true)
 		end
 	end, panel)
+
+	-- A RATING SAVED OR CLEARED, or the Player ratings setting switched: only
+	-- the strips change, so the drawn rows are re-marked in place, with no
+	-- rebuild, no re-sort and no scroll. The players list stays on screen beside
+	-- the Player ratings tab, so a star clicked there marks the row here at
+	-- once. A row drawn later reads the rating when it is drawn.
+	local function RemarkRows()
+		panel.ScrollBox:ForEachFrame(function(frame)
+			if frame.LFGFRatingStrip and frame.resultID then
+				local info = C_LFGList.GetSearchResultInfo(frame.resultID)
+				if info then
+					UpdateRatingStrip(frame, frame.resultID, info)
+				end
+			end
+		end)
+	end
+	EventRegistry:RegisterCallback(LFGF.EVENT_PLAYER_RATING_CHANGED, RemarkRows, panel)
+	EventRegistry:RegisterCallback(LFGF.EVENT_PLAYER_RATINGS_CHANGED, RemarkRows, panel)
 
 	-- "SORT PLAYERS BY" CHANGED (core/settings.lua): sort the Players box again,
 	-- by rebuilding from what the client holds, as the re-read after a report

@@ -5,12 +5,12 @@ local info = require 'aux.util.info'
 local money = require 'aux.util.money'
 local gui = require 'aux.gui'
 
--- WildAuctions: quick searches. The clock button next to "<" opens a menu of pinned searches (aux's
+-- auxForever: quick searches. The clock button next to "<" opens a menu of pinned searches (aux's
 -- favorites, so they also stay on the Saved Searches tab) and recent searches, each with the
 -- item's icon, the cheapest price the last search found and when. One click searches again; the
 -- pin on a row pins or unpins it.
 
-local TEXTURES = [[Interface\AddOns\WildSpark\Modules\WildAuctions\textures\]]
+local TEXTURES = [[Interface\AddOns\auxForever\textures\]]
 local MENU_WIDTH = 380
 local ROW_HEIGHT = 36
 local MAX_PINNED_ROWS = 5

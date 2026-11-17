@@ -5,9 +5,10 @@
 -- Join and Invite messages): the whisper log size, Auto-whisper on Ask to Join
 -- and on Invite, each with its message; a Search section (Show all level
 -- activities, Show suggested level ranges, the two guild / friend mark
--- options, Sort players by); and a Miscellaneous section (the Open LFG Forever key binding, Show
--- minimap button, a sentence about the language packs, a Report a bug button,
--- a Reset window position and size button).
+-- options, Sort players by); and a Miscellaneous section (the Open WildGroups
+-- key binding, Player ratings, Show minimap button, a sentence about the
+-- language packs, a Report a bug button, a Reset window position and size
+-- button).
 --
 -- BLIZZARD'S OWN SETTINGS PANEL, BUILT FROM ITS OWN CONTROLS -- the pattern
 -- BugSack uses on this very client (examples/BugSack/config.lua, whose Forever
@@ -47,7 +48,7 @@ local VAR_TYPE_NAMES = { boolean = "Boolean", number = "Number", string = "Strin
 local function RegisterSetting(category, key, label)
 	local entry = assert(SAVED[key], key)
 	return Settings.RegisterAddOnSetting(category,                          -- :174
-		"WILDSPARK_WILDGROUPS_" .. entry.variable, entry.key, LFGF.SavedTable(entry.scope),
+		entry.variable, entry.key, LFGF.SavedTable(entry.scope),
 		Settings.VarType[VAR_TYPE_NAMES[entry.type]], label, entry.default)
 end
 
@@ -107,7 +108,7 @@ local INVITE_MESSAGE_PLACEHOLDERS = {
 -- a hover area with its tooltip -- and adds an InputBoxTemplate EditBox where
 -- Blizzard's own controls sit, at the row's centre - 80
 -- (Blizzard_SettingControls.lua:592). It inherits none of Blizzard's rows.
-local MESSAGE_ROW_TEMPLATE = "WildSparkWildGroupsSettingsMessageRowTemplate"
+local MESSAGE_ROW_TEMPLATE = "LFGForeverSettingsMessageRowTemplate"
 
 -- THE "?" LIST'S LOOK, Blizzard's own. Each placeholder is one line: the quest
 -- bullet, the very markup this client's strings use for a list
@@ -144,8 +145,8 @@ end
 --- the label, its tooltip, following the setting and the checkbox above,
 --- greying out. Left out: the new-feature badge, kiosk mode, narration and
 --- gamepad navigation, which these rows never use.
-WildSparkWildGroupsSettingsMessageRowMixin = {}
-local MessageRow = WildSparkWildGroupsSettingsMessageRowMixin
+LFGForeverSettingsMessageRowMixin = {}
+local MessageRow = LFGForeverSettingsMessageRowMixin
 
 -- A row under a checkbox: indented by Blizzard's own step (`local indentSize
 -- = 15;`, Blizzard_SettingControls.lua:1) before the 37 every label starts at
@@ -279,7 +280,7 @@ end
 -------------------------------------------------------
 ---------- Search
 -------------------------------------------------------
--- One of Blizzard's checkbox rows under a header: LFG Forever's own copy of
+-- One of Blizzard's checkbox rows under a header: WildGroups's own copy of
 -- the "Show All Level Ranges" option Blizzard keeps in its Group Finder's gear
 -- menu (Blizzard_LFGVanilla_Browse.lua:1274-1280). Saved in LFGForeverDB, NOT
 -- in Blizzard's CVar -- see showAllLevelRanges in core/db.lua for why -- so
@@ -360,16 +361,16 @@ end
 -------------------------------------------------------
 ---------- Miscellaneous
 -------------------------------------------------------
--- The last section, five rows in the author's order: the key binding, Show
--- minimap button, the language packs sentence, Report a bug, Reset window
--- position. Headed with Blizzard's own string by
+-- The last section, six rows in the author's order: the key binding, Player
+-- ratings, Show minimap button, the language packs sentence, Report a bug,
+-- Reset window position. Headed with Blizzard's own string by
 -- default (MISCELLANEOUS, GlobalStrings/enUS.lua:14324, through core/locale.lua),
 -- so it is translated with the client unless a language pack replaces it.
 -- Until 0.8.0-dev.3 the first two had headers of their own, Minimap and
 -- Report a bug.
 
--- The key binding: "Open LFG Forever" and a Keybindings button that opens
--- Blizzard's own Keybindings page at the LFG Forever section
+-- The key binding: "Open WildGroups" and a Keybindings button that opens
+-- Blizzard's own Keybindings page at the WildGroups section
 -- (LFGF.OpenKeybindings, core/main.lua), where Blizzard's code picks, unbinds
 -- and saves the key. A button row like Blizzard's own link to its Ping
 -- keybindings, which also stays out of the settings search
@@ -402,7 +403,7 @@ local SHOW_MINIMAP_BUTTON_TOOLTIP = L.SETTINGS_MINIMAP_BUTTON_TOOLTIP
 -- translated sentence takes it as its %s, quote marks and all, so no pack can
 -- change it. The same text whether or not a pack is on, by the author's
 -- decision. .claude/rules/language-packs-row.md
-local LANGUAGE_PACK_EXAMPLE = "LFG Forever - Language Pack Korean"
+local LANGUAGE_PACK_EXAMPLE = "WildGroups - Language Pack Korean"
 
 -- OUR OWN TEXT ROW (core/settings.xml): Blizzard has no row whose text can be
 -- set. Its mixin is a global, namespaced, for the XML to name, and holds Init
@@ -410,9 +411,9 @@ local LANGUAGE_PACK_EXAMPLE = "LFG Forever - Language Pack Korean"
 -- protected call (ScrollUtil.lua:1695-1699; Blizzard_SettingsList.lua:57-62),
 -- and a Release only when there is one (ScrollUtil.lua:1703-1707). Set on
 -- every Init, because the list pools rows by template.
-WildSparkWildGroupsSettingsTextRowMixin = {}
+LFGForeverSettingsTextRowMixin = {}
 
-function WildSparkWildGroupsSettingsTextRowMixin:Init(initializer)
+function LFGForeverSettingsTextRowMixin:Init(initializer)
 	self.Text:SetText(initializer.data.text)
 end
 
@@ -477,7 +478,7 @@ EventUtil.ContinueOnAddOnLoaded(addonName, function()
 
 	-- The layout is kept for rows no Settings.Create* helper builds -- the
 	-- headers and button rows below (Blizzard_ImplementationReadme.lua:13).
-	local category, layout = Settings.RegisterVerticalLayoutCategory("WildSpark - WildGroups") -- :154
+	local category, layout = Settings.RegisterVerticalLayoutCategory(LFGF.TITLE) -- :154
 
 	local setting = RegisterSetting(category, "whisperLogSize", WHISPER_LOG_SIZE_LABEL)
 
@@ -493,7 +494,7 @@ EventUtil.ContinueOnAddOnLoaded(addonName, function()
 	-- (owner, setting, value) -- CallbackRegistry.lua:118-119, :212-214, the
 	-- shape SettingMixin:SetValueChangedCallback unpacks (Blizzard_Setting.lua
 	-- :265-267).
-	Settings.SetOnValueChangedCallback("WILDSPARK_WILDGROUPS_" .. SAVED.whisperLogSize.variable, function(_, _, value) -- :665
+	Settings.SetOnValueChangedCallback(SAVED.whisperLogSize.variable, function(_, _, value) -- :665
 		EventRegistry:TriggerEvent(LFGF.EVENT_WHISPER_LOG_SIZE_CHANGED, value)
 	end)
 
@@ -558,7 +559,7 @@ EventUtil.ContinueOnAddOnLoaded(addonName, function()
 	local showAllLevelRanges = RegisterSetting(category, "showAllLevelRanges",
 		SHOW_ALL_LEVEL_RANGES_LABEL)
 	Settings.CreateCheckbox(category, showAllLevelRanges, SHOW_ALL_LEVEL_RANGES_TOOLTIP)
-	Settings.SetOnValueChangedCallback("WILDSPARK_WILDGROUPS_" .. SAVED.showAllLevelRanges.variable, function(_, _, value)
+	Settings.SetOnValueChangedCallback(SAVED.showAllLevelRanges.variable, function(_, _, value)
 		EventRegistry:TriggerEvent(LFGF.EVENT_LEVEL_RANGES_CHANGED, value)
 	end)
 
@@ -580,16 +581,29 @@ EventUtil.ContinueOnAddOnLoaded(addonName, function()
 	-- list sorts again without knowing the Settings API.
 	local playerSortOrder = RegisterSetting(category, "playerSortOrder", L.SETTINGS_PLAYER_SORT_LABEL)
 	Settings.CreateDropdown(category, playerSortOrder, PlayerSortOptions,     -- :410
-		L.SETTINGS_PLAYER_SORT_TOOLTIP)
-	Settings.SetOnValueChangedCallback("WILDSPARK_WILDGROUPS_" .. SAVED.playerSortOrder.variable, function(_, _, value)
+		L.SETTINGS_PLAYER_SORT_PARTS_TOOLTIP)
+	Settings.SetOnValueChangedCallback(SAVED.playerSortOrder.variable, function(_, _, value)
 		EventRegistry:TriggerEvent(LFGF.EVENT_PLAYER_SORT_ORDER_CHANGED, value)
 	end)
 
-	-- Miscellaneous: the header, then the key binding, Show minimap button,
-	-- the language packs sentence, Report a bug and Reset window position.
+	-- Miscellaneous: the header, then the key binding, Player ratings, Show
+	-- minimap button, the language packs sentence, Report a bug and Reset
+	-- window position.
 	layout:AddInitializer(CreateSettingsListSectionHeaderInitializer(L.MISCELLANEOUS))
 
 	layout:AddInitializer(KeybindingRow())
+
+	-- Player ratings: one of Blizzard's checkbox rows, on by default. While it
+	-- is on, the window has a third tab where recent allies are rated
+	-- (core/playerratings.lua); its change is announced, the minimap button's
+	-- way, so the tab comes and goes at once. The label is the tab's own title,
+	-- and the tooltip one sentence on what the feature is for.
+	-- .claude/rules/player-ratings.md
+	local showPlayerRatings = RegisterSetting(category, "showPlayerRatings", L.PLAYER_RATINGS)
+	Settings.CreateCheckbox(category, showPlayerRatings, L.SETTINGS_PLAYER_RATINGS_TOOLTIP)
+	Settings.SetOnValueChangedCallback(SAVED.showPlayerRatings.variable, function(_, _, value)
+		EventRegistry:TriggerEvent(LFGF.EVENT_PLAYER_RATINGS_CHANGED, value)
+	end)
 
 	-- Show minimap button. Its change is re-announced over EventRegistry, the
 	-- whisper log size's pattern above, so core/minimap.lua shows or hides the
@@ -598,16 +612,15 @@ EventUtil.ContinueOnAddOnLoaded(addonName, function()
 	local showMinimapButton = RegisterSetting(category, "showMinimapButton",
 		SHOW_MINIMAP_BUTTON_LABEL)
 	Settings.CreateCheckbox(category, showMinimapButton, SHOW_MINIMAP_BUTTON_TOOLTIP)
-	Settings.SetOnValueChangedCallback("WILDSPARK_WILDGROUPS_" .. SAVED.showMinimapButton.variable, function(_, _, value)
+	Settings.SetOnValueChangedCallback(SAVED.showMinimapButton.variable, function(_, _, value)
 		EventRegistry:TriggerEvent(LFGF.EVENT_MINIMAP_BUTTON_CHANGED, value)
-		if LFGF.UpdateMinimapButton then LFGF.UpdateMinimapButton() end
 	end)
 
 	-- The language packs sentence: an element row (Blizzard_Settings.lua:342),
 	-- whose data table is ours. Nothing of ours is written onto Blizzard's
 	-- initializer, and it carries no search tags, so the Options search does
 	-- not find it.
-	layout:AddInitializer(Settings.CreateElementInitializer("WildSparkWildGroupsSettingsTextRowTemplate",
+	layout:AddInitializer(Settings.CreateElementInitializer("LFGForeverSettingsTextRowTemplate",
 		{ text = L.SETTINGS_LANGUAGE_PACKS_FORMAT:format(LANGUAGE_PACK_EXAMPLE) }))
 
 	-- Report a bug, then Reset window position: Blizzard's own button rows

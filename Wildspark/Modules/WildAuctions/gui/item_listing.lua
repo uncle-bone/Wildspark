@@ -53,7 +53,7 @@ local function create_row(item_listing, row_index)
 	row:SetPoint('TOPRIGHT', content_frame, 0, -((row_index - 1) * ROW_HEIGHT))
 	row:EnableMouse(true)
 	row:SetScript('OnMouseUp', item_listing.on_click)
-	-- WildAuctions (0.5, docs/clicks.md): the row's clicks in a gray line
+	-- auxForever (0.5, docs/clicks.md): the row's clicks in a gray line
 	local HINT = 'Click: select to post' .. gui.HINT_SEPARATOR .. 'Right-click: search'
 	row:SetScript('OnEnter', function()
 		row.mouseover = true
@@ -80,7 +80,7 @@ local function create_row(item_listing, row_index)
 		GameTooltip:Show()
 	end)
 	row.item.button:SetScript('OnLeave', function() GameTooltip:Hide() end)
-	-- WildAuctions (0.6.1.1, FB-011): the icon catches the mouse for its tooltip, so a click on it
+	-- auxForever (0.6.1.1, FB-011): the icon catches the mouse for its tooltip, so a click on it
 	-- never reached the row. It now does the same as a click on the name.
 	row.item.button:SetScript('OnMouseUp', function(_, button) item_listing.on_click(row, button) end)
 
