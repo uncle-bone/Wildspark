@@ -31,7 +31,3 @@ On WoW Forever, WildLayer reads the `zoneUID` field from nearby creature or vehi
 ## Install
 
 Download the ZIP, extract it, and place the included `WildSpark` folder in the Forever client's `Interface/AddOns` directory. Enable WildSpark; its embedded quest databases load with it. Disable standalone copies of integrated modules such as WildBuffs, Camping Kit, WildAuctions, or LFGForever to avoid running duplicate copies.
-
-## Third-party notices
-
-WildSpark retains license and attribution files for its embedded components in their respective folders. The original Camping Kit artwork is excluded; WildFire uses replacement artwork with its own license notice. WildInfo (formerly WildDrops) is included and modified with permission from the Questionable Drops author. WildMaps adapts HiddenMaps 1.2.2 by Lichdom with the author's permission. Its upstream asset notices, credits, and watermarks are retained; see `Wildspark/Modules/WildMaps/ASSET-NOTICES.md`. Its data combines QuestieDB Forever, QuestDropRates, QuestDB, Wowhead, and existing WildSpark rows. Respawn estimates use local and peer-shared observations first, then a clearly labeled Classic respawn reference table for ordinary NPCs and rares. Reference times are not verified for WoW Forever.
