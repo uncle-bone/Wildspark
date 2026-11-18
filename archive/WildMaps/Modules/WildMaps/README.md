@@ -1,4 +1,8 @@
-# WildMaps
+# Archived WildMaps source
+
+> This module is preserved in the WildSpark repository for possible future restoration. It is not in the active WildSpark addon or the 2.2.49 package, and it is not loaded by the game.
+
+To restore it later, copy `Modules/WildMaps` and the sibling `Modules/WildMapsModule.lua` back under `Wildspark/Modules`, then re-add their load entries to the addon TOC and its menu. The source and asset notices below are retained with the archived code.
 
 WildMaps is WildSpark's integrated dungeon-map module, adapted from HiddenMaps 1.2.2 by Lichdom with the author's permission. It loads as part of the single `WildSpark` addon folder. Open WildSpark's side pane and select **WildMaps** to enable or disable the module or open the World Map.
 

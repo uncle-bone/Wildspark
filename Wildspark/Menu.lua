@@ -50,7 +50,7 @@ local NODES_ICON = "INV_Misc_Map_01"
 local NODES_HEIGHT = 320      -- hauteur des deux panneaux de la page de la minimap
 
 -- Titre de chaque page sous la barre de titre ; celle des objets compose le sien (LookTitle)
-local PAGE_TITLES = { nodes = "NODES_PAGE", settings = "SETTINGS", leash = "LEASH_SETTINGS", buffs = "BUFFS_TAB", camping = "CAMPING_TAB", auctions = "WILDAUCTIONS_TAB", groups = "WILDGROUPS_TAB", layers = "WILDLAYER_TAB", info = "WILDINFO_TAB", lootrolls = "WILDLOOTROLLS_TAB", maps = "WILDMAPS_TAB", pvp = "WILDPVP_TAB" }
+local PAGE_TITLES = { nodes = "NODES_PAGE", settings = "SETTINGS", leash = "LEASH_SETTINGS", buffs = "BUFFS_TAB", camping = "CAMPING_TAB", auctions = "WILDAUCTIONS_TAB", groups = "WILDGROUPS_TAB", layers = "WILDLAYER_TAB", info = "WILDINFO_TAB", lootrolls = "WILDLOOTROLLS_TAB" }
 
 -- Choix d'un réglage : { valeur, nom du texte } ; ou { valeur, nil, libellé } quand le libellé
 -- ne se traduit pas
@@ -733,8 +733,6 @@ local function CreateMenu()
 	if ns.WildLayer then list[#list + 1] = { "layers", MEDIA .. "WildLayerIcon", "WILDLAYER_TAB" } end
 	if ns.WildInfo then list[#list + 1] = { "info", MEDIA .. "icon.tga", "WILDINFO_TAB" } end
 	if ns.WildLootRolls then list[#list + 1] = { "lootrolls", ICONS .. "INV_Misc_Dice_02", "WILDLOOTROLLS_TAB" } end
-	if ns.WildMapsModule then list[#list + 1] = { "maps", ICONS .. "INV_Misc_Map_01", "WILDMAPS_TAB" } end
-	if ns.WildPvP then list[#list + 1] = { "pvp", ICONS .. "INV_Sword_04", "WILDPVP_TAB" } end
 	frame.tabs = {}
 	local tab_top, tab_bottom = 58, 12
 	local tab_size, tab_gap = 40, 3
@@ -965,89 +963,6 @@ local function CreateMenu()
 		AddCheckbox(column, "WILDGROUPS_ENABLED", function() return groups.IsEnabled() end, function(value) groups.SetEnabled(value) end)
 		local open = AddButton(column.parent, "WILDGROUPS_OPEN", function() groups.Open() end, 190)
 		open:SetPoint("TOPLEFT", column.x, column.y - 4)
-	end
-
-	page = pages.maps
-	if page and ns.WildMapsModule then
-		local maps = ns.WildMapsModule
-		column = NewCard(page, 0, 0, page:GetWidth(), height, "WILDMAPS_TAB")
-		local note = column.parent:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-		note:SetPoint("TOPLEFT", column.x, column.y)
-		note:SetWidth(column.width)
-		note:SetJustifyH("LEFT")
-		note:SetWordWrap(true)
-		note:SetText(L.WILDMAPS_NOTE:format(maps.GetMapCount and maps.GetMapCount() or 0))
-		column.y = column.y - note:GetStringHeight() - 12
-		AddCheckbox(column, "WILDMAPS_ENABLED", maps.IsEnabled, maps.SetEnabled)
-		local browseLabel = column.parent:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-		browseLabel:SetPoint("TOPLEFT", column.x + 4, column.y - 4)
-		browseLabel:SetWidth(column.width)
-		browseLabel:SetJustifyH("LEFT")
-		browseLabel:SetWordWrap(true)
-		browseLabel:SetText(L.WILDMAPS_BROWSE)
-		column.y = column.y - browseLabel:GetStringHeight() - 10
-		local mapScroll = CreateFrame("ScrollFrame", nil, column.parent, "UIPanelScrollFrameTemplate")
-		mapScroll:SetPoint("TOPLEFT", column.x + 4, column.y)
-		mapScroll:SetSize(column.width - 32, 250)
-		if mapScroll.SetClipsChildren then mapScroll:SetClipsChildren(true) end
-		local mapContent = CreateFrame("Frame", nil, mapScroll)
-		mapContent:SetSize(column.width - 32, 1)
-		mapScroll:SetScrollChild(mapContent)
-		local mapRows = {}
-		local function RefreshMaps()
-			local mapList = maps.GetMaps and maps.GetMaps() or {}
-			mapContent:SetHeight(math.max(1, #mapList * 30))
-			for i, map in ipairs(mapList) do
-				local row = mapRows[i]
-				if not row then
-					row = CreateFrame("Button", nil, mapContent, "UIPanelButtonTemplate")
-					row:SetHeight(24)
-					row:SetPoint("TOPLEFT", 0, -(i - 1) * 30)
-					mapRows[i] = row
-				end
-				row:SetWidth(column.width - 36)
-				row:SetText(map.name or map.id or "?")
-				row:SetScript("OnClick", function()
-					if maps.SelectMap(map.id) and maps.ZoneMap and maps.ZoneMap.frame then
-						maps.ZoneMap.pinnedMap = map.id
-						maps.ZoneMap:Refresh()
-					end
-				end)
-				row:Show()
-			end
-			for i = #mapList + 1, #mapRows do mapRows[i]:Hide() end
-		end
-		RefreshMaps()
-		local open = AddButton(column.parent, "WILDMAPS_OPEN", function() if maps.Open then maps.Open() end end, 190)
-		open:SetPoint("BOTTOMLEFT", column.parent, "BOTTOMLEFT", 16, 14)
-	end
-
-	page = pages.pvp
-	if page and ns.WildPvP then
-		local pvp = ns.WildPvP
-		column = NewCard(page, 0, 0, page:GetWidth(), height, "WILDPVP_TAB")
-		local note = column.parent:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-		note:SetPoint("TOPLEFT", column.x, column.y)
-		note:SetWidth(column.width)
-		note:SetJustifyH("LEFT")
-		note:SetWordWrap(true)
-		note:SetText(L.WILDPVP_NOTE)
-		column.y = column.y - note:GetStringHeight() - 12
-		local componentButtons = {
-			{ id = "nearby", button = "WILDPVP_OPEN_SPY" },
-			{ id = "timers", button = "WILDPVP_OPEN_CAPPING" },
-			{ id = "intel", button = "WILDPVP_OPEN_HIGHGROUND" },
-			{ id = "enemyframes", button = "WILDPVP_OPEN_ENEMYFRAMES" },
-		}
-		local pvpStatus = column.parent:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-		pvpStatus:SetPoint("TOPLEFT", column.x + 20, column.y - 4)
-		pvpStatus:SetText("PvP features activate inside battlegrounds and arenas.")
-		column.y = column.y - 30
-		for _, component in ipairs(componentButtons) do
-			local open = AddButton(column.parent, component.button, function() pvp.OpenComponent(component.id) end, 260)
-			open:SetPoint("TOPLEFT", column.x + 20, column.y - 2)
-			column.y = column.y - 34
-		end
 	end
 
 	page = pages.layers

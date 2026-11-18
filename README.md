@@ -1,12 +1,20 @@
 # WildSpark
 
-> **[Download WildSpark 2.2.48 - Latest Published Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.48/WildSpark-2.2.48.zip)**
+> **[Download WildSpark 2.2.49 - Latest Published Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.49/WildSpark-2.2.49.zip)**
 
-**Latest published stable release: 2.2.48 for WoW Forever 1.60.1.** The package contains one install folder, `WildSpark`. Its WildPvP module combines nearby enemy alerts, battleground timers, battleground map intel, and enemy frames. QuestDB, QuestieDB Forever data, and WildInfo's quest-drop datasets are embedded and load automatically with WildSpark.
+**Latest published stable release: 2.2.49 for WoW Forever 1.60.1.** The package contains one install folder, `WildSpark`. QuestDB, QuestieDB Forever data, and WildInfo's quest-drop datasets are embedded and load automatically with WildSpark.
 
-WildSpark is a modular WoW Forever utility suite for gathering highlights, quest-drop tooltips, dungeon maps, buffs, creature leash tracking, WildFire camping, auctions, group finding, layer hopping, and PvP tools. WildPvP's settings tab opens each feature directly.
+WildSpark is a modular WoW Forever utility suite for gathering highlights, quest-drop tooltips, buffs, creature leash tracking, WildFire camping, auctions, group finding, and layer hopping.
 
-Install the single `WildSpark` folder from the ZIP into `Interface/AddOns`. WildPvP appears as a tab inside WildSpark. Its buttons open nearby enemy alerts, battleground timers, map intel, and enemy frames without requiring slash commands. The source projects' names are not used in the player-facing tab or feature labels.
+Install the single `WildSpark` folder from the ZIP into `Interface/AddOns`. WildMaps and WildPvP are not part of this build; their source, assets, and notices are retained under `archive/` in the repository for possible future work.
+
+The removal of WildMaps and WildPvP is intended to lower WildSpark's memory use. The amount saved has not been measured in the live client.
+
+## What's new in 2.2.49
+
+- Remove WildMaps and WildPvP from the active addon, load manifest, and settings tabs.
+- Preserve both modules' source, artwork, helper scripts, and notices in the repository's `archive/WildMaps` and `archive/WildPvP` folders.
+- Reduce active addon memory use by not loading either module. The live memory change has not been measured.
 
 ## What's new in 2.2.48
 

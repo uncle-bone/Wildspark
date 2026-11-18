@@ -1,3 +1,8 @@
+WildSpark 2.2.49
+- Remove WildMaps and WildPvP from the active addon package, TOC load list, and settings UI.
+- Archive their source trees, artwork, build scripts, licenses, and notices in the repository for future restoration.
+- Intended to reduce memory use; no live-client memory measurement is available.
+
 WildSpark 2.2.48
 - Update WildLayer to AutoLayer 1.9.16 with its zone-aware Forever layer requests and wrong-zone invitation handling.
 - Update WildFire Kit to 1.10 and rename the embedded folder to WildFireKitEmbedded while retaining WildSpark camp sharing.

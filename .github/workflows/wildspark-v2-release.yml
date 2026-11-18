@@ -15,14 +15,8 @@ on:
       - "Wildspark/Media/WildFire/tent_*.tga"
       - "Wildspark/Media/WildFire/circle_mask.tga"
       - "Wildspark/Modules/WildDrops/**"
-      - "Wildspark/Modules/WildMaps/**"
-      - "Wildspark/Modules/WildMapsModule.lua"
       - "Wildspark/Modules/WildAuctions/**"
-      - "Wildspark/Modules/WildPvPModule.lua"
       - "Wildspark/Modules/WildGroupsNotifications.lua"
-      - "WildPvP/Packages/**"
-      - "scripts/build_wildpvp.py"
-      - "scripts/embed_wildpvp.py"
 
 permissions:
   contents: write
@@ -50,7 +44,6 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
-      - name: Package WildSpark and unified WildPvP with embedded quest databases
         env:
           VERSION: ${{ steps.release.outputs.version }}
         run: |
@@ -113,8 +106,10 @@ jobs:
           grep -Fx '## X-Flavor: Forever' "$MAIN_TOC"
           grep -Fq 'Libs\QuestDB\Data\Forever\_core\Drops.lua' "$MAIN_TOC"
           grep -Fq 'Libs\QuestieDB\src\api.lua' "$MAIN_TOC"
-          python scripts/build_wildpvp.py "$GITHUB_WORKSPACE" "$RUNNER_TEMP/wildpvp-module"
-          python scripts/embed_wildpvp.py "$RUNNER_TEMP/wildpvp-module" "$GITHUB_WORKSPACE/dist/stage/WildSpark"
+          if grep -Eq 'WildMaps|WildPvP' "$MAIN_TOC"; then
+            echo "WildMaps and WildPvP are archived and must not load in the active addon."
+            exit 1
+          fi
           cd dist/stage
           zip -qr "../WildSpark-$VERSION.zip" WildSpark
           cd ../..
@@ -125,14 +120,12 @@ jobs:
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Libs/QuestieDB/QuestieDB_Forever.toc$'
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Libs/QuestieDB/LICENSE.md$'
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildDrops/QuestDropRates-LICENSE.txt$'
-          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildPvP/Features/Awareness/Spy.lua$'
-          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildPvP/Features/Timers/Core.lua$'
-          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildPvP/Features/Intel/Main.lua$'
-          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildPvP/Features/EnemyFrames/Main.lua$'
-          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildPvP/LICENSES/ATTRIBUTION.txt$'
-          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildPvP/LICENSES/EnemyFrames-GPL-2.0.txt$'
+          if unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -qE '^WildSpark/Modules/Wild(Maps|PvP)'; then
+            echo "Archived WildMaps and WildPvP source must not be packaged in the active addon."
+            exit 1
+          fi
           if unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -qE '^(WildPvP|Spy|Capping|Capping_Options|HighgroundBattlegrounds|BattleGroundEnemiesFixed)/'; then
-            echo "All PvP features must load from the single WildSpark addon folder."
+            echo "Unexpected standalone PvP addon folder in the WildSpark release ZIP."
             exit 1
           fi
           grep -Fqx 'Modules\WildGroups\core\whisperlog.lua' "$MAIN_TOC"

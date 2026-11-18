@@ -8,22 +8,17 @@
 ## Notes-esES: Hace brillar los filones, las hierbas, los objetos de misión y los cofres cuando te acercas, con varios efectos de luz a elegir, y muestra hierbas y filones en el minimapa con su propio icono (usa el soft targeting de Blizzard).
 ## Notes-esMX: Hace brillar los filones, las hierbas, los objetos de misión y los cofres cuando te acercas, con varios efectos de luz a elegir, y muestra hierbas y filones en el minimapa con su propio icono (usa el soft targeting de Blizzard).
 ## Notes-ruRU: ???????????? ?????? ????, ?????, ????????? ??????? ? ??????? ??? ??????????? ? ???, ? ??????? ???????? ????????, ? ?????????? ????? ? ???? ?? ????????? ?? ???????????? ???????? (?????????? soft targeting ?? Blizzard).
-## Version: 2.2.48
+## Version: 2.2.49
 ## X-WildFireKit-Version: 1.10
-## X-WildMaps-Version: 1.3.0
 ## X-WildLayer-Version: 1.9.16
-## X-WildPvP-Spy-Version: 1.3.8-forever20
 ## X-WildLayer-Display-Name: WildLayer
 ## IconTexture: Interface\AddOns\WildSpark\Media\icon.tga
 ## X-WildGroups-Version: 2.1.0
 ## X-WildAuctions-Version: forever-0.8.2.1
-## X-WildPvP-Highground-Version: 0.8.1
-## X-WildPvP-BattleGroundEnemies-Version: 12.1.5.8
-## X-WildPvP-Capping-Version: 12.1.7
 ## AddonCompartmentFunc: Wildspark_WildGroups_OnAddonCompartmentClick
 ## AddonCompartmentFuncOnEnter: Wildspark_WildGroups_OnAddonCompartmentEnter
 ## AddonCompartmentFuncOnLeave: Wildspark_WildGroups_OnAddonCompartmentLeave
-## SavedVariables: WildsparkDB, LeashHelperDB, ForeverBuffs_DB, CampingKitDB, KitDockDB, WildAuctionsDB, aux, LFGForeverDB, AutoLayerDB, WildLootRollDB, WildDropsDB, WildInfoRespawnDB, WildInfoDropRatesDB, HiddenMapsDB, WildMapsDB
+## SavedVariables: WildsparkDB, LeashHelperDB, ForeverBuffs_DB, CampingKitDB, KitDockDB, WildAuctionsDB, aux, LFGForeverDB, AutoLayerDB, WildLootRollDB, WildDropsDB, WildInfoRespawnDB, WildInfoDropRatesDB
 ## SavedVariablesPerCharacter: WildsparkCharDB, ForeverBuffs_CharDB, CampingKitCharDB, LFGForeverCharDB
 ## AllowLoadGameType: mainline
 
@@ -146,17 +141,3 @@ Modules\WildDrops\QuestIndex.lua
 Modules\WildDrops\DropRateEstimator.lua
 Modules\WildDrops\Tooltip.lua
 Modules\WildDrops\WildDropsModule.lua
-
-# WildMaps (adapted from HiddenMaps 1.2.2 by Lichdom)
-Modules\WildMapsModule.lua
-Modules\WildMaps\Core\Bootstrap.lua
-Modules\WildMaps\Core\Registry.lua
-Modules\WildMaps\Maps\Maps.xml
-Modules\WildMaps\Core\Detection.lua
-Modules\WildMaps\Core\Position.lua
-Modules\WildMaps\Core\MapCoordinates.lua
-Modules\WildMaps\Core\Renderer.lua
-Modules\WildMaps\Core\ZoneMap.lua
-Modules\WildMaps\Core\Engine.lua
-Modules\WildPvP\Bootstrap.lua
-Modules\WildPvPModule.lua
