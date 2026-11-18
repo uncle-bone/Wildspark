@@ -16,6 +16,27 @@ L.FORMAT_PERCENT = "%d%%"
 L.FORMAT_RANGE = "%d yd"
 L.CONFIRM = "Confirm?"       -- sur un bouton qui attend un second geste
 
+L.WILDMAPS_TAB = "WildMaps"
+L.WILDMAPS_NOTE = "WildMaps enlarges the current minimap in place. It does not open the World Map. Use the button on this page or the small magnifier beside the minimap; drag the enlarged map to move it."
+L.WILDMAPS_ENABLED = "Enable WildMaps"
+L.WILDMAPS_ENABLED_TIP = "Show the WildMaps magnifier and allow the minimap lens to open."
+L.WILDMAPS_OPEN = "Open minimap lens"
+L.WILDMAPS_OPEN_TIP = "Enlarge the minimap for the current zone."
+L.WILDMAPS_CLOSE = "Close minimap lens"
+L.WILDMAPS_CLOSE_TIP = "Restore the minimap to its previous size, position, shape and zoom."
+L.WILDMAPS_SIZE = "Lens size"
+L.WILDMAPS_SIZE_TIP = "Size of the enlarged minimap, as a percentage of its original size."
+L.WILDMAPS_OPACITY = "Lens opacity"
+L.WILDMAPS_OPACITY_TIP = "Opacity of the enlarged minimap."
+L.WILDMAPS_LOCKED = "Lock lens position"
+L.WILDMAPS_LOCKED_TIP = "Prevent dragging the enlarged minimap."
+L.WILDMAPS_HOVER_ONLY = "Show magnifier only on hover"
+L.WILDMAPS_HOVER_ONLY_TIP = "Show the magnifier button only while the pointer is over the minimap."
+L.WILDMAPS_HIDE_GATHERING = "Hide herb and ore tracking while open"
+L.WILDMAPS_HIDE_GATHERING_TIP = "Temporarily turn off Find Herbs and Find Minerals while the lens is open, then restore your previous tracking."
+L.WILDMAPS_RESET_POSITION = "Reset lens position"
+L.WILDMAPS_RESET_POSITION_TIP = "Move the enlarged minimap back to its default position."
+
 -- Mots de commande propres � cette langue -> nom anglais de la commande. Les noms anglais
 -- r�pondent partout ; les accents sont facultatifs.
 L.COMMANDS = {}

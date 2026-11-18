@@ -107,8 +107,11 @@ jobs:
           grep -Fx '## X-Flavor: Forever' "$MAIN_TOC"
           grep -Fq 'Libs\QuestDB\Data\Forever\_core\Drops.lua' "$MAIN_TOC"
           grep -Fq 'Libs\QuestieDB\src\api.lua' "$MAIN_TOC"
-          if grep -Eq 'WildMaps|WildPvP' "$MAIN_TOC"; then
-            echo "WildMaps and WildPvP are archived and must not load in the active addon."
+          grep -Fqx 'Modules\WildMaps\Core\Lens.lua' "$MAIN_TOC"
+          grep -Fqx 'Modules\WildMaps\Core\Engine.lua' "$MAIN_TOC"
+          grep -Fqx 'Modules\WildMaps\UI\Triggers.lua' "$MAIN_TOC"
+          if grep -q 'WildPvP' "$MAIN_TOC"; then
+            echo "WildPvP is archived and must not load in the active addon."
             exit 1
           fi
           cd dist/stage
@@ -121,8 +124,11 @@ jobs:
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Libs/QuestieDB/QuestieDB_Forever.toc$'
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Libs/QuestieDB/LICENSE.md$'
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildDrops/QuestDropRates-LICENSE.txt$'
-          if unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -qE '^WildSpark/Modules/Wild(Maps|PvP)'; then
-            echo "Archived WildMaps and WildPvP source must not be packaged in the active addon."
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildMaps/Core/Lens.lua$'
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildMaps/Core/Engine.lua$'
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildMaps/UI/Triggers.lua$'
+          if unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -qE '^WildSpark/Modules/WildPvP'; then
+            echo "Archived WildPvP source must not be packaged in the active addon."
             exit 1
           fi
           if unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -qE '^(WildPvP|Spy|Capping|Capping_Options|HighgroundBattlegrounds|BattleGroundEnemiesFixed)/'; then

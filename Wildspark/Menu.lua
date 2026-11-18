@@ -50,7 +50,7 @@ local NODES_ICON = "INV_Misc_Map_01"
 local NODES_HEIGHT = 320      -- hauteur des deux panneaux de la page de la minimap
 
 -- Titre de chaque page sous la barre de titre ; celle des objets compose le sien (LookTitle)
-local PAGE_TITLES = { nodes = "NODES_PAGE", settings = "SETTINGS", leash = "LEASH_SETTINGS", buffs = "BUFFS_TAB", camping = "CAMPING_TAB", auctions = "WILDAUCTIONS_TAB", groups = "WILDGROUPS_TAB", layers = "WILDLAYER_TAB", info = "WILDINFO_TAB", lootrolls = "WILDLOOTROLLS_TAB" }
+local PAGE_TITLES = { nodes = "NODES_PAGE", wildmaps = "WILDMAPS_TAB", settings = "SETTINGS", leash = "LEASH_SETTINGS", buffs = "BUFFS_TAB", camping = "CAMPING_TAB", auctions = "WILDAUCTIONS_TAB", groups = "WILDGROUPS_TAB", layers = "WILDLAYER_TAB", info = "WILDINFO_TAB", lootrolls = "WILDLOOTROLLS_TAB" }
 
 -- Choix d'un réglage : { valeur, nom du texte } ; ou { valeur, nil, libellé } quand le libellé
 -- ne se traduit pas
@@ -724,6 +724,7 @@ local function CreateMenu()
 	-- qu'une mise à jour faite pendant que le jeu tourne n'a pas encore chargé.
 	local list = { { "look", Skin.PORTRAIT, "HEADER_OBJECTS" } }
 	if ns.UpdateNodes then list[#list + 1] = { "nodes", ICONS .. NODES_ICON, "NODES_PAGE" } end
+	if ns.WildMaps then list[#list + 1] = { "wildmaps", ICONS .. "INV_Misc_Spyglass_03", "WILDMAPS_TAB" } end
 	list[#list + 1] = { "settings", ICONS .. SETTINGS_ICON, "SETTINGS" }
 	if _G.LeashHelper then list[#list + 1] = { "leash", ICONS .. "Ability_Hunter_BeastTaming", "LEASH_SETTINGS" } end
 	if _G.WildBuffs then list[#list + 1] = { "buffs", ICONS .. "Spell_Holy_GreaterHeal", "BUFFS_TAB" } end
@@ -774,9 +775,94 @@ local function CreateMenu()
 		pages[tab[1]] = page
 	end
 
+	local page, column
+	-- WildMaps: Quantum Dungeon Tools' Minimap Lens integrated as a WildSpark module.
+	page = pages.wildmaps
+	if page and ns.WildMaps and ns.WildMapsUI and ns.WildMapsTriggers then
+		column = NewCard(page, 0, 0, page:GetWidth(), 344, "WILDMAPS_TAB")
+		local note = column.parent:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+		note:SetPoint("TOPLEFT", column.x, column.y)
+		note:SetWidth(column.width)
+		note:SetJustifyH("LEFT")
+		note:SetWordWrap(true)
+		Caption(note, "WILDMAPS_NOTE")
+		column.y = column.y - note:GetStringHeight() - 12
+
+		local function lensDB() return ns.db.wildMaps end
+		local toggleLens
+		local function refreshModuleButton()
+			if not toggleLens then return end
+			SetLabel(toggleLens, ns.WildMapsUI:IsOn() and L.WILDMAPS_CLOSE or L.WILDMAPS_OPEN)
+			toggleLens:SetEnabled(ns.WildMaps.isOn(lensDB()))
+		end
+		AddCheckbox(column, "WILDMAPS_ENABLED", function() return ns.WildMaps.isOn(lensDB()) end, function(on)
+			ns.WildMapsUI:SetModuleOn(on)
+			ns.WildMapsTriggers:Refresh()
+			refreshModuleButton()
+		end)
+		toggleLens = AddButton(column.parent, "WILDMAPS_OPEN", function()
+			ns.WildMapsTriggers:Toggle("tab")
+			refreshModuleButton()
+		end, 200)
+		toggleLens:SetPoint("TOPLEFT", column.x, column.y)
+		column.y = column.y - 34
+		refreshers[#refreshers + 1] = refreshModuleButton
+		ns.WildMapsUI:OnChange(refreshModuleButton)
+
+		local function LensSlider(key, label, spec)
+			local row = CreateFrame("Frame", nil, column.parent)
+			row:SetSize(column.width, 40)
+			row:SetPoint("TOPLEFT", column.x, column.y)
+			column.y = column.y - 46
+			local title = row:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+			title:SetPoint("TOPLEFT", 0, -3)
+			Caption(title, label)
+			local value = row:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+			value:SetPoint("TOPRIGHT", 0, -3)
+			local slider = CreateFrame("Frame", nil, row, "MinimalSliderWithSteppersTemplate")
+			slider:SetSize(column.width, 20)
+			slider:SetPoint("BOTTOMLEFT", 0, 0)
+			local function read() return math.floor(ns.WildMaps.get(lensDB(), key) * 100 + 0.5) end
+			local function formatValue(n) return label == "WILDMAPS_SIZE" and (n .. "%") or (n .. "%") end
+			slider:Init(read(), math.floor(spec.min * 100 + 0.5), math.floor(spec.max * 100 + 0.5), math.floor(spec.step * 100 + 0.5))
+			slider:RegisterCallback(MinimalSliderWithSteppersMixin.Event.OnValueChanged, function(_, n)
+				n = math.floor(n + 0.5)
+				value:SetText(formatValue(n))
+				if refreshing or n == read() then return end
+				if key == "size" then ns.WildMapsUI:SetSize(n / 100) else ns.WildMapsUI:SetOpacity(n / 100) end
+			end, row)
+			SetTooltip(row, label)
+			refreshers[#refreshers + 1] = function()
+				local n = read()
+				slider:SetValue(n)
+				value:SetText(formatValue(n))
+			end
+		end
+		LensSlider("size", "WILDMAPS_SIZE", ns.WildMaps.SIZE)
+		LensSlider("opacity", "WILDMAPS_OPACITY", ns.WildMaps.OPACITY)
+
+		AddCheckbox(column, "WILDMAPS_LOCKED", function() return ns.WildMaps.get(lensDB(), "locked") end, function(on)
+			lensDB().locked = on
+			ns.WildMapsUI:RefreshDrag()
+		end)
+		AddCheckbox(column, "WILDMAPS_HOVER_ONLY", function() return ns.WildMaps.get(lensDB(), "hoverOnly") end, function(on)
+			lensDB().hoverOnly = on
+			ns.WildMapsTriggers:Refresh()
+		end)
+		AddCheckbox(column, "WILDMAPS_HIDE_GATHERING", function() return ns.WildMaps.get(lensDB(), "hideGathering") end, function(on)
+			lensDB().hideGathering = on
+			ns.WildMapsUI:RefreshGathering()
+		end)
+		local resetLens = AddButton(column.parent, "WILDMAPS_RESET_POSITION", function()
+			ns.WildMapsUI:SetPosition(nil)
+			ns.WildMapsTriggers:Replace()
+		end, 200)
+		resetLens:SetPoint("BOTTOMLEFT", column.x, 12)
+	end
+
 	-- Page des objets. À gauche leur liste : tous, puis chaque catégorie.
-	local page = pages.look
-	local column = NewCard(page, 0, 0, LIST, height, "HEADER_OBJECTS")
+	page = pages.look
+	column = NewCard(page, 0, 0, LIST, height, "HEADER_OBJECTS")
 	AddEntry(column, "SCOPE_ALL", Skin.PORTRAIT)
 	for _, key in ipairs(ns.CATEGORY_ORDER) do
 		AddEntry(column, "CATEGORY_" .. key:upper(), ICONS .. (CATEGORY_ICONS[key] or "INV_Misc_QuestionMark"), key)

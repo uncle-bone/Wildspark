@@ -14,7 +14,7 @@ local SOFT = "softinteract"
 local MEDIA = "Interface\\AddOns\\" .. ADDON_NAME .. "\\Media\\"
 local CURSORS = "Interface\\Cursor\\"
 local FALLBACK_TEXTURE = "Interface\\Cooldown\\star4"
-local SCHEMA = 10 -- saved settings schema
+local SCHEMA = 11 -- saved settings schema
 
 -- R�glages communs � tous les personnages du compte (WildsparkDB)
 local DEFAULTS = {
@@ -56,6 +56,7 @@ local DEFAULTS = {
 	minimapPingVisualScale = 130,
 	minimapPingSound = true,
 	minimapPingVolume = 70,
+	wildMaps = { enabled = true }, -- Minimap Lens module settings (initialized additively by WildMaps)
 	nodeHerbs   = true,   -- sur la minimap, l'ic�ne de chaque plante que le pistage du jeu y montre (NodeScan.lua)
 	nodeOre     = true,   -- et celle de chaque filon
 	nodeSize    = 12,     -- c�t� de ces ic�nes (unit�s de la minimap)
@@ -1680,6 +1681,7 @@ function handlers.ADDON_LOADED(name)
 		db.schema = SCHEMA
 	end
 	CopyDefaults(DEFAULTS, db)
+	if ns.WildMaps and ns.WildMaps.applyDefaults then ns.WildMaps.applyDefaults(db.wildMaps) end
 	WildsparkCharDB = WildsparkCharDB or {}
 	cdb = WildsparkCharDB
 	if next(cdb) == nil and type(db.inherited) == "table" then CopyDefaults(db.inherited, cdb) end
@@ -1736,6 +1738,8 @@ end
 
 function handlers.PLAYER_LOGIN()
 	if db.enabled then ApplyCVars() end
+	if ns.WildMapsUI then ns.WildMapsUI:Init() end
+	if ns.WildMapsTriggers then ns.WildMapsTriggers:Init() end
 	if ns.AutoPushSpells then ns.AutoPushSpells.Scan(true) end
 end
 

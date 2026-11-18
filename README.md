@@ -1,20 +1,27 @@
 # WildSpark
 
-> **[Download WildSpark 2.2.49 - Latest Published Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.49/WildSpark-2.2.49.zip)**
+> **[Download WildSpark 2.2.50 - Latest Published Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.50/WildSpark-2.2.50.zip)**
 
-**Latest published stable release: 2.2.49 for WoW Forever 1.60.1.** The package contains one install folder, `WildSpark`. QuestDB, QuestieDB Forever data, and WildInfo's quest-drop datasets are embedded and load automatically with WildSpark.
+**Latest published stable release: 2.2.50 for WoW Forever 1.60.1.** The package contains one install folder, `WildSpark`. QuestDB, QuestieDB Forever data, and WildInfo's quest-drop datasets are embedded and load automatically with WildSpark.
 
-WildSpark is a modular WoW Forever utility suite for gathering highlights, quest-drop tooltips, buffs, creature leash tracking, WildFire camping, auctions, group finding, and layer hopping.
+WildSpark is a modular WoW Forever utility suite for gathering highlights, quest-drop tooltips, buffs, creature leash tracking, WildMaps minimap lens, WildFire camping, auctions, group finding, and layer hopping.
 
-Install the single `WildSpark` folder from the ZIP into `Interface/AddOns`. WildMaps and WildPvP are not part of this build; their source, assets, and notices are retained under `archive/` in the repository for possible future work.
+Install the single `WildSpark` folder from the ZIP into `Interface/AddOns`. WildMaps is the integrated Minimap Lens module, based on the authorized Minimap Lens source from Quantum Dungeon Tools. The previous WildMaps dungeon-catalog implementation and WildPvP remain archived in the repository for possible future work.
 
-The removal of WildMaps and WildPvP is intended to lower WildSpark's memory use. The amount saved has not been measured in the live client.
+WildMaps enlarges the current minimap in place and restores its original size, position, shape, tracking and zoom when closed. No live-client validation was available for this release.
+
+## What's new in 2.2.50
+
+- Add WildMaps as an integrated settings tab using Quantum Dungeon Tools' Minimap Lens module, adapted for WildSpark.
+- Enlarge the current zone minimap in place, with size and opacity settings, drag positioning, a lock option, and safe restoration when closed or leaving the world.
+- Keep the previous dungeon-catalog WildMaps implementation and WildPvP source archived in the repository.
+- GitHub Actions builds and checks the release package. Live in-game behavior was not validated.
 
 ## What's new in 2.2.49
 
-- Remove WildMaps and WildPvP from the active addon, load manifest, and settings tabs.
-- Preserve both modules' source, artwork, helper scripts, and notices in the repository's `archive/WildMaps` and `archive/WildPvP` folders.
-- Reduce active addon memory use by not loading either module. The live memory change has not been measured.
+- Remove the previous WildMaps dungeon catalog and WildPvP from the active addon, load manifest, and settings tabs.
+- Preserve both original modules' source, artwork, helper scripts, and notices in the repository archive.
+- Reduce active addon memory use by not loading those archived modules; the live memory change has not been measured.
 
 ## What's new in 2.2.48
 

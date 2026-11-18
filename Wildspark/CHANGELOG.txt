@@ -1,3 +1,9 @@
+WildSpark 2.2.50
+- Add WildMaps as an integrated module tab using the authorized Quantum Dungeon Tools Minimap Lens source, adapted to WildSpark settings and lifecycle.
+- Enlarge the live zone minimap in place with size and opacity controls, movable positioning, a lock option, and safe restoration when closed or leaving the world.
+- Keep the prior dungeon catalog WildMaps source and WildPvP source archived for possible future work.
+- Live in-game behavior was not validated.
+
 WildSpark 2.2.49
 - Remove WildMaps and WildPvP from the active addon package, TOC load list, and settings UI.
 - Archive their source trees, artwork, build scripts, licenses, and notices in the repository for future restoration.
