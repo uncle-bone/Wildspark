@@ -44,6 +44,7 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
+      - name: Package WildSpark with embedded quest databases
         env:
           VERSION: ${{ steps.release.outputs.version }}
         run: |
