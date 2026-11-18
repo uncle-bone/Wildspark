@@ -27,6 +27,8 @@ local button, fade
 local target = 0          -- alpha the button is heading to
 local inside            -- last IsInInstance() read (nil = unknown)
 local openedInside      -- the lens that is on was opened inside an instance
+local draggingButton = false
+local suppressClick = false
 
 local function UI() return ns.WildMapsUI end
 
@@ -83,7 +85,7 @@ local function paint()
   local glyph = on and C.gold or C.muted
   button.ring:SetVertexColor(ring.r, ring.g, ring.b, 1)
   button.halo:SetShown(on)
-  button.icon:SetTexture("Interface\\Icons\\INV_Misc_Spyglass_03")
+  button.icon:SetTexture("Interface\\Icons\\INV_Misc_Spyglass_01")
   button.icon:SetVertexColor(glyph.r, glyph.g, glyph.b, 1)
 end
 
@@ -92,8 +94,14 @@ local function place()
   if not button then return end
   local okS, w, h = pcall(Minimap.GetSize, Minimap)
   if not okS or issecretvalue(w) or issecretvalue(h) then return end
-  local x, y = Lens.buttonOffset(w, h, UI():IsOn() or squareMinimap(),
-    Lens.get(ns.db and ns.db.wildMaps, "corner"))
+  local settings = ns.db and ns.db.wildMaps
+  local saved = settings and settings.buttonPos
+  local x, y
+  if type(saved) == "table" and type(saved.x) == "number" and type(saved.y) == "number" then
+    x, y = saved.x, saved.y
+  else
+    x, y = Lens.buttonOffset(w, h, UI():IsOn() or squareMinimap(), Lens.get(settings, "corner"))
+  end
   -- Not a child of the Minimap: follow its strata (the lens may raise it) and stay above it.
   button:SetFrameStrata(Minimap:GetFrameStrata() or "LOW")
   button:SetFrameLevel((Minimap:GetFrameLevel() or 1) + 10)
@@ -105,7 +113,33 @@ local function showTip(owner)
   GameTooltip:SetOwner(owner, "ANCHOR_LEFT")
   GameTooltip:SetText("WildMaps")
   GameTooltip:AddLine(UI():IsOn() and "Click to close the minimap lens" or "Click to enlarge the current minimap", 1, 0.82, 0)
+  GameTooltip:AddLine("Hold Ctrl and drag to move this magnifier", 0.78, 0.78, 0.78, true)
   GameTooltip:Show()
+end
+
+local function stopDragging(self)
+  if not draggingButton then return end
+  draggingButton = false
+  self:StopMovingOrSizing()
+  local bx, by = self:GetCenter()
+  local mx, my = Minimap:GetCenter()
+  local mapScale, buttonScale = Minimap:GetEffectiveScale(), self:GetEffectiveScale()
+  if type(bx) ~= "number" or type(by) ~= "number" or type(mx) ~= "number" or type(my) ~= "number"
+      or type(mapScale) ~= "number" or type(buttonScale) ~= "number" or mapScale <= 0 then
+    place()
+    return
+  end
+  local w, h = Minimap:GetSize()
+  local x, y = (bx * buttonScale - mx * mapScale) / mapScale,
+    (by * buttonScale - my * mapScale) / mapScale
+  local halfButton = SIZE * buttonScale / mapScale / 2
+  local maxX = math.max(0, w / 2 - halfButton)
+  local maxY = math.max(0, h / 2 - halfButton)
+  x, y = math.max(-maxX, math.min(maxX, x)), math.max(-maxY, math.min(maxY, y))
+  ns.db.wildMaps.buttonPos = { x = x, y = y }
+  suppressClick = true
+  place()
+  C_Timer.After(0, function() suppressClick = false end)
 end
 
 local function fadeTo(to)
@@ -183,6 +217,8 @@ local function build()
   b:SetFrameStrata(Minimap:GetFrameStrata() or "LOW")
   b:SetFrameLevel((Minimap:GetFrameLevel() or 1) + 10)
   b:RegisterForClicks("LeftButtonUp")
+  b:SetMovable(true)
+  b:RegisterForDrag("LeftButton")
   b.halo = circle(b, "BACKGROUND", HALO, 0)
   b.halo:SetVertexColor(C.gold.r, C.gold.g, C.gold.b, 0.22)
   b.ring = circle(b, "BORDER", SIZE, 0)
@@ -192,12 +228,19 @@ local function build()
   b.icon:SetSize(ICON, ICON)
   b.icon:SetPoint("CENTER")
   b:SetScript("OnClick", function(self)
+    if suppressClick or IsControlKeyDown() then suppressClick = false; return end
     GameTooltip:Hide()
     T:Toggle("button")
     if self:IsMouseOver() then showTip(self) end
   end)
   b:SetScript("OnEnter", showTip)
   b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  b:SetScript("OnDragStart", function(self)
+    if not IsControlKeyDown() or draggingButton then return end
+    draggingButton = true
+    self:StartMoving()
+  end)
+  b:SetScript("OnDragStop", stopDragging)
   b:SetAlpha(0)
   b:Hide()
   button = b

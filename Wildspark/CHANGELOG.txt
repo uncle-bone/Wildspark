@@ -1,3 +1,9 @@
+WildSpark 2.2.51
+- Always show the WildMaps settings tab in the WildSpark menu, even if the module has not initialized yet.
+- Hold Ctrl and drag the WildMaps magnifier to reposition it around the minimap; its location is saved and reset from the WildMaps page.
+- Use a built-in Classic-era spyglass icon for the WildMaps tab and button.
+- GitHub Actions package validation passed; no live-client validation was available.
+
 WildSpark 2.2.50
 - Add WildMaps as an integrated module tab using the authorized Quantum Dungeon Tools Minimap Lens source, adapted to WildSpark settings and lifecycle.
 - Enlarge the live zone minimap in place with size and opacity controls, movable positioning, a lock option, and safe restoration when closed or leaving the world.

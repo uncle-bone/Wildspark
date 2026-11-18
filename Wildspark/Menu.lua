@@ -721,10 +721,11 @@ local function CreateMenu()
 	end
 
 	-- Les onglets du bord droit : un par page. Celle de la minimap n'existe qu'avec NodeScan.lua,
-	-- qu'une mise à jour faite pendant que le jeu tourne n'a pas encore chargé.
+	-- qu'une mise à jour faite pendant que le jeu tourne n'a pas encore chargé. WildMaps stays
+	-- visible even if one of its files failed to initialize, so that failure is discoverable.
 	local list = { { "look", Skin.PORTRAIT, "HEADER_OBJECTS" } }
 	if ns.UpdateNodes then list[#list + 1] = { "nodes", ICONS .. NODES_ICON, "NODES_PAGE" } end
-	if ns.WildMaps then list[#list + 1] = { "wildmaps", ICONS .. "INV_Misc_Spyglass_03", "WILDMAPS_TAB" } end
+	list[#list + 1] = { "wildmaps", ICONS .. "INV_Misc_Spyglass_01", "WILDMAPS_TAB" }
 	list[#list + 1] = { "settings", ICONS .. SETTINGS_ICON, "SETTINGS" }
 	if _G.LeashHelper then list[#list + 1] = { "leash", ICONS .. "Ability_Hunter_BeastTaming", "LEASH_SETTINGS" } end
 	if _G.WildBuffs then list[#list + 1] = { "buffs", ICONS .. "Spell_Holy_GreaterHeal", "BUFFS_TAB" } end
@@ -853,11 +854,20 @@ local function CreateMenu()
 			lensDB().hideGathering = on
 			ns.WildMapsUI:RefreshGathering()
 		end)
-		local resetLens = AddButton(column.parent, "WILDMAPS_RESET_POSITION", function()
+		local resetLens = AddButton(column.parent, "WILDMAPS_RESET_POSITIONS", function()
 			ns.WildMapsUI:SetPosition(nil)
+			lensDB().buttonPos = nil
 			ns.WildMapsTriggers:Replace()
 		end, 200)
 		resetLens:SetPoint("BOTTOMLEFT", column.x, 12)
+	else
+		column = NewCard(page, 0, 0, page:GetWidth(), 130, "WILDMAPS_TAB")
+		local unavailable = column.parent:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+		unavailable:SetPoint("TOPLEFT", column.x, column.y)
+		unavailable:SetWidth(column.width)
+		unavailable:SetJustifyH("LEFT")
+		unavailable:SetWordWrap(true)
+		unavailable:SetText("WildMaps did not initialize. Check for addon errors and make sure the WildSpark package is fully updated.")
 	end
 
 	-- Page des objets. À gauche leur liste : tous, puis chaque catégorie.

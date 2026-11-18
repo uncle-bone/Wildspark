@@ -1,14 +1,21 @@
 # WildSpark
 
-> **[Download WildSpark 2.2.50 - Latest Published Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.50/WildSpark-2.2.50.zip)**
+> **[Download WildSpark 2.2.51 - Latest Published Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.51/WildSpark-2.2.51.zip)**
 
-**Latest published stable release: 2.2.50 for WoW Forever 1.60.1.** The package contains one install folder, `WildSpark`. QuestDB, QuestieDB Forever data, and WildInfo's quest-drop datasets are embedded and load automatically with WildSpark.
+**Latest published stable release: 2.2.51 for WoW Forever 1.60.1.** The package contains one install folder, `WildSpark`. QuestDB, QuestieDB Forever data, and WildInfo's quest-drop datasets are embedded and load automatically with WildSpark.
 
 WildSpark is a modular WoW Forever utility suite for gathering highlights, quest-drop tooltips, buffs, creature leash tracking, WildMaps minimap lens, WildFire camping, auctions, group finding, and layer hopping.
 
 Install the single `WildSpark` folder from the ZIP into `Interface/AddOns`. WildMaps is the integrated Minimap Lens module, based on the authorized Minimap Lens source from Quantum Dungeon Tools. The previous WildMaps dungeon-catalog implementation and WildPvP remain archived in the repository for possible future work.
 
 WildMaps enlarges the current minimap in place and restores its original size, position, shape, tracking and zoom when closed. No live-client validation was available for this release.
+
+## What's new in 2.2.51
+
+- Always show the WildMaps settings tab in the WildSpark menu, even if the module has not initialized yet.
+- Hold Ctrl and drag the WildMaps magnifier to reposition it around the minimap; the location is saved and can be reset from the WildMaps page.
+- Use a built-in Classic-era spyglass icon for the WildMaps tab and button.
+- GitHub Actions builds and checks the release package. Live in-game behavior was not validated.
 
 ## What's new in 2.2.50
 
