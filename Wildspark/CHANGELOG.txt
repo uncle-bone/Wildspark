@@ -1,3 +1,8 @@
+WildSpark 2.2.52
+- Play a numeric battleground queue-pop sound kit for incoming WildGroups invites, with Blizzard's standard group-invite cue as a fallback.
+- Fix the silent invite sound caused by passing a text name to PlaySound instead of a numeric sound-kit ID.
+- Package workflow verification does not confirm live-client audio playback.
+
 WildSpark 2.2.51
 - Always show the WildMaps settings tab in the WildSpark menu, even if the module has not initialized yet.
 - Hold Ctrl and drag the WildMaps magnifier to reposition it around the minimap; its location is saved and reset from the WildMaps page.

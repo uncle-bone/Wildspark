@@ -6,13 +6,14 @@ if not groups then return end
 
 local function playInviteSound()
 	if type(PlaySound) ~= "function" then return end
-	-- This is Blizzard's own LFG-ready sound, the queue-popup sound the user
-	-- asked for. Play on Master so it is audible when the SFX channel is low.
-	local ok = pcall(PlaySound, "ReadyCheck", "Master")
-	if not ok then
-		local sound = SOUNDKIT and SOUNDKIT.IG_PLAYER_INVITE or 880
-		pcall(PlaySound, sound, "Master")
-	end
+	-- PlaySound accepts numeric SoundKit IDs; a string such as "ReadyCheck"
+	-- may silently do nothing without raising an error. Use the battleground
+	-- queue-pop cue, then fall back to Blizzard's standard group-invite sound.
+	local queueSound = SOUNDKIT and SOUNDKIT.PVP_THROUGH_QUEUE or 8459
+	local ok, willPlay = pcall(PlaySound, queueSound, "Master", false)
+	if ok and willPlay == true then return end
+	local inviteSound = SOUNDKIT and SOUNDKIT.IG_PLAYER_INVITE or 880
+	pcall(PlaySound, inviteSound, "Master", false)
 end
 
 local function readableName(value)
