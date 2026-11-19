@@ -1,3 +1,8 @@
+WildSpark 2.2.53
+- Load WildInfo's missing Respawn.lua module so local and shared spawn estimates can appear in creature tooltips.
+- Add release-package checks that require the respawn observer in both the TOC and ZIP.
+- Package workflow verification passed; live in-game timer display was not available for verification.
+
 WildSpark 2.2.52
 - Play a numeric battleground queue-pop sound kit for incoming WildGroups invites, with Blizzard's standard group-invite cue as a fallback.
 - Fix the silent invite sound caused by passing a text name to PlaySound instead of a numeric sound-kit ID.

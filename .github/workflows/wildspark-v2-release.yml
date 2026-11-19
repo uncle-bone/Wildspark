@@ -110,6 +110,7 @@ jobs:
           grep -Fqx 'Modules\WildMaps\Core\Lens.lua' "$MAIN_TOC"
           grep -Fqx 'Modules\WildMaps\Core\Engine.lua' "$MAIN_TOC"
           grep -Fqx 'Modules\WildMaps\UI\Triggers.lua' "$MAIN_TOC"
+          grep -Fqx 'Modules\WildDrops\Respawn.lua' "$MAIN_TOC"
           if grep -q 'WildPvP' "$MAIN_TOC"; then
             echo "WildPvP is archived and must not load in the active addon."
             exit 1
@@ -127,6 +128,7 @@ jobs:
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildMaps/Core/Lens.lua$'
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildMaps/Core/Engine.lua$'
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildMaps/UI/Triggers.lua$'
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildDrops/Respawn.lua$'
           if unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -qE '^WildSpark/Modules/WildPvP'; then
             echo "Archived WildPvP source must not be packaged in the active addon."
             exit 1
