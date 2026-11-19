@@ -1256,7 +1256,9 @@ local function CreateWindow()
 	window = CreateFrame("Frame", "LeashHelperFrame", UIParent)
 	window:SetSize(260, 36)
 	window:SetPoint(db.point or "CENTER", UIParent, db.point or "CENTER", db.x or 0, db.y or 180)
-	window:SetFrameStrata("HIGH")
+	-- Keep the timer visible over the world, but below ordinary dialogs such as
+	-- the Auction House and Blizzard Settings panels.
+	window:SetFrameStrata("MEDIUM")
 	window:SetClampedToScreen(true)
 	window:EnableMouse(true)
 	window:SetMovable(true)
