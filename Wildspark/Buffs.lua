@@ -335,7 +335,16 @@ holder:SetClampedToScreen(true)
 -- off inside dungeons/raids and rested city/inn areas unless each option is turned off
 local function PausedHere()
   if not ForeverBuffs_DB then return false end
-  if ForeverBuffs_DB.cityOff ~= false and IsResting and IsResting() then return true end
+  if ForeverBuffs_DB.cityOff ~= false then
+    if IsResting and IsResting() then return true end
+    -- A city/sanctuary is not always reported as a rested area by every client zone.
+    -- Use the Forever 1.60.1 PvP-zone API as a second city signal.
+    local getZoneInfo = C_PvP and C_PvP.GetZonePVPInfo or GetZonePVPInfo
+    if type(getZoneInfo) == "function" then
+      local ok, pvpType = pcall(getZoneInfo)
+      if ok and pvpType == "sanctuary" then return true end
+    end
+  end
   if ForeverBuffs_DB.instanceOff ~= false then
     local inInst, kind = IsInInstance()
     if inInst and (kind == "party" or kind == "raid") then return true end
@@ -614,6 +623,19 @@ holder:SetScript("OnUpdate", function(_, dt)
   if t < 0.25 then return end
   t = 0
 
+  -- The visibility frame should already be hidden in paused areas. Keep the scan itself
+  -- guarded as well, so a missed zone/resting event can never keep polling nearby players.
+  if PausedHere() then
+    SetGlow(false)
+    if not InCombatLockdown() then
+      cur.guid, cur.buff, cur.spellID, cur.saying = nil, nil, nil, nil
+      btn:SetAttribute("type", nil)
+      btn:SetAttribute("macrotext", nil)
+      UpdateVisibility()
+    end
+    return
+  end
+
   if InCombatLockdown() then
     SetGlow(false)
     moreText:SetText("")
@@ -844,7 +866,7 @@ local function OpenOptions()
       ForeverBuffs_DB.instanceOff = v
       UpdateVisibility()
     end)
-  Check("Pause in cities and inns (rested areas)",
+  Check("Pause in cities, inns, and sanctuaries",
     function() return ForeverBuffs_DB.cityOff ~= false end,
     function(v)
       if InCombatLockdown() then print("WildBuffs: not in combat.") return end
@@ -1058,6 +1080,8 @@ ev:RegisterEvent("UI_ERROR_MESSAGE")
 ev:RegisterEvent("PLAYER_REGEN_ENABLED")
 ev:RegisterEvent("PLAYER_ENTERING_WORLD")
 ev:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+ev:RegisterEvent("ZONE_CHANGED")
+ev:RegisterEvent("ZONE_CHANGED_INDOORS")
 ev:RegisterEvent("PLAYER_UPDATE_RESTING")
 ev:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
 ev:SetScript("OnEvent", function(_, event, a1, a2, a3)
@@ -1091,7 +1115,8 @@ ev:SetScript("OnEvent", function(_, event, a1, a2, a3)
     UpdateVisibility()
     ApplyBinding()
 
-  elseif event == "PLAYER_ENTERING_WORLD" or event == "ZONE_CHANGED_NEW_AREA" or event == "PLAYER_UPDATE_RESTING" then
+  elseif event == "PLAYER_ENTERING_WORLD" or event == "ZONE_CHANGED_NEW_AREA"
+      or event == "ZONE_CHANGED" or event == "ZONE_CHANGED_INDOORS" or event == "PLAYER_UPDATE_RESTING" then
     if ForeverBuffs_DB then UpdateVisibility() end
 
   elseif event == "PLAYER_REGEN_ENABLED" then

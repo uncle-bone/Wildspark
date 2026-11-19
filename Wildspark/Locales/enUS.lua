@@ -17,7 +17,7 @@ L.FORMAT_RANGE = "%d yd"
 L.CONFIRM = "Confirm?"       -- sur un bouton qui attend un second geste
 
 L.WILDMAPS_TAB = "WildMaps"
-L.WILDMAPS_NOTE = "WildMaps enlarges the current minimap in place. It does not open the World Map. Use the button on this page or the small magnifier beside the minimap; drag the enlarged map to move it. Hold Ctrl and drag the magnifier to move it around the minimap."
+L.WILDMAPS_NOTE = "WildMaps includes a movable minimap lens and a separate resizable dungeon atlas. The atlas shows full dungeon floor maps, boss locations and a best-effort player position when the game provides coordinates."
 L.WILDMAPS_ENABLED = "Enable WildMaps"
 L.WILDMAPS_ENABLED_TIP = "Show the WildMaps magnifier and allow the minimap lens to open."
 L.WILDMAPS_OPEN = "Open minimap lens"
@@ -36,6 +36,8 @@ L.WILDMAPS_HIDE_GATHERING = "Hide herb and ore tracking while open"
 L.WILDMAPS_HIDE_GATHERING_TIP = "Temporarily turn off Find Herbs and Find Minerals while the lens is open, then restore your previous tracking."
 L.WILDMAPS_RESET_POSITIONS = "Reset map and magnifier positions"
 L.WILDMAPS_RESET_POSITIONS_TIP = "Move the enlarged minimap and the magnifier button back to their default positions."
+L.WILDMAPS_ATLAS_OPEN = "Open dungeon atlas"
+L.WILDMAPS_ATLAS_OPEN_TIP = "Browse full dungeon maps and floors in a separate movable, resizable window. Mouse wheel zooms the map; drag to pan. Shift-click to place a personal marker."
 
 -- Mots de commande propres � cette langue -> nom anglais de la commande. Les noms anglais
 -- r�pondent partout ; les accents sont facultatifs.

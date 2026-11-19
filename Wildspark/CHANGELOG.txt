@@ -1,3 +1,10 @@
+WildSpark 2.2.55
+- Add a separate movable, resizable WildMaps dungeon atlas with full dungeon floor maps, wheel zoom, map panning, floor selection, approximate boss markers, live player coordinates when supplied by the client, and personal map markers.
+- Keep the existing minimap lens independent from the dungeon atlas; neither feature opens the Blizzard World Map.
+- Bundle attributed map tiles, dungeon/floor data, boss point data, and the upstream map license and credits.
+- Add a WildMaps settings-page button to open the dungeon atlas.
+- Pause WildBuffs scanning in sanctuary zones as well as rested areas, add a defensive scan-loop guard, and refresh the pause state on zone and indoor transitions.
+
 WildSpark 2.2.54
 - Lower the WildSpark leash/proc timer frame from HIGH to MEDIUM strata so it stays beneath standard dialogs, including the Auction House and WoW Settings.
 - Package workflow verification passed; live-client overlay ordering was not available for verification.

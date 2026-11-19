@@ -780,7 +780,7 @@ local function CreateMenu()
 	-- WildMaps: Quantum Dungeon Tools' Minimap Lens integrated as a WildSpark module.
 	page = pages.wildmaps
 	if page and ns.WildMaps and ns.WildMapsUI and ns.WildMapsTriggers then
-		column = NewCard(page, 0, 0, page:GetWidth(), 344, "WILDMAPS_TAB")
+		column = NewCard(page, 0, 0, page:GetWidth(), 390, "WILDMAPS_TAB")
 		local note = column.parent:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
 		note:SetPoint("TOPLEFT", column.x, column.y)
 		note:SetWidth(column.width)
@@ -806,6 +806,12 @@ local function CreateMenu()
 			refreshModuleButton()
 		end, 200)
 		toggleLens:SetPoint("TOPLEFT", column.x, column.y)
+		column.y = column.y - 34
+		local openAtlas = AddButton(column.parent, "WILDMAPS_ATLAS_OPEN", function()
+			if ns.WildMapsDungeonUI then ns.WildMapsDungeonUI:Open() end
+		end, 220)
+		openAtlas:SetPoint("TOPLEFT", column.x, column.y)
+		SetTooltip(openAtlas, "WILDMAPS_ATLAS_OPEN")
 		column.y = column.y - 34
 		refreshers[#refreshers + 1] = refreshModuleButton
 		ns.WildMapsUI:OnChange(refreshModuleButton)
