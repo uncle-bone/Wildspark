@@ -1,0 +1,6 @@
+WildMaps Minimap Lens source attribution
+
+Integrated from Quantum Dungeon Tools v0.1.0-beta.3, modules/MinimapLens, by Alberto Gomez.
+Upstream project: https://github.com/bettogamer/QuantumDungeonTools
+
+The Minimap Lens source was adapted for WildSpark's module settings, menu, lifecycle and localization. The previous WildMaps dungeon catalog source remains in ../../../archive/WildMaps.
