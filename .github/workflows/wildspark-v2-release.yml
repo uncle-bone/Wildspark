@@ -66,7 +66,6 @@ jobs:
           unzip -q "$RUNNER_TEMP/QuestieDB.zip" -d "$RUNNER_TEMP/questiedb-package"
           QIE_DIR="$RUNNER_TEMP/questiedb-package/QuestieDB"
           test -f "$QIE_DIR/QuestieDB_Forever.toc"
-          test -f "$QIE_DIR/QuestieDB_Camelot.toc"
           if [ ! -f "$QIE_DIR/LICENSE.md" ]; then
             test -f "$QIE_DIR/gpl-3.0.md"
             cp "$QIE_DIR/gpl-3.0.md" "$QIE_DIR/LICENSE.md"
