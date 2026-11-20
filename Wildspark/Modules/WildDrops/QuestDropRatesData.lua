@@ -1,9 +1,12 @@
--- Adapted static quest-objective drop data from QuestDropRates v1.3.1 (MIT).
+-- Adapted static quest-objective drop data from QuestDropRates v1.3.3 (MIT).
 -- Source table retained with its embedded per-record source data.
 local _, addonNS = ...
 local ns = addonNS.WildDropsCore or {}
 addonNS.WildDropsCore = ns
-local QDR = {}QDR.StaticItemsByName = {
+-- Adapted static quest-objective drop data from QuestDropRates v1.3.3 (MIT).
+-- Source table retained with its embedded per-record source data.
+local QDR = {}
+QDR.StaticItemsByName = {
     ["99-year-old port"] = { rate = 100, bestMob = "Mad Magglish", sources = { { mob = "Mad Magglish", rate = 100 } } },
     ["a bloodstained envelope"] = { rate = 1, bestMob = "Flameshocker", sources = { { mob = "Flameshocker", rate = 1 }, { mob = "Ghoul Berserker", rate = 1 }, { mob = "Skeletal Shocktrooper", rate = 1 }, { mob = "Spectral Soldier", rate = 1 } } },
     ["a careworn note"] = { rate = 1, bestMob = "Flameshocker", sources = { { mob = "Flameshocker", rate = 1 }, { mob = "Ghoul Berserker", rate = 1 }, { mob = "Skeletal Shocktrooper", rate = 1 }, { mob = "Spectral Soldier", rate = 1 } } },
@@ -1531,4 +1534,3 @@ local QDR = {}QDR.StaticItemsByName = {
     ["zulian coin"] = { rate = 5, bestMob = "Atal'ai Mistress", sources = { { mob = "Atal'ai Mistress", rate = 5 }, { mob = "Gurubashi Axe Thrower", rate = 5 }, { mob = "Gurubashi Bat Rider", rate = 5 }, { mob = "Gurubashi Berserker", rate = 5 }, { mob = "Gurubashi Blood Drinker", rate = 5 }, { mob = "Gurubashi Champion", rate = 5 } } },
 }
 ns.QuestDropRatesByName = QDR.StaticItemsByName
-

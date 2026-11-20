@@ -24,12 +24,20 @@ local function QuestDropRate(itemID, npcID, itemName, npcName)
     local wanted = NormalizeName(npcName)
     for _, source in ipairs(entry.sources or {}) do
         if NormalizeName(source.mob) == wanted and type(source.rate) == "number" and source.rate > 0 then
-            return source.rate
+            return source.rate, "Legacy QuestDropRates"
         end
     end
     if NormalizeName(entry.bestMob) == wanted and type(entry.rate) == "number" and entry.rate > 0 then
-        return entry.rate
+        return entry.rate, "Legacy QuestDropRates"
     end
+end
+
+local function QuestDropDataRates(itemID)
+    local stub = _G.LibStub
+    local lib = stub and stub.GetLibrary and SafeCall(stub.GetLibrary, stub, "QuestDropData-1.0", true)
+    if not lib or type(lib.GetItemRates) ~= "function" then return end
+    local rates, source = SafeCall(lib.GetItemRates, lib, itemID)
+    if type(rates) == "table" then return rates, source or "Forever" end
 end
 
 local function AddItemQuest(itemQuests, itemID, questID, questName, kind, requirements)
@@ -108,11 +116,19 @@ ns.OnLogin(function()
 
     local function AddItemSources(itemID, questID, questName)
         local sourceNPCs, rates = {}, {}
+        local foreverRates, foreverSource = QuestDropDataRates(itemID)
         local itemEntity = questieDB and questieDB.Item
         local itemName = itemEntity and SafeCall(itemEntity.Get, itemID, "name") or ns.Items[itemID]
         local npcIDs = itemEntity and SafeCall(itemEntity.Get, itemID, "npcDrops")
         if type(npcIDs) == "table" then
             for _, npcID in pairs(npcIDs) do
+                npcID = tonumber(npcID)
+                if npcID then sourceNPCs[npcID] = true end
+            end
+        end
+
+        if foreverRates then
+            for npcID in pairs(foreverRates) do
                 npcID = tonumber(npcID)
                 if npcID then sourceNPCs[npcID] = true end
             end
@@ -126,24 +142,34 @@ ns.OnLogin(function()
                 if npcID then
                     sourceNPCs[npcID] = true
                     if type(source.percent) == "number" and source.percent ~= 0 then
-                        rates[npcID] = { percent = math.abs(source.percent), questOnly = source.questOnly }
+                        rates[npcID] = { percent = math.abs(source.percent), questOnly = source.questOnly, rateSource = "Classic reference" }
                     end
                 end
             end
         end
 
         for npcID in pairs(sourceNPCs) do
-            local rateInfo = rates[npcID]
+            local rateInfo
+            if foreverRates then
+                local percent = tonumber(foreverRates[npcID])
+                rateInfo = {
+                    percent = percent and percent > 0 and percent or nil,
+                    rateSource = foreverSource,
+                    explicitUnknown = not (percent and percent > 0),
+                }
+            else
+                rateInfo = rates[npcID]
+            end
             if not rateInfo then
                 local percent, questOnly = SafeCall(questDB.GetDropRate, questDB, itemID, npcID)
                 if type(percent) == "number" and percent > 0 then
-                    rateInfo = { percent = math.abs(percent), questOnly = questOnly }
+                    rateInfo = { percent = math.abs(percent), questOnly = questOnly, rateSource = "Classic reference" }
                 end
             end
-            if not rateInfo then
+            if not rateInfo or (not rateInfo.explicitUnknown and not rateInfo.percent) then
                 local npcName = itemEntity and SafeCall(questieDB.Npc.Get, npcID, "name")
-                local percent = QuestDropRate(itemID, npcID, itemName, npcName)
-                if percent then rateInfo = { percent = percent } end
+                local percent, rateSource = QuestDropRate(itemID, npcID, itemName, npcName)
+                if percent then rateInfo = { percent = percent, rateSource = rateSource } end
             end
 
             local quests = itemQuests[itemID]
@@ -171,10 +197,15 @@ ns.OnLogin(function()
                             requiredLevel = info.requiredLevel,
                             percent = rateInfo and rateInfo.percent or nil,
                             questOnly = rateInfo and rateInfo.questOnly or false,
+                            rateSource = rateInfo and rateInfo.rateSource,
                         }
                     elseif rateInfo and rateInfo.percent then
                         npcRows[recordKey].percent = rateInfo.percent
                         npcRows[recordKey].questOnly = rateInfo.questOnly or false
+                        npcRows[recordKey].rateSource = rateInfo.rateSource
+                    elseif rateInfo and rateInfo.explicitUnknown then
+                        npcRows[recordKey].percent = nil
+                        npcRows[recordKey].rateSource = rateInfo.rateSource
                     end
                 end
             end

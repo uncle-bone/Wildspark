@@ -47,14 +47,14 @@ jobs:
           test -f "$QDB/LICENSE"
           mkdir -p dist/stage/WildSpark/Libs/QuestDB
           cp -a "$QDB/." dist/stage/WildSpark/Libs/QuestDB/
-          curl --fail --location --retry 3 --output "$RUNNER_TEMP/QuestieDB.zip" "https://www.curseforge.com/api/v1/mods/1696795/files/9602575/download"
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/QuestieDB.zip" "https://www.curseforge.com/api/v1/mods/1696795/files/9687647/download"
           mkdir -p "$RUNNER_TEMP/qie"
           unzip -q "$RUNNER_TEMP/QuestieDB.zip" -d "$RUNNER_TEMP/qie"
           QIE="$RUNNER_TEMP/qie/QuestieDB"
           test -f "$QIE/QuestieDB_Forever.toc"
           test -f "$QIE/QuestieDB_Camelot.toc"
           test -f "$QIE/LICENSE.md"
-          grep -q '^## Version: 1.1.1$' "$QIE/QuestieDB_Forever.toc"
+          grep -q '^## Version: 1.1.3$' "$QIE/QuestieDB_Forever.toc"
           mkdir -p dist/stage/WildSpark/Libs/QuestieDB
           cp -a "$QIE/." dist/stage/WildSpark/Libs/QuestieDB/
           MAIN_TOC="dist/stage/WildSpark/WildSpark.toc"

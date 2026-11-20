@@ -370,7 +370,7 @@ local function HookFilterMenu()
     local function Add(tag, key)
         Menu.ModifyMenu(tag, function(_, root)
             root:CreateDivider()
-            root:CreateTitle("WildFire Kit")
+            root:CreateTitle("Camping Kit")
             root:CreateCheckbox("Camps", function() return Settings()[key] ~= false end, function()
                 local kit = ns.kit
                 if not kit then return end

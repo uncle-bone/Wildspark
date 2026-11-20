@@ -1,7 +1,7 @@
 local addonName, ns = ...
 
 ---------------------------------------------------------------------------
--- Sharing camps with other WildFire Kit users.
+-- Sharing camps with other Camping Kit users.
 --
 -- While you're at a camp, the kit tells other kit users where it is and
 -- what's at it, over a hidden chat channel of its own (addon messages only,
@@ -44,11 +44,18 @@ local Net = {}
 ns.CampNet = Net
 
 local PREFIX = "CampingKit"
-local CHANNEL = "CampingKitNet"
+-- The one channel every kit user shared up to 1.10. Left on login now:
+-- with thousands of users it was full, and most of what it carried was
+-- other zones' and layers' camps the map never shows.
+local OLD_CHANNEL = "CampingKitNet"
 local VERSION = 2
 local FIRE_LIFE = 600     -- seconds a campfire burns
 local STILL_THERE = 90    -- a camp someone's still at lives at least this long past their last word
-local HEARTBEAT = 60      -- while at a camp, say so this often
+local HEARTBEAT = 60      -- while at a camp, say so this often ...
+local HEARTBEAT_JITTER = 15 -- ... give or take, so a camp's kit users don't all speak at once
+local QUIET_AFTER = 2     -- heard this many others at your camp within a HEARTBEAT: your heartbeat isn't needed
+local CHANGE_DELAY = 2    -- seconds before telling others what changed at your camp ...
+local CHANGE_JITTER = 6   -- ... plus up to this; if someone else says it first, you don't
 local RANGE = 100         -- yards Campfire Nearby reaches from its fire (about; measured on the beta)
 local SAME_FIRE = 50      -- yards: camps whose fires are this close (same layer and continent) are one camp
 local SAMPLE = 5          -- seconds between position samples while at a camp
@@ -269,7 +276,9 @@ local function Merge(r)
     end
     f.est[r.from] = e
     SetCentre(f)
-    return Fold(f)
+    f = Fold(f)
+    if f.mine then Net.HeardAtMine(f, r) end
+    return f
 end
 
 local function Prune()
@@ -299,6 +308,14 @@ end
 -- The channel
 ---------------------------------------------------------------------------
 
+local function Enabled()
+    local kit = ns.kit
+    local camps = kit and kit.db and kit.db.campShare ~= false
+    local wildInfo = ns.WildDropsCore
+    local respawns = wildInfo and wildInfo.IsRespawnSharingEnabled and wildInfo.IsRespawnSharingEnabled()
+    return camps or respawns
+end
+
 local function CampSharingEnabled()
     local kit = ns.kit
     return kit and kit.db and kit.db.campShare ~= false
@@ -309,36 +326,70 @@ local function RespawnSharingEnabled()
     return wildInfo and wildInfo.IsRespawnSharingEnabled and wildInfo.IsRespawnSharingEnabled()
 end
 
-local function Enabled()
-    return CampSharingEnabled() or RespawnSharingEnabled()
+-- Hidden addon channels the kit looks after: the zone channels here, and
+-- HappyCamper (CampOthers.lua) when Happy Camper itself isn't installed.
+--
+-- Busy custom channels turn players away (the join is answered with
+-- NOT_ALLOWED_IN_CHANNEL) and the game says nothing in chat. Up to 1.10 the
+-- kit never noticed: it tried once at login and stayed off the network all
+-- session. Now each channel has a state, a refused join is retried after
+-- REFUSED_WAIT, and /ck net shows it all.
+--
+-- Manners: join late (the channel list has held still STABLE seconds and
+-- the game's own channels are in, so General and Trade have their numbers
+-- first), never in an instance (no camps there), hidden from every chat
+-- window, never moved. (C_ChatInfo.SwapChatChannelsByChannelIndex can taint the chat
+-- window under the secret-value rules, so it's no longer used.)
+
+local STABLE = 5           -- seconds the channel list must hold still before joining
+local JOIN_CHECK = 5       -- seconds after a join to see whether it took
+local REFUSED_WAIT = 600   -- seconds before trying again after being turned away
+local WORLD_WAIT = 60      -- seconds to wait for the game's own channels before joining anyway
+local REFUSALS = { NOT_ALLOWED_IN_CHANNEL = true, WRONG_PASSWORD = true, BANNED = true }
+
+local chans = {}           -- [name] = channel state (Net.ManageChannel)
+local current              -- this zone's channel name (zone channels, below)
+local previous = {}        -- [name] = GetTime() to leave it: the zone you just left
+local listSig, listSince   -- the channel list, and since when it's held still
+local worldWaitFrom        -- when the kit started waiting for the game's own channels
+
+local function ChannelNumber(name)
+    local id = GetChannelName and GetChannelName(name) or 0
+    if U.Sealed(id) then return nil end
+    return (id and id ~= 0) and id or nil
 end
 
-local channelID
-local function ChannelID()
-    if not channelID or channelID == 0 then
-        channelID = GetChannelName and GetChannelName(CHANNEL) or 0
-    end
-    return channelID ~= 0 and channelID or nil
-end
 
--- Keep it out of every chat window: it only carries addon messages.
-local function HideChannel()
+local function HideFromChat(name)
     if not ChatFrame_RemoveChannel then return end
     for i = 1, (NUM_CHAT_WINDOWS or 10) do
         local cf = _G["ChatFrame" .. i]
-        if cf then pcall(ChatFrame_RemoveChannel, cf, CHANNEL) end
+        if cf then pcall(ChatFrame_RemoveChannel, cf, name) end
     end
 end
 
--- The kit's channel must always sit behind the game's own channels, or it
--- takes General's /1 (or Trade's /2) and players can't talk there. The game
--- hands a new channel the lowest free number, so if the kit joins before
--- General does it gets slot 1. Built-in channels are found by category, never
--- by name, so this works in every game language and wherever the player has
--- moved them.
+local function InInstance()
+    local inside = IsInInstance and IsInInstance()
+    return inside and true or false
+end
+
+-- The channel list: how many you're in, the numbers taken, and a signature
+-- to tell when it changes.
+local function ChannelList()
+    local taken, names = {}, {}
+    if GetChannelList then
+        local list = { GetChannelList() }
+        for i = 1, #list, 3 do
+            if type(list[i]) == "number" then taken[list[i]] = true end
+            names[#names + 1] = tostring(list[i]) .. tostring(list[i + 1])
+        end
+    end
+    return #names, taken, table.concat(names, ",")
+end
 
 -- Highest number held by a built-in world/zone channel (General, Trade,
--- LocalDefense...), 0 if none are joined yet, nil if we can't tell.
+-- LocalDefense...), 0 if none are joined yet, nil if we can't tell. Found by
+-- category, never by name, so this works in every game language.
 local function LastWorldSlot()
     if not (GetNumDisplayChannels and GetChannelDisplayInfo) then return nil end
     local last = 0
@@ -356,94 +407,245 @@ function Net.WorldChannelsIn()
     return LastWorldSlot() ~= 0
 end
 
--- If a hidden channel sits in front of a built-in one, move it to the back.
--- Swapping keeps everyone else's numbers in order; leaving and rejoining
--- wouldn't help, since a rejoin takes the same (lowest free) number again.
-local fixing = false
-local function ChannelNumber(name)
-    local id = GetChannelName and GetChannelName(name) or 0
-    return id ~= 0 and id or nil
-end
-
+-- Kept for WildSpark's optional Happy Camper bridge. New Camping Kit never
+-- moves channels because that can taint chat; external channels need no move.
 function Net.StepBehindWorld(name)
-    if fixing then return end
-    local last = LastWorldSlot()
-    local id = ChannelNumber(name)
-    if not (last and id and id < last) then return end
-    local swap = C_ChatInfo and C_ChatInfo.SwapChatChannelsByChannelIndex
-    fixing = true
-    if swap then
-        for _ = 1, 10 do
-            if not (id and id < last) then break end
-            if not pcall(swap, id, id + 1) then break end
-            channelID = nil
-            local now = ChannelNumber(name)
-            if now == id then break end -- swap didn't take
-            id = now
-        end
-    end
-    channelID = nil
-    id = ChannelNumber(name)
-    if id and id < last then
-        -- No way to move it: give the slot back to the game's channels rather
-        -- than keep General's number. It's back at the next login.
-        if LeaveChannelByName then pcall(LeaveChannelByName, name) end
-        channelID = nil
-    end
-    fixing = false
+    if name then HideFromChat(name) end
 end
 
-local function MoveBehindWorld() Net.StepBehindWorld(CHANNEL) end
-
-local function JoinChannel()
-    if not Enabled() then return end
-    if not ChannelID() and JoinTemporaryChannel then
-        pcall(JoinTemporaryChannel, CHANNEL)
-        channelID = nil
+-- Why a join can't happen yet, or nil if it can.
+local function NotYet(t)
+    if InInstance() then return "in an instance" end
+    if not listSince or t - listSince < STABLE then return "waiting for the channel list to settle" end
+    local count, taken = ChannelList()
+    if count >= (MAX_WOW_CHAT_CHANNELS or 20) then return "no free chat channels" end
+    if LastWorldSlot() == 0 then
+        worldWaitFrom = worldWaitFrom or t
+        -- Some places never join them; after a while the kit joins anyway.
+        if t - worldWaitFrom < WORLD_WAIT then return "waiting for General and Trade" end
+    else
+        worldWaitFrom = nil
     end
-    MoveBehindWorld()
-    HideChannel()
+    return nil
 end
 
--- Join once the game's own channels are in. Some places (instances, some
--- cities) never join them; after a minute the kit joins anyway, and
--- MoveBehindWorld steps it back if General turns up later.
-local function JoinWhenSafe(tries)
-    tries = tries or 0
-    if not Enabled() then return end
-    if LastWorldSlot() == 0 and tries < 30 and C_Timer then
-        C_Timer.After(2, function() JoinWhenSafe(tries + 1) end)
+local function Leave(c)
+    if ChannelNumber(c.name) and LeaveChannelByName then pcall(LeaveChannelByName, c.name) end
+    c.joinAt = nil
+end
+
+local function TickChannel(c, t)
+    local id = ChannelNumber(c.name)
+    if not c.want() then
+        if id and c.ours then Leave(c) end
+        c.ours, c.joinAt, c.state = nil, nil, "off"
         return
     end
-    JoinChannel()
+    if id then
+        if c.joinAt or not c.ours then HideFromChat(c.name) end
+        c.ours, c.joinAt = true, nil
+        if c.state ~= "in" then c.state, c.since = "in", t end
+        return
+    end
+    if c.ours and c.state == "in" then c.state = "dropped" end
+    if c.joinAt then
+        if t - c.joinAt < JOIN_CHECK then return end
+        -- The join didn't take: turned away (or a notice we didn't recognise).
+        c.joinAt, c.refusedUntil, c.refusals = nil, t + REFUSED_WAIT, c.refusals + 1
+        c.state = "turned away"
+        return
+    end
+    if t < c.refusedUntil then return end
+    local why = NotYet(t)
+    if why then
+        c.state = why
+        return
+    end
+    if JoinTemporaryChannel then
+        pcall(JoinTemporaryChannel, c.name)
+        c.joinAt, c.state = t, "joining"
+    end
 end
 
-local function LeaveChannel()
-    if ChannelID() and LeaveChannelByName then pcall(LeaveChannelByName, CHANNEL) end
-    channelID = nil
+-- Look after a hidden channel: want() says whether it should be joined.
+function Net.ManageChannel(name, want)
+    chans[name] = { name = name, want = want, state = "off", refusedUntil = 0, refusals = 0, sent = 0, heard = 0 }
+    return chans[name]
 end
 
+-- A setting changed: try again now rather than waiting out a refusal.
+function Net.RetryChannel(name)
+    local c = chans[name]
+    if c then c.refusedUntil = 0 end
+end
+
+-- Once a second.
+local function TickChannels()
+    local t = GetTime()
+    local _, _, sig = ChannelList()
+    if sig ~= listSig then listSig, listSince = sig, t end
+    for name, c in pairs(chans) do
+        TickChannel(c, t)
+        -- A zone channel you've moved on from, left: forget it.
+        if c.zone and c.state == "off" and not ChannelNumber(name) then chans[name] = nil end
+    end
+end
+
+-- A channel notice: a refusal of one of ours means wait before trying again.
+local function OnNotice(text, channel, base)
+    if U.Sealed(text) or U.Sealed(channel) or U.Sealed(base) or not REFUSALS[text] then return end
+    for name, c in pairs(chans) do
+        if base == name or (type(channel) == "string" and channel:find(name, 1, true)) then
+            c.joinAt, c.refusedUntil, c.refusals = nil, GetTime() + REFUSED_WAIT, c.refusals + 1
+            c.state = "turned away (" .. text .. ")"
+        end
+    end
+end
+
+-- Messages sent and heard per minute on each channel (for /ck net).
+local function Roll(c)
+    local minute = math.floor(GetTime() / 60)
+    if c.minute ~= minute then
+        local prev = c.minute == minute - 1
+        c.lastSent, c.lastHeard = prev and c.sent or 0, prev and c.heard or 0
+        c.minute, c.sent, c.heard = minute, 0, 0
+    end
+end
+
+function Net.CountTraffic(name, sent)
+    local c = chans[name]
+    if not c then return end
+    Roll(c)
+    if sent then c.sent = c.sent + 1 else c.heard = c.heard + 1 end
+end
+
+function Net.ChannelStatus()
+    local lines, t, names = {}, GetTime(), {}
+    if not Enabled() then
+        lines[#lines + 1] = "Camp sharing is off."
+    elseif not current then
+        lines[#lines + 1] = layer and "No zone channel here (an instance, or no zone)."
+            or "No zone channel yet: your layer isn't known (look at or target any NPC)."
+    else
+        lines[#lines + 1] = "This zone's channel: " .. current
+    end
+    for name in pairs(chans) do names[#names + 1] = name end
+    table.sort(names)
+    for _, name in ipairs(names) do
+        local c = chans[name]
+        local state = c.state
+        if state:find("^turned away") then
+            state = ("%s, trying again in %d min"):format(state, math.max(1, math.ceil((c.refusedUntil - t) / 60)))
+        end
+        local role = c.zone and (name == current and " (this zone)" or " (zone you left)") or ""
+        lines[#lines + 1] = ("%s%s: %s%s"):format(name, role, state,
+            c.refusals > 0 and (" (turned away %d times this session)"):format(c.refusals) or "")
+        Roll(c)
+        lines[#lines + 1] = ("  last minute: %d sent, %d heard"):format(c.lastSent or 0, c.lastHeard or 0)
+    end
+    return lines
+end
+
+---------------------------------------------------------------------------
+-- Zone channels (1.11)
+--
+-- One channel per faction, continent, layer and zone, e.g. CKH1L618Z1411 for
+-- Horde, Kalimdor, layer 618, Durotar. The map only ever shows camps in your
+-- zone, on your layer, for your faction, so that's all a channel needs to
+-- carry: a few dozen kit users instead of thousands, and nothing to forward
+-- between channels.
+--
+-- Moving on (new zone, new layer) joins the new channel and keeps the old
+-- one ZONE_GRACE longer, for camps just over a border and for bouncing
+-- between zones; at most two kit channels at once. No channel while your
+-- layer isn't known (the kit doesn't send then either).
+---------------------------------------------------------------------------
+
+local ZONE_GRACE = 120  -- seconds an old zone's channel is kept
+local ZONE_SETTLE = 10  -- seconds in a new zone (off a flight path) before switching
+local pending, pendingSince
+
+local function ZoneOf(map)
+    return map and ns.CampMap and ns.CampMap.ZoneOf and ns.CampMap.ZoneOf(map) or map
+end
+
+local function ZoneChannelName()
+    if not Enabled() or not layer then return nil end
+    local here = Net.Here()
+    if not here or here.cont ~= layerContinent then return nil end
+    local zone = ZoneOf(here.map)
+    local side = UnitFactionGroup and UnitFactionGroup("player")
+    side = side == "Horde" and "H" or (side == "Alliance" and "A" or nil)
+    if not (zone and side) then return nil end
+    return ("CK%s%dL%sZ%d"):format(side, here.cont, layer, zone)
+end
+
+local function AddZoneChannel(name)
+    if chans[name] then return end
+    local c = Net.ManageChannel(name, function()
+        return Enabled() and (name == current or (previous[name] or 0) > GetTime())
+    end)
+    c.zone = true
+end
+
+-- Once a second, before the channels tick.
+local function TickZone()
+    local want = ZoneChannelName()
+    if want == current then
+        pending = nil
+        return
+    end
+    -- Don't join every zone a flight passes over, or one you clip for a moment.
+    if current and want then
+        if UnitOnTaxi and UnitOnTaxi("player") then return end
+        if want ~= pending then pending, pendingSince = want, GetTime() end
+        if GetTime() - pendingSince < ZONE_SETTLE then return end
+    end
+    pending = nil
+    wipe(previous) -- only the zone you just left stays
+    if current then previous[current] = GetTime() + ZONE_GRACE end
+    current = want
+    if want then
+        previous[want] = nil
+        AddZoneChannel(want)
+    end
+end
+
+-- Where to send: this zone's channel, or the one you just left while the new
+-- one is still joining.
+local function SendChannel()
+    local id = current and ChannelNumber(current)
+    if id then return id, current end
+    local best, bestUntil
+    for name, untilT in pairs(previous) do
+        if untilT > GetTime() and ChannelNumber(name) and (not bestUntil or untilT > bestUntil) then best, bestUntil = name, untilT end
+    end
+    if best then return ChannelNumber(best), best end
+end
+
+-- 1.10's shared channel: leave it once if it's still joined (e.g. a /reload
+-- straight after updating).
+local leftOld = false
+local function LeaveOldChannel()
+    if leftOld then return end
+    leftOld = true
+    if ChannelNumber(OLD_CHANNEL) and LeaveChannelByName then pcall(LeaveChannelByName, OLD_CHANNEL) end
+end
+
+function Net.ZoneChannel() return current end
 local function Faction()
     local f = UnitFactionGroup and UnitFactionGroup("player")
     return f == "Horde" and "H" or (f == "Alliance" and "A" or "N")
 end
 
 local function Send(msg)
-    local id = ChannelID()
+    local id, name = SendChannel()
     if not id then return end
     local send = C_ChatInfo and C_ChatInfo.SendAddonMessage or SendAddonMessage
-    if send then pcall(send, PREFIX, msg, "CHANNEL", id) end
-end
-
--- Share a confirmed NPC respawn observation over the same hidden addon channel as camp data.
-function Net.ShareRespawnSample(npcID, seconds, bucket)
-    if not RespawnSharingEnabled() then return false end
-    npcID, seconds, bucket = tonumber(npcID), tonumber(seconds), tonumber(bucket)
-    if not npcID or npcID < 1 or npcID > 999999999
-        or not seconds or seconds < 10 or seconds > 604800
-        or not bucket or bucket < 1 then return false end
-    Send(("R|1|%d|%d|%d"):format(math.floor(npcID), math.floor(seconds + 0.5), math.floor(bucket)))
-    return true
+    if send then
+        pcall(send, PREFIX, msg, "CHANNEL", id)
+        Net.CountTraffic(name, true)
+    end
 end
 
 -- F|version|faction|layer|continent|wx|wy|map|mx|my|tier|full|started|spell,spell,...|want,want,...|wantsAt|exact|samples|violet
@@ -500,21 +702,26 @@ local function IsMe(sender)
     return sender == me or (Ambiguate and Ambiguate(sender or "", "none") == UnitName("player"))
 end
 
-local function OnMessage(prefix, msg, _, sender)
+local function OnMessage(prefix, msg, _, sender, target, _, _, channelName)
     if prefix ~= PREFIX or not Enabled() or IsMe(sender) then return end
     if U.Sealed(msg) or type(msg) ~= "string" then return end
-    local senderName = Ambiguate and Ambiguate(sender or "", "short") or sender
+    local heardOn = current
+    for _, n in ipairs({ target, channelName }) do
+        if type(n) == "string" and not U.Sealed(n) and chans[n] then heardOn = n end
+    end
+    if heardOn then Net.CountTraffic(heardOn, false) end
     if msg:sub(1, 2) == "R|" then
         if not RespawnSharingEnabled() then return end
         local version, npcID, seconds, bucket = msg:match("^R|(%d+)|(%d+)|(%d+)|(%d+)$")
         local wildInfo = ns.WildDropsCore
         if version == "1" and wildInfo and wildInfo.ReceiveSharedRespawn then
+            local senderName = Ambiguate and Ambiguate(sender or "", "short") or sender
             wildInfo.ReceiveSharedRespawn(tonumber(npcID), tonumber(seconds), tonumber(bucket), senderName)
         end
         return
     end
     if not CampSharingEnabled() then return end
-    local r = Decode(msg, senderName)
+    local r = Decode(msg, Ambiguate and Ambiguate(sender, "short") or sender)
     if not r or not r.from then return end
     Merge(r)
     if ns.CampMap then ns.CampMap.Refresh() end
@@ -567,12 +774,84 @@ local function MyEstimate(f)
     return { wx = f.ax / f.walked, wy = f.ay / f.walked, n = 1 }
 end
 
-local function SendMine()
-    sendQueued = false
+-- Keeping the channel quiet: busy channels turn players away. Everyone at a
+-- camp used to speak every minute and after every change, so a camp of 30
+-- kit users sent 30 messages a minute, and 30 more each time an object went
+-- down. Now:
+--   * a change is told after a random few seconds, and not at all if someone
+--     else at the camp has already said the same (Net.HeardAtMine);
+--   * the heartbeat is skipped when QUIET_AFTER others at the camp have
+--     spoken within a heartbeat, unless your word is the one fixing its spot;
+--   * a new spot you know (built, cooking range, announced) always goes out.
+-- Estimates others sent stay with the camp until they report another, so a
+-- quiet kit user's earlier estimate still counts.
+
+local changeAt = 0  -- GetTime() of the last change at your camp still to tell
+
+-- Others at your camp who've spoken lately, and whether they said everything
+-- you'd say about what's there.
+local function SameSpells(a, b)
+    if #a ~= #b then return false end
+    local seen = {}
+    for _, s in ipairs(a) do seen[s] = true end
+    for _, s in ipairs(b) do if not seen[s] then return false end end
+    return true
+end
+
+function Net.HeardAtMine(f, r)
+    local t = GetTime()
+    f.heard = f.heard or {}
+    f.heard[r.from] = t
+    if (r.tier or 0) >= (f.tier or 0) and SameSpells(r.spells, f.spells) and (r.wantsAt or 0) >= (f.wantsAt or 0)
+        and (r.violet or not f.violet) then
+        f.echoAt = t
+    end
+end
+
+local function OthersHeard(f)
+    local n, t = 0, GetTime()
+    for _, at in pairs(f.heard or {}) do
+        if t - at <= HEARTBEAT then n = n + 1 end
+    end
+    return n
+end
+
+-- Your word is the one fixing the camp's spot.
+local function MySpotCounts(f)
+    local e = f.est[ME]
+    return e and (e.exact or e.cooked or e.pinned) and true or false
+end
+
+local nextBeat = HEARTBEAT + math.random(0, HEARTBEAT_JITTER)
+
+-- WildInfo shares confirmed local respawn observations over this hidden
+-- channel. The message is isolated from camp records by its R| prefix.
+function Net.ShareRespawnSample(npcID, seconds, bucket)
+    if not RespawnSharingEnabled() then return false end
+    npcID, seconds, bucket = tonumber(npcID), tonumber(seconds), tonumber(bucket)
+    if not npcID or npcID < 1 or npcID > 999999999
+        or not seconds or seconds < 10 or seconds > 604800
+        or not bucket or bucket < 1 then return false end
+    Send(("R|1|%d|%d|%d"):format(math.floor(npcID), math.floor(seconds + 0.5), math.floor(bucket)))
+    return true
+end
+
+-- why: "spot" (always), "change", "settled" or "heartbeat".
+local function SendMine(why)
+    if why == "change" then sendQueued = false end
     if not (mine and CampSharingEnabled() and layer and Settled(mine)) then return end
+    if why == "change" and (mine.echoAt or 0) >= changeAt then return end -- someone else said it
+    if why == "heartbeat" or why == "settled" then
+        nextBeat = HEARTBEAT + math.random(0, HEARTBEAT_JITTER)
+        if OthersHeard(mine) >= QUIET_AFTER and not MySpotCounts(mine) then
+            sentAt = GetTime()
+            return
+        end
+    end
     sentAt = GetTime()
     Send(Encode(mine, mine.est[ME]))
 end
+local function SendSpot() SendMine("spot") end
 
 -- A position sample while you're at your camp.
 local function Sample(here)
@@ -643,7 +922,7 @@ function Net.CheckCooking()
     SetCentre(mine)
     Fold(mine)
     if first then
-        if C_Timer then C_Timer.After(0, SendMine) else SendMine() end
+        if C_Timer then C_Timer.After(0, SendSpot) else SendSpot() end
         if ns.CampMap then ns.CampMap.Refresh() end
     end
 end
@@ -766,10 +1045,12 @@ function Net.CampChanged()
     if s.started and (not mine.started or s.started < mine.started) then mine.started = s.started end
     mine.from = UnitName("player")
     if ns.CampMap then ns.CampMap.Refresh() end
-    -- Tell the others shortly (a few changes in a row go as one message).
+    -- Tell the others shortly (a few changes in a row go as one message),
+    -- unless someone else at the camp says it first.
+    changeAt = GetTime()
     if not sendQueued and C_Timer then
         sendQueued = true
-        C_Timer.After(math.max(2, 5 - (GetTime() - sentAt)), SendMine)
+        C_Timer.After(CHANGE_DELAY + math.random() * CHANGE_JITTER, function() SendMine("change") end)
     end
 end
 
@@ -785,11 +1066,10 @@ ev:SetScript("OnEvent", function(_, event, ...)
         if C_ChatInfo and C_ChatInfo.RegisterAddonMessagePrefix then C_ChatInfo.RegisterAddonMessagePrefix(PREFIX) end
         for _, e in ipairs({ "CHAT_MSG_ADDON", "NAME_PLATE_UNIT_ADDED", "PLAYER_TARGET_CHANGED",
             "UPDATE_MOUSEOVER_UNIT", "PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA", "GROUP_JOINED",
-            "GROUP_LEFT", "CHANNEL_UI_UPDATE" }) do
+            "GROUP_LEFT", "CHANNEL_UI_UPDATE", "CHAT_MSG_CHANNEL_NOTICE", "CHAT_MSG_CHANNEL_NOTICE_USER" }) do
             pcall(ev.RegisterEvent, ev, e)
         end
-        -- Join after the game's own channels, so General and Trade keep their numbers.
-        if C_Timer then C_Timer.After(5, JoinWhenSafe) else JoinChannel() end
+        -- Channels are joined from OnUpdate (TickChannels), once it's safe.
     elseif event == "CHAT_MSG_ADDON" then
         OnMessage(...)
     elseif event == "NAME_PLATE_UNIT_ADDED" then
@@ -799,11 +1079,13 @@ ev:SetScript("OnEvent", function(_, event, ...)
     elseif event == "UPDATE_MOUSEOVER_UNIT" then
         SeeUnit("mouseover")
     elseif event == "CHANNEL_UI_UPDATE" then
-        channelID = nil
-        -- A built-in channel may have joined behind ours (e.g. General after
-        -- leaving an instance): step back so it keeps its number.
-        if Enabled() then MoveBehindWorld() end
-        HideChannel()
+        for name, c in pairs(chans) do
+            if c.ours and ChannelNumber(name) then HideFromChat(name) end
+        end
+    elseif event == "CHAT_MSG_CHANNEL_NOTICE" or event == "CHAT_MSG_CHANNEL_NOTICE_USER" then
+        -- text, ..., channel string (4th), ..., channel base name (9th)
+        local text, _, _, channel, _, _, _, _, base = ...
+        OnNotice(text, channel, base)
     elseif event == "PLAYER_ENTERING_WORLD" or event == "GROUP_JOINED" or event == "GROUP_LEFT" then
         -- A loading screen or a group change can put you on another layer.
         ForgetLayer()
@@ -819,6 +1101,9 @@ ev:SetScript("OnUpdate", function(_, elapsed)
     cookTick = cookTick + elapsed
     if cookTick >= 1 then
         cookTick = 0
+        LeaveOldChannel()
+        TickZone()
+        TickChannels()
         Net.CheckCooking()
     end
     heartbeat = heartbeat + elapsed
@@ -829,9 +1114,12 @@ ev:SetScript("OnUpdate", function(_, elapsed)
     Sample(Net.Here())
     if ns.CampMap then ns.CampMap.Refresh() end
     -- Just settled: say so now. Otherwise now and then.
-    if (Settled(mine) and not wasSettled) or GetTime() - sentAt >= HEARTBEAT then
+    if Settled(mine) and not wasSettled then
         mine.last = Now()
-        SendMine()
+        SendMine("settled")
+    elseif GetTime() - sentAt >= nextBeat then
+        mine.last = Now()
+        SendMine("heartbeat")
     end
 end)
 
@@ -850,7 +1138,7 @@ function Net.PinSpot()
         mine.est[ME] = MyEstimate(mine)
         SetCentre(mine)
         Fold(mine)
-        if C_Timer then C_Timer.After(0, SendMine) else SendMine() end
+        if C_Timer then C_Timer.After(0, SendSpot) else SendSpot() end
         if ns.CampMap then ns.CampMap.Refresh() end
     end
     if not (mine.map and mine.mx and mine.my) then return nil end
@@ -861,7 +1149,7 @@ end
 -- player has moved it: the built-in channel with zone channel ID 1, else the
 -- lowest-numbered built-in world channel, else /1. Never the kit's own channel.
 function Net.GeneralChannel()
-    local own = ChannelID()
+    local own = SendChannel()
     local lowest
     if GetNumDisplayChannels and GetChannelDisplayInfo then
         for i = 1, GetNumDisplayChannels() or 0 do
@@ -882,6 +1170,8 @@ end
 
 -- The share setting changed.
 function Net.Apply()
-    if Enabled() then JoinChannel() else LeaveChannel() end
+    if current then Net.RetryChannel(current) end
+    TickZone()
+    TickChannels()
     if ns.CampMap then ns.CampMap.Refresh() end
 end

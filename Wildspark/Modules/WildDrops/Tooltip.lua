@@ -85,12 +85,17 @@ local function AddQuestObjectiveDrops(rows, order, npcID)
         if id and showRecord then
             local row = rows[id]
             if not row then
-                row = { itemID = id, percent = record.percent, questOnly = record.questOnly, quests = {}, questSet = {} }
+                row = { itemID = id, percent = record.percent, rateSource = record.rateSource, questOnly = record.questOnly, quests = {}, questSet = {} }
                 rows[id] = row
                 order[#order + 1] = id
+            elseif record.rateSource and record.rateSource ~= "Classic reference" then
+                row.percent = record.percent
+                row.rateSource = record.rateSource
             elseif not row.percent and record.percent then
                 row.percent = record.percent
+                row.rateSource = record.rateSource or row.rateSource
             end
+            if record.rateSource and record.rateSource ~= "Classic reference" then row.rateSource = record.rateSource end
             if record.questOnly then row.questOnly = true end
             local name = questRelevant and record.questName
             if type(name) == "string" and name ~= "" and not row.questSet[name] then
@@ -114,7 +119,7 @@ local function AddTooltipLines(tooltip, guid)
             if id then
                 local row = rows[id]
                 if not row then
-                    row = { itemID = id, percent = drop[3], quests = {}, questSet = {} }
+                row = { itemID = id, percent = drop[3], quests = {}, questSet = {} }
                     rows[id] = row
                     order[#order + 1] = id
                 elseif not row.percent and drop[3] then
@@ -143,6 +148,12 @@ local function AddTooltipLines(tooltip, guid)
             elseif estimate and estimate.samples then
                 chance = string.format("|cff808080rate unknown; local sample %d/%d looted corpses|r", estimate.samples, estimate.needed or 10)
             end
+        end
+        if row.rateSource and row.rateSource ~= "Classic reference" then
+            local label = row.percent and (row.rateSource .. " data") or ("no " .. row.rateSource .. " rate")
+            chance = chance .. " |cff808080(" .. label .. ")|r"
+        elseif row.rateSource == "Classic reference" then
+            chance = chance .. " |cffffc857(Classic reference)|r"
         end
         if row.questOnly then chance = chance .. " |cff808080(quest-only)|r" end
         tooltip:AddDoubleLine(ns.GetItemName(row.itemID), chance)

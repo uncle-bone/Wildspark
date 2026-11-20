@@ -4,3 +4,6 @@ Integrated from Quantum Dungeon Tools v0.1.0-beta.3, modules/MinimapLens, by Alb
 Upstream project: https://github.com/bettogamer/QuantumDungeonTools
 
 The Minimap Lens source was adapted for WildSpark's module settings, menu, lifecycle and localization. The previous WildMaps dungeon catalog source remains in ../../../archive/WildMaps.
+
+
+Forever Minimap Target v1.0.1, by Ashtar Senior, adapted and modified for WildSpark's integrated WildMaps target/focus tracking settings. See ForeverMinimapTarget-ATTRIBUTION.md and ForeverMinimapTarget-LICENSE.txt.

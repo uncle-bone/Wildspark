@@ -1740,7 +1740,6 @@ function handlers.PLAYER_LOGIN()
 	if db.enabled then ApplyCVars() end
 	if ns.WildMapsUI then ns.WildMapsUI:Init() end
 	if ns.WildMapsTriggers then ns.WildMapsTriggers:Init() end
-	if ns.WildMapsDungeonUI then ns.WildMapsDungeonUI:Init() end
 	if ns.AutoPushSpells then ns.AutoPushSpells.Scan(true) end
 end
 

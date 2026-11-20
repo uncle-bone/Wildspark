@@ -1,14 +1,24 @@
 # WildSpark
 
-> **[Download WildSpark 2.2.54 - Latest Published Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.54/WildSpark-2.2.54.zip)**
+> **[Download WildSpark 2.2.63 - Latest Published Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.63/WildSpark-2.2.63.zip)**
 
-**Latest published stable release: 2.2.54 for WoW Forever 1.60.1.** The package contains one install folder, `WildSpark`. QuestDB, QuestieDB Forever data, and WildInfo's quest-drop datasets are embedded and load automatically with WildSpark.
+**Latest published stable release: 2.2.63 for WoW Forever 1.60.1.** The package contains one install folder, `WildSpark`. QuestDB, QuestieDB Forever data, and WildInfo's quest-drop datasets are embedded and load automatically with WildSpark.
 
-WildSpark is a modular WoW Forever utility suite for gathering highlights, quest-drop tooltips, buffs, creature leash tracking, WildMaps minimap lens, WildFire camping, auctions, group finding, and layer hopping.
+WildSpark is a modular WoW Forever utility suite for gathering highlights, quest-drop tooltips, buffs, creature leash tracking, the WildMaps minimap lens, WildFire camping, auctions, group finding, and layer hopping.
 
-Install the single `WildSpark` folder from the ZIP into `Interface/AddOns`. WildMaps is the integrated Minimap Lens module, based on the authorized Minimap Lens source from Quantum Dungeon Tools. The previous WildMaps dungeon-catalog implementation and WildPvP remain archived in the repository for possible future work.
+Install the single `WildSpark` folder from the ZIP into `Interface/AddOns`. WildMaps keeps the integrated Minimap Lens based on the authorized Quantum Dungeon Tools lens source. The dungeon atlas and WildGear are saved on the GitHub archive branch `archive/wildgear-2.2.59` for possible future work.
 
-WildMaps enlarges the current minimap in place and restores its original size, position, shape, tracking and zoom when closed. No live-client validation was available for this release.
+WildMaps enlarges the current minimap in place and restores its original size, position, shape, tracking and zoom when closed. The separate dungeon atlas has been removed from the active package.
+
+## What's new in 2.2.63
+
+- Add Target and Focus tracking controls to WildMaps and Blizzard's minimap tracking menu; persist each character's choices.
+- Include Forever Minimap Target v1.0.1 attribution and its GPL-3.0-or-later license.
+- Remove WildGear from the active addon while preserving its source on the GitHub archive branch.
+- Restore the WildMaps minimap-lens runtime so its magnifier and UI initialize correctly.
+- Allow WildBuffs to consider friendly targets in battlegrounds and arenas even if PvP flags have not synchronized on a PvE realm.
+- Keep the WildMaps minimap lens and settings tab; remove the dungeon atlas and tiles from the active package, with the full snapshot archived on GitHub.
+- Local package contents checked; live in-game behavior and PvP targeting were not tested.
 
 ## What's new in 2.2.54
 

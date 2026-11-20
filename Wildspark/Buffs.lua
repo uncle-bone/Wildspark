@@ -247,11 +247,20 @@ local function ChooseSpecificBuff(unit, guid, wanted, present, mineName, mineRem
   return PickRank(unit, wanted.ranks)
 end
 
-local function BasicOK(unit)
+-- Battleground and arena allies are valid WildBuffs targets even if the client's PvP flag
+-- has not updated yet on a PvE realm. Outside PvP instances, keep the safety rule that avoids
+-- flagging an unflagged character by buffing a flagged player.
+local function InPvPInstance()
+  if type(IsInInstance) ~= "function" then return false end
+  local ok, inInstance, instanceType = pcall(IsInInstance)
+  return ok and inInstance == true and (instanceType == "pvp" or instanceType == "arena")
+end
+
+local function BasicOK(unit, inPvPInstance)
   if not UnitExists(unit) or not UnitIsPlayer(unit) then return false end
   if not UnitIsFriend("player", unit) then return false end
   if UnitIsDeadOrGhost(unit) or not UnitIsConnected(unit) or not UnitIsVisible(unit) then return false end
-  if SKIP_PVP and UnitIsPVP(unit) and not UnitIsPVP("player") then return false end
+  if SKIP_PVP and not inPvPInstance and UnitIsPVP(unit) and not UnitIsPVP("player") then return false end
   return true
 end
 
@@ -266,8 +275,9 @@ local function FindTarget()
   local fUnit, fBuff, fID, count = nil, nil, nil, 0
   local byBuff = {}
   local seen, now = {}, GetTime()
+  local inPvPInstance = InPvPInstance()
   for _, unit in ipairs(UNITS) do
-    if BasicOK(unit) then
+    if BasicOK(unit, inPvPInstance) then
       local guid = UnitGUID(unit)
       if guid and not seen[guid] and not (skipUntil[guid] and skipUntil[guid] > now) then
         seen[guid] = true
@@ -1201,7 +1211,7 @@ SlashCmdList.WILDBUFFS = function(msg)
     if UnitIsDeadOrGhost(u) then say(nm .. " is dead") return end
     if not UnitIsConnected(u) then say(nm .. " is offline") return end
     if not UnitIsVisible(u) then say(nm .. " is not visible") return end
-    if SKIP_PVP and UnitIsPVP(u) and not UnitIsPVP("player") then say(nm .. " is PvP flagged and you are not") return end
+    if SKIP_PVP and not InPvPInstance() and UnitIsPVP(u) and not UnitIsPVP("player") then say(nm .. " is PvP flagged and you are not") return end
     local g = UnitGUID(u)
     if skipUntil[g] and skipUntil[g] > GetTime() then
       say(("%s is skipped for %ds (line of sight / range / low level error)"):format(nm, skipUntil[g] - GetTime())) return

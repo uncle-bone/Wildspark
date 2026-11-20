@@ -1016,14 +1016,18 @@ function Camp.Place(kit, angle)
     PlayGlide(kit)
 end
 
--- On a screen edge the camp gets a section of its own, along the edge, where
--- it doesn't get lost among the columns: right of the tent on the top or
--- bottom edge, under everything on a side edge. The campfire's name (and its
--- list button) on top, then its slots in rows of five, the announce button
--- after the last. Open in a Kit Dock box the box's other kits are beside the
--- tent, so it goes past everything the kit has open instead (see PlaceSection).
-local SECTION_GAP = 12  -- right of the tent, on the top or bottom edge
+-- On a screen edge the camp gets a section of its own, where it doesn't get
+-- lost among the columns: past everything the kit has out (under the pinned
+-- slots and timers on the top edge, over them on the bottom), centred on the
+-- tent; under everything on a side edge, from the tent's middle inward. Never
+-- beside the tent on the edge: a kit on an edge tucks half off it, and the
+-- campfire's name went with it. The campfire's name (and its list button) on
+-- top, then its slots in rows of five, the announce button after the last.
+-- Open in a Kit Dock box the box's other kits are beside the tent, so on a
+-- side edge it starts past the box instead (see PlaceSection).
+local EDGE_GAP = 16     -- past the slots on the top or bottom edge (room for their timers)
 local SIDE_GAP = 26     -- under the kit, on a side edge
+local SIDE_INSET = 4    -- on a side edge, in from the tent's middle (its outer half tucks off)
 local BOX_GAP = 12      -- past the open slots, in a Kit Dock box
 local BOX_INSET = 8     -- the box's inner edge, past the tent (Kit Core's PARKED_INSET)
 local HEADER_H = 18
@@ -1194,9 +1198,9 @@ local function PlaceSection(kit)
     local side, half = kit.edgeSide, kit:KitHalfUnits()
     local x0, y, dir
     local boxed = kit.parked and kit.open
-    local centred = boxed and Along(side)
-    if boxed then
-        -- How far the open slots and timers reach, up and down.
+    local centred = Along(side)
+    if centred or boxed then
+        -- How far the slots (pinned or open) and timers reach, up and down.
         local low, high = -half, half
         local function Reaches(f, edge)
             if f:IsShown() and not f.closing and f.placedY then
@@ -1210,14 +1214,12 @@ local function PlaceSection(kit)
             -- Under the slots (over them on the bottom edge), centred on the tent.
             local across = math.min(n, PER_COL) * step + (withChat and (CHAT_SIZE + 4) or 0)
             x0, dir = -across / 2, 1
-            y = side == "bottom" and (high + BOX_GAP + h) or (low - BOX_GAP)
+            y = side == "bottom" and (high + EDGE_GAP + h) or (low - EDGE_GAP)
         else
             -- Under the slots, starting past the box and the kits stacked in it.
             dir = side == "right" and -1 or 1
             x0, y = dir * (half + BOX_INSET / kit.db.scale), low - BOX_GAP
         end
-    elseif Along(side) then
-        x0, y, dir = half + SECTION_GAP, h / 2, 1 -- right of the tent, level with it
     else
         local low = -half
         for _, btn in pairs(kit.slots) do
@@ -1226,8 +1228,8 @@ local function PlaceSection(kit)
         for _, f in ipairs(ns.dials) do
             if f:IsShown() and f.placedY then low = math.min(low, f.placedY - ns.DIAL_EDGE / 2) end
         end
-        dir = side == "right" and -1 or 1 -- inward, from the tent's outer side
-        x0, y = -dir * half, low - SIDE_GAP
+        dir = side == "right" and -1 or 1 -- inward, from the tent's middle (the outer half tucks off)
+        x0, y = dir * SIDE_INSET, low - SIDE_GAP
     end
     if withHeader then
         -- Open: the campfire's name and list button. Closed: "Campfire...".
@@ -1288,7 +1290,7 @@ local function HookLayout(kit)
         local need
         if Along(side) then
             local left = math.max(half, dialsOn and (rd + ns.DIAL_EDGE / 2) or 0, bagOn and (rd + ns.DIAL_EDGE / 2 + 4 + self.BTN) or 0)
-            local right = math.max(w > 0 and (half + SECTION_GAP + w) or half, dialsOn and (rd + ns.DIAL_EDGE / 2) or 0)
+            local right = math.max(w / 2, dialsOn and (rd + ns.DIAL_EDGE / 2) or 0) -- (the camp: centred under it all)
             need = 2 * math.max(left, right)
         else
             local up = dialsOn and (rd + ns.DIAL_EDGE / 2) or half
@@ -1363,7 +1365,7 @@ Camp.CHANNELS = {
 Camp.CUSTOM_MAX = 150
 Camp.TOKENS = {
     { "fire", "The campfire's name." },
-    { "pin", "A map pin link to the camp, for players without WildFire Kit." },
+    { "pin", "A map pin link to the camp, for players without Camping Kit." },
     { "count", "How full the camp is, like 3/5." },
     { "objects", "What's at the camp. Shortened from the end if the message gets too long for chat." },
     { "looking", "What you're looking for (set in This campfire...)." },
@@ -1403,7 +1405,7 @@ local function Fit(build, names)
 end
 
 local function KitMessage(p)
-    local head = "WildFire Kit: " .. p.fire .. (p.pin and (" at " .. p.pin) or "")
+    local head = "Camping Kit: " .. p.fire .. (p.pin and (" at " .. p.pin) or "")
     local tail = camp.fire and (" (" .. p.count .. ")") or ""
     if camp.full then tail = tail .. " Full." end
     if Camp.IsViolet() then tail = tail .. " Violet Flames: 2-hour benefits." end
@@ -1500,7 +1502,7 @@ function Camp.AnnounceTip(kit)
     local names = {}
     for _, c in ipairs(Ticked(kit)) do names[#names + 1] = c.short end
     local where = #names > 0 and table.concat(names, ", ") or "nowhere yet (none ticked)"
-    GameTooltip:AddLine("Posts the campfire and what's at it, with a map pin link for players without WildFire Kit. Kit users on your layer see the camp on their map already.", 1, 1, 1, true)
+    GameTooltip:AddLine("Posts the campfire and what's at it, with a map pin link for players without Camping Kit. Kit users on your layer see the camp on their map already.", 1, 1, 1, true)
     GameTooltip:AddLine("Posts in: " .. where, 1, 0.82, 0)
     GameTooltip:AddLine("Right-click: announce settings", 0.6, 0.6, 0.6)
 end

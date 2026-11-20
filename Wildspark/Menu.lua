@@ -780,7 +780,7 @@ local function CreateMenu()
 	-- WildMaps: Quantum Dungeon Tools' Minimap Lens integrated as a WildSpark module.
 	page = pages.wildmaps
 	if page and ns.WildMaps and ns.WildMapsUI and ns.WildMapsTriggers then
-		column = NewCard(page, 0, 0, page:GetWidth(), 390, "WILDMAPS_TAB")
+		column = NewCard(page, 0, 0, page:GetWidth(), 500, "WILDMAPS_TAB")
 		local note = column.parent:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
 		note:SetPoint("TOPLEFT", column.x, column.y)
 		note:SetWidth(column.width)
@@ -807,12 +807,7 @@ local function CreateMenu()
 		end, 200)
 		toggleLens:SetPoint("TOPLEFT", column.x, column.y)
 		column.y = column.y - 34
-		local openAtlas = AddButton(column.parent, "WILDMAPS_ATLAS_OPEN", function()
-			if ns.WildMapsDungeonUI then ns.WildMapsDungeonUI:Open() end
-		end, 220)
-		openAtlas:SetPoint("TOPLEFT", column.x, column.y)
-		SetTooltip(openAtlas, "WILDMAPS_ATLAS_OPEN")
-		column.y = column.y - 34
+
 		refreshers[#refreshers + 1] = refreshModuleButton
 		ns.WildMapsUI:OnChange(refreshModuleButton)
 
@@ -860,6 +855,12 @@ local function CreateMenu()
 			lensDB().hideGathering = on
 			ns.WildMapsUI:RefreshGathering()
 		end)
+		AddCheckbox(column, "WILDMAPS_TRACK_TARGET", function() return ns.WildMapsTracking and ns.WildMapsTracking:IsEnabled("Target") end, function(on)
+			if ns.WildMapsTracking then ns.WildMapsTracking:SetEnabled("Target", on) end
+		end)
+		AddCheckbox(column, "WILDMAPS_TRACK_FOCUS", function() return ns.WildMapsTracking and ns.WildMapsTracking:IsEnabled("Focus") end, function(on)
+			if ns.WildMapsTracking then ns.WildMapsTracking:SetEnabled("Focus", on) end
+		end)
 		local resetLens = AddButton(column.parent, "WILDMAPS_RESET_POSITIONS", function()
 			ns.WildMapsUI:SetPosition(nil)
 			lensDB().buttonPos = nil
@@ -875,6 +876,7 @@ local function CreateMenu()
 		unavailable:SetWordWrap(true)
 		unavailable:SetText("WildMaps did not initialize. Check for addon errors and make sure the WildSpark package is fully updated.")
 	end
+
 
 	-- Page des objets. À gauche leur liste : tous, puis chaque catégorie.
 	page = pages.look

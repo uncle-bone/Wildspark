@@ -60,14 +60,14 @@ jobs:
           mkdir -p dist/stage/WildSpark/Libs/QuestDB
           cp -a "$QDB_DIR/." dist/stage/WildSpark/Libs/QuestDB/
 
-          curl --fail --location --retry 3 --output "$RUNNER_TEMP/QuestieDB.zip" "https://www.curseforge.com/api/v1/mods/1696795/files/9602575/download"
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/QuestieDB.zip" "https://www.curseforge.com/api/v1/mods/1696795/files/9687647/download"
           mkdir -p "$RUNNER_TEMP/questiedb-package"
           unzip -q "$RUNNER_TEMP/QuestieDB.zip" -d "$RUNNER_TEMP/questiedb-package"
           QIE_DIR="$RUNNER_TEMP/questiedb-package/QuestieDB"
           test -f "$QIE_DIR/QuestieDB_Forever.toc"
           test -f "$QIE_DIR/QuestieDB_Camelot.toc"
           test -f "$QIE_DIR/LICENSE.md"
-          grep -q '^## Version: 1.1.1$' "$QIE_DIR/QuestieDB_Forever.toc"
+          grep -q '^## Version: 1.1.3$' "$QIE_DIR/QuestieDB_Forever.toc"
           mkdir -p dist/stage/WildSpark/Libs/QuestieDB
           cp -a "$QIE_DIR/." dist/stage/WildSpark/Libs/QuestieDB/
 
@@ -110,6 +110,9 @@ jobs:
           grep -Fqx 'Modules\WildMaps\Core\Lens.lua' "$MAIN_TOC"
           grep -Fqx 'Modules\WildMaps\Core\Engine.lua' "$MAIN_TOC"
           grep -Fqx 'Modules\WildMaps\UI\Triggers.lua' "$MAIN_TOC"
+          grep -Fqx 'Modules\WildMaps\TargetTracking.lua' "$MAIN_TOC"
+          test -f Wildspark/Modules/WildMaps/ForeverMinimapTarget-LICENSE.txt
+          test -f Wildspark/Modules/WildMaps/ForeverMinimapTarget-ATTRIBUTION.md
           grep -Fqx 'Modules\WildDrops\Respawn.lua' "$MAIN_TOC"
           if grep -q 'WildPvP' "$MAIN_TOC"; then
             echo "WildPvP is archived and must not load in the active addon."
@@ -128,6 +131,16 @@ jobs:
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildMaps/Core/Lens.lua$'
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildMaps/Core/Engine.lua$'
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildMaps/UI/Triggers.lua$'
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildMaps/TargetTracking.lua$'
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildMaps/ForeverMinimapTarget-LICENSE.txt$'
+          if unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -qE '^WildSpark/Modules/WildMaps/(UI/DungeonAtlas.lua|Data/Dungeons.lua|Data/Points.lua|Media/AtlasTiles/)'; then
+            echo "The retired dungeon atlas must not be included in the active release ZIP."
+            exit 1
+          fi
+          if unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -qE '^WildSpark/Modules/WildGear/'; then
+            echo "Archived WildGear source must not be included in the active addon ZIP."
+            exit 1
+          fi
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildDrops/Respawn.lua$'
           if unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -qE '^WildSpark/Modules/WildPvP'; then
             echo "Archived WildPvP source must not be packaged in the active addon."

@@ -1,7 +1,7 @@
 local addonName, ns = ...
 
 ---------------------------------------------------------------------------
--- Kit Dock: shared by First Aid Kit, WildFire Kit and Fishing Kit.
+-- Kit Dock: shared by First Aid Kit, Camping Kit and Fishing Kit.
 --
 -- Every kit addon ships this same file. The first copy to load (or the
 -- newest version) runs; the others just pick it up, so there is nothing
@@ -3032,7 +3032,7 @@ end
 -- addon's own minimap button steps aside while this one is there.
 ---------------------------------------------------------------------------
 
-local NAMES = { fak = "First Aid Kit", ck = "WildFire Kit", fk = "Fishing Kit" }
+local NAMES = { fak = "First Aid Kit", ck = "Camping Kit", fk = "Fishing Kit" }
 
 function D.SharedMinimap() return Installed() >= 2 end
 

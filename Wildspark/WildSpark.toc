@@ -8,15 +8,15 @@
 ## Notes-esES: Hace brillar los filones, las hierbas, los objetos de misión y los cofres cuando te acercas, con varios efectos de luz a elegir, y muestra hierbas y filones en el minimapa con su propio icono (usa el soft targeting de Blizzard).
 ## Notes-esMX: Hace brillar los filones, las hierbas, los objetos de misión y los cofres cuando te acercas, con varios efectos de luz a elegir, y muestra hierbas y filones en el minimapa con su propio icono (usa el soft targeting de Blizzard).
 ## Notes-ruRU: ???????????? ?????? ????, ?????, ????????? ??????? ? ??????? ??? ??????????? ? ???, ? ??????? ???????? ????????, ? ?????????? ????? ? ???? ?? ????????? ?? ???????????? ???????? (?????????? soft targeting ?? Blizzard).
-## Version: 2.2.55
-## X-WildFireKit-Version: 1.10
+## Version: 2.2.63
+## X-WildFireKit-Version: 1.11
 ## X-WildLayer-Version: 1.9.16
 ## X-WildLayer-Display-Name: WildLayer
 ## X-WildMaps-Version: 0.2.0
 ## X-WildMaps-Display-Name: WildMaps
 ## IconTexture: Interface\AddOns\WildSpark\Media\icon.tga
 ## X-WildGroups-Version: 2.1.0
-## X-WildAuctions-Version: forever-0.8.2.1
+## X-WildAuctions-Version: forever-0.8.2
 ## AddonCompartmentFunc: Wildspark_WildGroups_OnAddonCompartmentClick
 ## AddonCompartmentFuncOnEnter: Wildspark_WildGroups_OnAddonCompartmentEnter
 ## AddonCompartmentFuncOnLeave: Wildspark_WildGroups_OnAddonCompartmentLeave
@@ -97,9 +97,7 @@ Skin.lua
 Modules\WildMaps\Core\Lens.lua
 Modules\WildMaps\Core\Engine.lua
 Modules\WildMaps\UI\Triggers.lua
-Modules\WildMaps\Data\Dungeons.lua
-Modules\WildMaps\Data\Points.lua
-Modules\WildMaps\UI\DungeonAtlas.lua
+Modules\WildMaps\TargetTracking.lua
 Menu.lua
 Preview.lua
 Modules\WildAuctionsModule.lua
@@ -143,6 +141,9 @@ LootRollMover.lua
 Modules\WildDrops\Data.lua
 Modules\WildDrops\ManualData.lua
 Modules\WildDrops\QuestDropRatesData.lua
+Modules\WildDrops\QuestDropData\LibStub.lua
+Modules\WildDrops\QuestDropData\Core.lua
+Modules\WildDrops\QuestDropData\Data.lua
 Modules\WildDrops\Core.lua
 Modules\WildDrops\RespawnData.lua
 Modules\WildDrops\Respawn.lua
@@ -150,3 +151,4 @@ Modules\WildDrops\QuestIndex.lua
 Modules\WildDrops\DropRateEstimator.lua
 Modules\WildDrops\Tooltip.lua
 Modules\WildDrops\WildDropsModule.lua
+

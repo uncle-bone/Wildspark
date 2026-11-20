@@ -1,3 +1,39 @@
+WildSpark 2.2.63 — Stable release
+- Add Forever Minimap Target's Target and Focus tracking options to WildMaps and the Blizzard minimap tracking menu.
+- Save tracking choices per character and restore them after loading screens. Target tracking defaults on; Focus follows the current game setting until changed.
+- Adapted from Forever Minimap Target v1.0.1 by Ashtar Senior under GPL-3.0-or-later; source attribution and full license are included.
+- Live in-game minimap tracking was not validated.
+
+WildSpark 2.2.62 (preview)
+- Keep WildBuffs from rejecting flagged friendly targets inside battlegrounds and arenas when the player PvP flag is delayed or unavailable. Preserve its open-world PvE flag safety check.
+- Package contents checked locally; in-game PvP targeting was not verified.
+
+WildSpark 2.2.61 (preview)
+- Restore and load WildMaps Core/Engine.lua, the live minimap-lens runtime; the atlas remains removed.
+- Fix the nil WildMapsUI error when initializing the magnifier button.
+- Package contents checked locally; live-client behavior was not tested.
+
+WildSpark 2.2.60 (preview)
+- Remove WildGear from the active addon, menu and package; preserve its complete source on the GitHub archive branch.
+- Keep the integrated WildMaps minimap lens and its settings tab; remove the dungeon atlas, its data and tiles from the active addon. The full WildMaps snapshot remains archived on GitHub.
+- Package structure checked locally; live in-game behavior was not tested.
+
+WildSpark 2.2.59
+- Fix WildGear settings opening: remove the stale update call for the removed standalone minimap-button switch and correct the switch panel height.
+- Keep WildGear's settings controls usable in the integrated WildSpark module without a separate minimap button.
+
+WildSpark 2.2.58
+- Add a searchable WildGear enhancement guide with all 178 researched Forever permanent enchant recipes, showing slot, materials, formula and Enchanting skill thresholds.
+- Add level-filtered reference lists for all 22 Forever stones and oils and 21 catalogued item modifications, plus scoped ranged-weapon upgrades.
+- Add the guide button to WildSpark's WildGear module page; no separate addon or command is required.
+- Reference data comes from current Forever catalogs and was not validated in the live game client.
+
+WildSpark 2.2.57
+- Integrate ForeverLevelingBiS 1.3.5 as WildGear in WildSpark's module tab and private module namespace.
+- Include gear scoring, item/quest/dungeon/crafting lists, comparisons, wishlists, bag marks, and character-panel features.
+- Migrate the existing ForeverLevelingBiS saved data to WildGearDB when available; do not load a second addon folder.
+- Live client loading and gameplay behavior have not been validated.
+
 WildSpark 2.2.55
 - Add a separate movable, resizable WildMaps dungeon atlas with full dungeon floor maps, wheel zoom, map panning, floor selection, approximate boss markers, live player coordinates when supplied by the client, and personal map markers.
 - Keep the existing minimap lens independent from the dungeon atlas; neither feature opens the Blizzard World Map.
@@ -282,3 +318,9 @@ WildSpark 1.5.1
 
 WildSpark 1.5.0
 - Previous WildGroups attempt used the wrong addon source and did not provide its own Looking For Group pane tab; replaced in 1.5.1.
+WildSpark 2.2.56
+- Use QuestDropRates 1.5.3's Forever per-mob quest drop rates in WildInfo, keep the 1.3.3 name table as a fallback, and embed QuestieDB Forever 1.1.3 in packaged builds.
+- Update the embedded WildFire Kit to 1.11's zone/layer/faction camp channels and quieter sharing, while keeping WildSpark's respawn sharing, Happy Camper bridge, and replacement artwork.
+- Keep WildBuffs paused in rested/sanctuary zones and instances; confirm its scan loop returns before scanning nearby players in those areas.
+- Upstream review: WildLayer 1.9.16 remains current; WildGroups 2.2.0 and auxForever 0.8.2.1 have newer code, but their changes need merges into WildSpark-specific forks before they can be safely shipped.
+- No new ordinary-mob Forever respawn timer dataset was available; the bundled CMaNGOS table remains a clearly labeled Classic reference.

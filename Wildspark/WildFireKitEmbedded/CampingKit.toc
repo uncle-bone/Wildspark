@@ -3,7 +3,7 @@
 ## Notes: A tent button with your campfire, camp objects, sleeping bag and food & drink slots around it. Timers for camp benefits and Well Fed.
 ## Author: Doug Mansell
 ## X-License: All Rights Reserved
-## Version: 1.10
+## Version: 1.11
 ## SavedVariables: CampingKitDB, KitDockDB
 ## SavedVariablesPerCharacter: CampingKitCharDB
 ## IconTexture: Interface\AddOns\WildSpark\WildFireKitEmbedded\media\tent_closed_64

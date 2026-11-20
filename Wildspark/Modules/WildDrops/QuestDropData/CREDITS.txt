@@ -1,0 +1,18 @@
+QuestDropRates
+Copyright (C) 2026 Hrafn_Studio
+
+QuestDropRates is free software: you can redistribute it and/or modify it
+under the terms of the GNU General Public License, version 3 or (at your
+option) any later version. See LICENSE.txt.
+
+Data
+----
+
+Data.lua (Libs/QuestDropData)
+    Quests, required items, the creatures that drop them, their English names
+    and spawn points per zone: generated from QuestieDB
+    (https://github.com/Questie/QuestieDB), GPL-3.0 license, WoW Forever data.
+    Drop rates: WoW Forever drop data and the kills and loot recorded by
+    QuestLuck players.
+    Item categories ("Quest Item", item class): WoW Forever client tables
+    ItemSparse and Item, read from https://wago.tools.

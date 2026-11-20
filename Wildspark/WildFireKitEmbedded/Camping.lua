@@ -1,7 +1,7 @@
 local addonName, ns = ...
 
 ---------------------------------------------------------------------------
--- WildFire Kit: a tent that opens into your camping gear.
+-- Camping Kit: a tent that opens into your camping gear.
 --
 -- Over the tent: five "your pick" slots (food, drink or a weapon buff).
 -- Under it: the Camp Benefits and Well Fed timers with the sleeping bag
@@ -1315,7 +1315,7 @@ local SNOOZES = { { 5 * 60, "5 minutes" }, { 30 * 60, "30 minutes" }, { 60 * 60,
 ns.kit = Core.NewKit({
     addon = addonName,
     key = "ck",
-    name = "WildFire Kit",
+    name = "Camping Kit",
     prefix = "CampingKit",
     color = "e0a040",
     media = MEDIA,
@@ -1408,7 +1408,8 @@ ns.kit = Core.NewKit({
     slash = { "/ck", "/campingkit" },
     bindingHeader = "CAMPINGKIT",
     helpLines = { "/ck auras - list your buffs with spell IDs", "/ck layer - which layer the kit thinks you're on",
-        "/ck object - what the game tells addons about the last object you moused over" },
+        "/ck object - what the game tells addons about the last object you moused over",
+        "/ck net - your zone's camp channel: joined or turned away, and messages a minute" },
     minimapArt = MEDIA .. "tent_closed_48",
 
     AfterBuild = function(kit)
@@ -1606,7 +1607,7 @@ ns.kit = Core.NewKit({
         S.Header("Announcing")
         S.Subheader("The announce button")
         S.Checkbox(db, "campAnnounce", "Show the announce button",
-            "The chat bubble by the camp's slots. Click it to post the camp, with a map pin link for players without WildFire Kit; right-click it to come back here. This campfire... has an Announce button either way.",
+            "The chat bubble by the camp's slots. Click it to post the camp, with a map pin link for players without Camping Kit; right-click it to come back here. This campfire... has an Announce button either way.",
             true, refresh)
         S.Subheader("Post in")
         for _, c in ipairs(ns.Camp.CHANNELS) do
@@ -1635,8 +1636,8 @@ ns.kit = Core.NewKit({
         end
         S.Header("Camps on the map")
         S.Subheader("Where camps come from")
-        S.Checkbox(db, "campShare", "Share camps with other WildFire Kit users",
-            "While you're at a camp, other WildFire Kit users on your layer see it on their map, with what's at it, and you see theirs. Sent over a hidden channel of the kit's own; nothing shows in chat. Off: you don't send or see other players' camps.",
+        S.Checkbox(db, "campShare", "Share camps with other Camping Kit users",
+            "While you're at a camp, other Camping Kit users on your layer see it on their map, with what's at it, and you see theirs. Sent over a hidden channel of the kit's own; nothing shows in chat. Off: you don't send or see other players' camps.",
             true, function() ns.CampNet.Apply() end)
         S.Checkbox(db, "campOthers", "Show camps from Happy Camper and chat",
             "Adds camps from Happy Camper's camp channel and map pins players post about a camp in chat. Listening only: the kit sends nothing there, and these camps stay on your map. Faded means it can't tell if that camp is on your layer, or it was only posted in chat or roughly placed.",
@@ -1677,6 +1678,10 @@ ns.kit = Core.NewKit({
                     tostring(f.layer), f.tier or 0, #f.spells, f.wx, f.wy, tostring(f.from), f.noFire ~= nil and " (no fire found)" or ""), true)
             end
             if n == 0 then kit:Print("  No camps known.", true) end
+            return true
+        end
+        if cmd == "net" then
+            for _, line in ipairs(ns.CampNet.ChannelStatus()) do kit:Print(line, true) end
             return true
         end
         if cmd == "object" then
