@@ -48,6 +48,7 @@ jobs:
         env:
           VERSION: ${{ steps.release.outputs.version }}
         run: |
+          set -euxo pipefail
           mkdir -p dist/stage/WildSpark
           cp -a Wildspark/. dist/stage/WildSpark/
           curl --fail --location --retry 3 --output "$RUNNER_TEMP/QuestDB.zip" "https://www.curseforge.com/api/v1/mods/1700352/files/9014639/download"
