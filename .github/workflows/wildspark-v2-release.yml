@@ -122,6 +122,10 @@ jobs:
             echo "WildPvP is archived and must not load in the active addon."
             exit 1
           fi
+          if grep -Eqi 'WildLayer|AutoLayer|LeashHelper|LeashOptions' "$MAIN_TOC"; then
+            echo "WildLayer and the Leash Timer are archived and must not load in the active addon."
+            exit 1
+          fi
           cd dist/stage
           zip -qr "../WildSpark-$VERSION.zip" WildSpark
           cd ../..
@@ -148,6 +152,10 @@ jobs:
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildDrops/Respawn.lua$'
           if unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -qE '^WildSpark/Modules/WildPvP'; then
             echo "Archived WildPvP source must not be packaged in the active addon."
+            exit 1
+          fi
+          if unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -Eqi '^WildSpark/(Modules/WildLayer|LeashHelper|LeashOptions|LEASHHELPER_LICENSE)'; then
+            echo "Archived WildLayer and Leash Timer source must not be packaged in the active addon."
             exit 1
           fi
           if unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -qE '^(WildPvP|Spy|Capping|Capping_Options|HighgroundBattlegrounds|BattleGroundEnemiesFixed)/'; then

@@ -1,3 +1,36 @@
+WildSpark 2.2.69 (stable)
+- Remove WildLayer and its layer-hop tools from the active addon; preserve the complete licensed module source in archive/WildLayer.
+- Remove the Leash Timer from the active addon and preserve its code and license in archive/WildLeashTimer. WildInfo respawn tracking now listens through WildSpark's existing core-owned nameplate and world-entry events.
+- Turn off the optional Happy Camper channel listener by default and migrate existing saves once; WildSpark's per-zone Camping Kit channel remains for its own sharing.
+- Wait for built-in game channels before joining WildSpark camping channels so they cannot take earlier channel slots. Defer leaving managed channels while combat lockdown is active.
+- Remove leftover WildLayer `layer…` channel joins once, after the game's own channels appear.
+- Package and release workflow checks passed. Live in-game behavior was not verified.
+
+WildSpark 2.2.68 (preview)
+- Add fallback hooks for the six GameTooltip aura methods, so caster details can also appear when the Forever tooltip processor does not report a UnitAura callback.
+- Restrict method-based caster lookup to the player's own aura and expose installed-method, method-call, and callback counts in `/wildbuffs caster status`.
+- Package checks passed locally; the client's new method/callback counters need in-game confirmation.
+
+WildSpark 2.2.67 (preview)
+- Retry installing WildBuffs caster tooltip details at login, world entry, and addon load, so it can hook after the Forever tooltip APIs are available.
+- Add hook and callback counters to `/wildbuffs caster status` to distinguish a missing hook from unsupported tooltip data.
+- Package checks passed locally. The client previously showed cached caster data but no tooltip callbacks; behavior needs another live-client check.
+
+WildSpark 2.2.66 (preview)
+- Integrate NewBuffWhoDis v1.0.0 as WildBuffs caster details. Hovering over an active buff shows its caster when the Forever client exposes or the module has cached the identity; commands now live under `/wildbuffs caster`.
+- Preserve DairyManilow's MIT copyright and license notice in the integrated module. No standalone NewBuffWhoDis addon folder or slash-command namespace is loaded.
+- Package checks passed locally; tooltip behavior still needs live-client verification.
+
+WildSpark 2.2.65 (preview)
+- Fix a fallback that could attach WildSpark to an unrelated visible game object such as a chair or mailbox. The fallback now requires a confirmed match with the current soft-interaction target and otherwise fails closed.
+- Keep the 2.2.64 soft-target pause for living units to reduce targetless spells selecting nearby NPCs.
+- Package checks passed locally. The client screenshot confirms the symptom can recur; this correction needs another live-client check.
+
+WildSpark 2.2.64 (preview)
+- Pause Blizzard soft-interaction targeting when WildSpark detects a living unit as the candidate, reducing the chance that targetless spells are redirected to nearby NPCs. Resume after moving four yards; the interact key may be unavailable on living units while paused.
+- Restore the original GameObject interaction-icon CVar when WildSpark closes its interaction display gate, instead of leaving the object icon enabled.
+- Bindings.xml is unchanged. Source and ZIP checks passed locally; behavior and combat CVar handling still need live-client verification.
+
 WildSpark 2.2.63 — Stable release
 - Add Forever Minimap Target's Target and Focus tracking options to WildMaps and the Blizzard minimap tracking menu.
 - Save tracking choices per character and restore them after loading screens. Target tracking defaults on; Focus follows the current game setting until changed.

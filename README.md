@@ -1,14 +1,25 @@
 # WildSpark
 
-> **[Download WildSpark 2.2.63 - Latest Published Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.63/WildSpark-2.2.63.zip)**
+> **[Download WildSpark 2.2.69 - Latest Published Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.69/WildSpark-2.2.69.zip)**
 
-**Latest published stable release: 2.2.63 for WoW Forever 1.60.1.** The package contains one install folder, `WildSpark`. QuestDB, QuestieDB Forever data, and WildInfo's quest-drop datasets are embedded and load automatically with WildSpark.
+**Latest published stable release: 2.2.69 for WoW Forever 1.60.1.** The package contains one install folder, `WildSpark`. QuestDB, QuestieDB Forever data, and WildInfo's quest-drop datasets are embedded and load automatically with WildSpark.
 
-WildSpark is a modular WoW Forever utility suite for gathering highlights, quest-drop tooltips, buffs, creature leash tracking, the WildMaps minimap lens, WildFire camping, auctions, group finding, and layer hopping.
+WildSpark is a modular WoW Forever utility suite for gathering highlights, quest-drop tooltips, buffs, the WildMaps minimap lens, WildFire camping, auctions, group finding, and WildInfo respawn estimates.
 
 Install the single `WildSpark` folder from the ZIP into `Interface/AddOns`. WildMaps keeps the integrated Minimap Lens based on the authorized Quantum Dungeon Tools lens source. The dungeon atlas and WildGear are saved on the GitHub archive branch `archive/wildgear-2.2.59` for possible future work.
 
 WildMaps enlarges the current minimap in place and restores its original size, position, shape, tracking and zoom when closed. The separate dungeon atlas has been removed from the active package.
+
+## What's new in 2.2.69
+
+- Remove WildLayer and its layer-hop tools from the active addon; preserve its licensed source in `archive/WildLayer` for possible future use.
+- Remove the Leash Timer from the active addon and archive its source and license in `archive/WildLeashTimer`.
+- Keep WildInfo respawn tracking attached to WildSpark's existing nameplate and world-entry events, without loading the leash timer.
+- Stop automatically joining the optional Happy Camper channel by default; keep the per-zone Camping Kit sharing channel available for WildSpark kit users.
+- Wait until the game's built-in chat channels are present before joining camping channels, and defer channel cleanup until combat ends.
+- Remove old WildLayer `layer…` channel joins once, after the game channels appear, so retired channels do not keep occupying slots.
+- Include the previously prepared soft-target and WildBuffs caster-detail updates; caster tooltip behavior with custom EllesmereUI aura bars remains unverified in the live client.
+- Package and GitHub workflow checks passed. Live in-game behavior was not tested.
 
 ## What's new in 2.2.63
 
@@ -149,20 +160,15 @@ WildMaps enlarges the current minimap in place and restores its original size, p
 - Show gathering icons on the minimap, learn node names and profession skill requirements, and optionally alternate herb and ore tracking.
 - Use the optional minimap ping when a new target is recognized, with separate visual and sound controls.
 - Use WildBuffs' rotating or individual spell buttons for supported classes. Buffs are cast only on click or keybind.
-- Track creature leashes with timers and combat-event details.
+- Show the caster of your own active buffs on hover when the client exposes or WildBuffs has cached that identity.
 - Use **WildFire** for camping objects, camp effects, food and Well Fed timers, camp tracking, sharing, and map pins.
 - Use **WildAuctions** for auction-house tools, including selecting bag items while the auction house is open. It does not post auctions automatically.
 - Use **WildGroups** from its own tab in Blizzard's Looking For Group pane.
-- Use **WildLayer** from its own WildSpark tab or minimap button to request layer hops. Automatic invites for people requesting your layer are off by default.
 - Use **WildInfo** to see known quest-starter and quest-objective item drop chances, plus locally or peer-learned NPC respawn estimates, when mousing over creatures. Timer sharing uses the hidden Camping Kit addon channel, not visible world-chat messages.
 - Adjust Blizzard group-loot position, scale, and spacing from WildSpark's Wild Loot Rolls tab.
 - Open settings with `/wildspark` or `/ws`.
 
 The main WildSpark minimap button is visible by default. Separate WildBuffs and WildFire buttons are hidden by default.
-
-## Layer ID note
-
-On WoW Forever, WildLayer reads the `zoneUID` field from nearby creature or vehicle GUIDs and shows the observed value as an **ID**, not an official numbered layer. The displayed ID is not used as a destination number for hop requests. If no compatible layer list is available, you can still request any layer.
 
 ## Install
 
@@ -171,3 +177,5 @@ Download the ZIP, extract it, and place the included `WildSpark` folder in the F
 ## Third-party notices
 
 WildSpark retains license and attribution files for its embedded components in their respective folders. The original Camping Kit artwork is excluded; WildFire uses replacement artwork with its own license notice. WildInfo (formerly WildDrops) is included and modified with permission from the Questionable Drops author. Its data combines QuestieDB Forever, QuestDropRates, QuestDB, Wowhead, and existing WildSpark rows. Respawn estimates use local and peer-shared observations first, then a clearly labeled Classic respawn reference table for ordinary NPCs and rares. Reference times are not verified for WoW Forever.
+
+WildBuffs caster details adapt NewBuffWhoDis v1.0.0 by DairyManilow with permission under the MIT License; its copyright and license notice are included in `Wildspark/Modules/WildBuffs/CasterInfo-LICENSE.txt`.

@@ -1181,6 +1181,10 @@ SlashCmdList.WILDBUFFS = function(msg)
     end
     if not any then print("  Nothing yet. Go make some strangers' day.") end
     return
+  elseif cmd == "caster" then
+    if _G.WildBuffsCasterInfo then _G.WildBuffsCasterInfo.Command(arg)
+    else print("WildBuffs: caster details are unavailable on this client.") end
+    return
   elseif cmd == "" or cmd == "setup" or cmd == "options" then
     OpenOptions()
     return
@@ -1262,6 +1266,6 @@ SlashCmdList.WILDBUFFS = function(msg)
     ForeverBuffs_DB.pos = nil
     holder:ClearAllPoints(); holder:SetPoint("CENTER")
   else
-    print("WildBuffs: /wildbuffs (options) | /wildbuffs why (explain target) | /wildbuffs minimap | /wildbuffs stats | /wildbuffs say on|off | /wildbuffs bind <KEY> | /wildbuffs unbind | /wildbuffs show | /wildbuffs hide | /wildbuffs reset | /wildbuffs debug")
+    print("WildBuffs: /wildbuffs (options) | /wildbuffs why (explain target) | /wildbuffs minimap | /wildbuffs stats | /wildbuffs caster status|debug|scan|last | /wildbuffs say on|off | /wildbuffs bind <KEY> | /wildbuffs unbind | /wildbuffs show | /wildbuffs hide | /wildbuffs reset | /wildbuffs debug")
   end
 end

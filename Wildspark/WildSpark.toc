@@ -8,10 +8,8 @@
 ## Notes-esES: Hace brillar los filones, las hierbas, los objetos de misión y los cofres cuando te acercas, con varios efectos de luz a elegir, y muestra hierbas y filones en el minimapa con su propio icono (usa el soft targeting de Blizzard).
 ## Notes-esMX: Hace brillar los filones, las hierbas, los objetos de misión y los cofres cuando te acercas, con varios efectos de luz a elegir, y muestra hierbas y filones en el minimapa con su propio icono (usa el soft targeting de Blizzard).
 ## Notes-ruRU: ???????????? ?????? ????, ?????, ????????? ??????? ? ??????? ??? ??????????? ? ???, ? ??????? ???????? ????????, ? ?????????? ????? ? ???? ?? ????????? ?? ???????????? ???????? (?????????? soft targeting ?? Blizzard).
-## Version: 2.2.63
+## Version: 2.2.69
 ## X-WildFireKit-Version: 1.11
-## X-WildLayer-Version: 1.9.16
-## X-WildLayer-Display-Name: WildLayer
 ## X-WildMaps-Version: 0.2.0
 ## X-WildMaps-Display-Name: WildMaps
 ## IconTexture: Interface\AddOns\WildSpark\Media\icon.tga
@@ -20,7 +18,7 @@
 ## AddonCompartmentFunc: Wildspark_WildGroups_OnAddonCompartmentClick
 ## AddonCompartmentFuncOnEnter: Wildspark_WildGroups_OnAddonCompartmentEnter
 ## AddonCompartmentFuncOnLeave: Wildspark_WildGroups_OnAddonCompartmentLeave
-## SavedVariables: WildsparkDB, LeashHelperDB, ForeverBuffs_DB, CampingKitDB, KitDockDB, WildAuctionsDB, aux, LFGForeverDB, AutoLayerDB, WildLootRollDB, WildDropsDB, WildInfoRespawnDB, WildInfoDropRatesDB
+## SavedVariables: WildsparkDB, ForeverBuffs_DB, CampingKitDB, KitDockDB, WildAuctionsDB, aux, LFGForeverDB, WildLootRollDB, WildDropsDB, WildInfoRespawnDB, WildInfoDropRatesDB
 ## SavedVariablesPerCharacter: WildsparkCharDB, ForeverBuffs_CharDB, CampingKitCharDB, LFGForeverCharDB
 ## AllowLoadGameType: mainline
 
@@ -33,9 +31,8 @@ Locales\ruRU.lua
 Effects.lua
 MinimapPing.lua
 WildSpark.lua
-LeashHelper.lua
-LeashOptions.lua
 Buffs.lua
+Modules\WildBuffs\CasterInfo.lua
 WildFireKitEmbedded\Data.lua
 WildFireKitEmbedded\Libs\KitCore\Libs\Libs.xml
 WildFireKitEmbedded\Libs\KitDock\KitDock.lua
@@ -124,18 +121,6 @@ Modules\WildGroups\core\minimap.lua
 Modules\WildGroups\core\slash.lua
 Modules\WildGroupsNotifications.lua
 Modules\WildGroupsAdapter.lua
-Modules\WildLayer\Modules\Compat.lua
-Modules\WildLayer\embeds.xml
-Modules\WildLayer\Modules\Libs\AutoLayerUtil.lua
-Modules\WildLayer\AutoLayer.lua
-Modules\WildLayer\Modules\Options\AutoLayerOptions.lua
-Modules\WildLayer\Modules\Options\AutoLayerOptionsDefaults.lua
-Modules\WildLayer\Modules\Migration.lua
-Modules\WildLayer\Modules\Configuration.lua
-Modules\WildLayer\Modules\Layering.lua
-Modules\WildLayer\Modules\Detection.lua
-Modules\WildLayer\Modules\Hopping.lua
-Modules\WildLayerAdapter.lua
 LootRollMover.lua
 
 Modules\WildDrops\Data.lua

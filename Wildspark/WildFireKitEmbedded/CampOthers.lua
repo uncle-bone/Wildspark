@@ -446,6 +446,17 @@ local function InChannel()
     return id and id ~= 0
 end
 
+local pendingLeave = false
+local retireChannelThisSession = false
+local retiredChannelSeen = false
+
+local function LeaveIfSafe()
+    if not InChannel() then pendingLeave = false; return end
+    if InCombatLockdown and InCombatLockdown() then pendingLeave = true; return end
+    pendingLeave = false
+    if LeaveChannelByName then pcall(LeaveChannelByName, CHANNEL) end
+end
+
 -- Happy Camper looks after its channel itself when it's installed.
 local function Tidy()
     if HappyCamperLoaded() or not InChannel() then return end
@@ -459,12 +470,11 @@ local function Tidy()
 end
 
 -- Joins once the game's own channels are in, so they keep their numbers.
-local function JoinWhenSafe(tries)
-    tries = tries or 0
+local function JoinWhenSafe()
     if not Enabled() or HappyCamperLoaded() then return end
     if not InChannel() then
-        if ns.CampNet.WorldChannelsIn() == false and tries < 30 and C_Timer then
-            C_Timer.After(2, function() JoinWhenSafe(tries + 1) end)
+        if not ns.CampNet.WorldChannelsIn() then
+            if C_Timer then C_Timer.After(2, JoinWhenSafe) end
             return
         end
         if JoinTemporaryChannel then pcall(JoinTemporaryChannel, CHANNEL) end
@@ -477,7 +487,7 @@ function Others.Apply()
     if Enabled() then
         JoinWhenSafe()
     else
-        if not HappyCamperLoaded() and InChannel() and LeaveChannelByName then pcall(LeaveChannelByName, CHANNEL) end
+        if not HappyCamperLoaded() then LeaveIfSafe() end
         wipe(Others.camps)
     end
     if ns.CampMap then ns.CampMap.Refresh() end
@@ -495,6 +505,18 @@ for _, e in ipairs(CHAT_EVENTS) do isChat[e] = true end
 
 ev:SetScript("OnEvent", function(_, event, a, b, c, d)
     if event == "PLAYER_LOGIN" then
+        -- The compatibility channel is optional and starts off. Migrate existing
+        -- saves once so old defaults do not keep adding a second camping channel.
+        local kit = ns.kit
+        if kit and kit.db and kit.db.wildsparkCampOthersMigration ~= 1 then
+            kit.db.campOthers = false
+            kit.db.wildsparkCampOthersMigration = 1
+            retireChannelThisSession = true
+        end
+        if retireChannelThisSession and not HappyCamperLoaded() and InChannel() then
+            retiredChannelSeen = true
+            LeaveIfSafe()
+        end
         if C_ChatInfo and C_ChatInfo.RegisterAddonMessagePrefix then C_ChatInfo.RegisterAddonMessagePrefix(PREFIX) end
         ev:RegisterEvent("CHAT_MSG_ADDON")
         ev:RegisterEvent("CHANNEL_UI_UPDATE")
@@ -504,6 +526,15 @@ ev:SetScript("OnEvent", function(_, event, a, b, c, d)
     elseif event == "CHAT_MSG_ADDON" then
         OnAddonMessage(a, b, c, d)
     elseif event == "CHANNEL_UI_UPDATE" then
+        if retireChannelThisSession and not HappyCamperLoaded() then
+            if InChannel() then
+                retiredChannelSeen = true
+                LeaveIfSafe()
+                return
+            elseif retiredChannelSeen then
+                retireChannelThisSession = false
+            end
+        end
         if Enabled() then Tidy() end
     elseif isChat[event] then
         OnChat(a, b)
@@ -516,5 +547,6 @@ ev:SetScript("OnUpdate", function(_, elapsed)
     acc = acc + elapsed
     if acc < 1 then return end
     acc = 0
+    if pendingLeave then LeaveIfSafe() end
     Others.CheckNoFire()
 end)

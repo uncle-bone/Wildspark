@@ -50,7 +50,7 @@ local NODES_ICON = "INV_Misc_Map_01"
 local NODES_HEIGHT = 320      -- hauteur des deux panneaux de la page de la minimap
 
 -- Titre de chaque page sous la barre de titre ; celle des objets compose le sien (LookTitle)
-local PAGE_TITLES = { nodes = "NODES_PAGE", wildmaps = "WILDMAPS_TAB", settings = "SETTINGS", leash = "LEASH_SETTINGS", buffs = "BUFFS_TAB", camping = "CAMPING_TAB", auctions = "WILDAUCTIONS_TAB", groups = "WILDGROUPS_TAB", layers = "WILDLAYER_TAB", info = "WILDINFO_TAB", lootrolls = "WILDLOOTROLLS_TAB" }
+local PAGE_TITLES = { nodes = "NODES_PAGE", wildmaps = "WILDMAPS_TAB", settings = "SETTINGS", buffs = "BUFFS_TAB", camping = "CAMPING_TAB", auctions = "WILDAUCTIONS_TAB", groups = "WILDGROUPS_TAB", info = "WILDINFO_TAB", lootrolls = "WILDLOOTROLLS_TAB" }
 
 -- Choix d'un réglage : { valeur, nom du texte } ; ou { valeur, nil, libellé } quand le libellé
 -- ne se traduit pas
@@ -727,12 +727,10 @@ local function CreateMenu()
 	if ns.UpdateNodes then list[#list + 1] = { "nodes", ICONS .. NODES_ICON, "NODES_PAGE" } end
 	list[#list + 1] = { "wildmaps", ICONS .. "INV_Misc_Spyglass_01", "WILDMAPS_TAB" }
 	list[#list + 1] = { "settings", ICONS .. SETTINGS_ICON, "SETTINGS" }
-	if _G.LeashHelper then list[#list + 1] = { "leash", ICONS .. "Ability_Hunter_BeastTaming", "LEASH_SETTINGS" } end
 	if _G.WildBuffs then list[#list + 1] = { "buffs", ICONS .. "Spell_Holy_GreaterHeal", "BUFFS_TAB" } end
 	if ns.kit then list[#list + 1] = { "camping", MEDIA .. "WildFireIcon", "CAMPING_TAB" } end
 	if _G.WildAuctions then list[#list + 1] = { "auctions", ICONS .. "INV_Misc_Coin_01", "WILDAUCTIONS_TAB" } end
 	if ns.WildGroups then list[#list + 1] = { "groups", ICONS .. "INV_SideTab_GroupFinder_c60", "WILDGROUPS_TAB" } end
-	if ns.WildLayer then list[#list + 1] = { "layers", MEDIA .. "WildLayerIcon", "WILDLAYER_TAB" } end
 	if ns.WildInfo then list[#list + 1] = { "info", MEDIA .. "icon.tga", "WILDINFO_TAB" } end
 	if ns.WildLootRolls then list[#list + 1] = { "lootrolls", ICONS .. "INV_Misc_Dice_02", "WILDLOOTROLLS_TAB" } end
 	frame.tabs = {}
@@ -938,35 +936,6 @@ local function CreateMenu()
 	refreshers[#refreshers + 1] = function() textSize:SetAvailable(ns.GetOption("showName", ScopeCategory())) end
 	AddFont(column, "FONT", 200)
 
-	-- Dedicated leash page: full upstream settings plus the common controls in Wildspark.
-	page = pages.leash
-	if page and _G.LeashHelper then
-		local leash = _G.LeashHelper
-		column = NewCard(page, 0, 0, page:GetWidth(), height, "LEASH_CARD")
-		local note = column.parent:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-		note:SetPoint("TOPLEFT", column.x, column.y)
-		note:SetWidth(column.width)
-		note:SetJustifyH("LEFT")
-		note:SetWordWrap(true)
-		note:SetText(L.LEASH_NOTE)
-		column.y = column.y - note:GetStringHeight() - 12
-		AddCheckbox(column, "LEASH_ENABLED", function() return leash.db and leash.db.enabled end, function(value)
-			if leash.db then leash.db.enabled = value; leash.OnOptionChanged("enabled") end
-		end)
-		AddCheckbox(column, "LEASH_DUNGEONS", function() return leash.db and leash.db.disableInDungeons end, function(value)
-			if leash.db then leash.db.disableInDungeons = value; leash.OnOptionChanged("disableInDungeons") end
-		end)
-		AddCheckbox(column, "LEASH_LOCKED", function() return leash.db and leash.db.locked end, function(value)
-			if leash.db then leash.db.locked = value; leash.OnOptionChanged("locked") end
-		end)
-		local fullOptions = AddButton(column.parent, "LEASH_OPEN_OPTIONS", function() leash.ToggleOptions() end, 230)
-		fullOptions:SetPoint("TOPLEFT", column.x, column.y - 4)
-		local preview = AddButton(column.parent, "LEASH_PREVIEW", function() leash.StartTest() end, 150)
-		preview:SetPoint("LEFT", fullOptions, "RIGHT", 8, 0)
-		local debug = AddButton(column.parent, "LEASH_DEBUG", function() leash.ShowDebug() end, 150)
-		debug:SetPoint("LEFT", preview, "RIGHT", 8, 0)
-	end
-
 	-- WildBuffs lives on its own Wildspark page. The compact controls are here;
 	-- its full class-specific setup and key binding remain available from the button.
 	page = pages.buffs
@@ -1067,26 +1036,6 @@ local function CreateMenu()
 		AddCheckbox(column, "WILDGROUPS_ENABLED", function() return groups.IsEnabled() end, function(value) groups.SetEnabled(value) end)
 		local open = AddButton(column.parent, "WILDGROUPS_OPEN", function() groups.Open() end, 190)
 		open:SetPoint("TOPLEFT", column.x, column.y - 4)
-	end
-
-	page = pages.layers
-	if page and ns.WildLayer then
-		local layers = ns.WildLayer
-		column = NewCard(page, 0, 0, page:GetWidth(), height, "WILDLAYER_TAB")
-		local note = column.parent:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-		note:SetPoint("TOPLEFT", column.x, column.y)
-		note:SetWidth(column.width)
-		note:SetJustifyH("LEFT")
-		note:SetWordWrap(true)
-		note:SetText(L.WILDLAYER_NOTE)
-		column.y = column.y - note:GetStringHeight() - 12
-		AddCheckbox(column, "WILDLAYER_ENABLED", function() return layers.IsEnabled() end, function(v) layers.SetEnabled(v) end)
-		AddCheckbox(column, "WILDLAYER_AUTO_INVITES", function() return layers.GetAutoInvites() end, function(v) layers.SetAutoInvites(v) end)
-		AddCheckbox(column, "WILDLAYER_MINIMAP_BUTTON", function() return layers.GetMinimapButton() end, function(v) layers.SetMinimapButton(v) end)
-		local open = AddButton(column.parent, "WILDLAYER_OPEN", function() layers.Open() end, 190)
-		open:SetPoint("TOPLEFT", column.x, column.y - 4)
-		local advanced = AddButton(column.parent, "WILDLAYER_SETTINGS", function() layers.OpenSettings() end, 190)
-		advanced:SetPoint("LEFT", open, "RIGHT", 8, 0)
 	end
 
 
@@ -1394,18 +1343,9 @@ local function RegisterOptionsPage()
 		if SettingsPanel and HideUIPanel then pcall(HideUIPanel, SettingsPanel) end
 		if not (menu and menu:IsShown()) then ns.ToggleMenu() end
 	end)
-	local openLeash = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
-	openLeash:SetSize(240, 22)
-	openLeash:SetPoint("TOPLEFT", 16, -104)
-	Caption(openLeash, "OPTIONS_OPEN_LEASH")
-	openLeash:SetScript("OnClick", function()
-		PlaySound(SOUNDKIT.IG_MAINMENU_OPTION)
-		if SettingsPanel and HideUIPanel then pcall(HideUIPanel, SettingsPanel) end
-		if _G.LeashHelper and _G.LeashHelper.ToggleOptions then _G.LeashHelper.ToggleOptions() end
-	end)
 	local openBuffs = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
 	openBuffs:SetSize(240, 22)
-	openBuffs:SetPoint("TOPLEFT", 16, -136)
+	openBuffs:SetPoint("TOPLEFT", 16, -104)
 	Caption(openBuffs, "OPTIONS_OPEN_BUFFS")
 	openBuffs:SetScript("OnClick", function()
 		PlaySound(SOUNDKIT.IG_MAINMENU_OPTION)
@@ -1414,7 +1354,7 @@ local function RegisterOptionsPage()
 	end)
 	local openCamping = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
 	openCamping:SetSize(240, 22)
-	openCamping:SetPoint("TOPLEFT", 16, -168)
+	openCamping:SetPoint("TOPLEFT", 16, -136)
 	Caption(openCamping, "OPTIONS_OPEN_CAMPING")
 	openCamping:SetShown(ns.kit ~= nil)
 	openCamping:SetScript("OnClick", function()

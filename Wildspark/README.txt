@@ -74,8 +74,6 @@ Included features
 - Range, arc, combat/instance, locked-object, and untrained-profession settings.
 - Settings panel, minimap button, slash commands, diagnostics, and localization.
 - Optional spell helper for spells learned after installation.
-- LeashHelperForever integrated into Wildspark, with per-mob timer display,
-  combat-event tracking, preview, debug panel, and full settings.
 - WildBuffs integrated as its own tab, with class-specific spell choices,
   keybind, settings, stats, and stacked full-size spell buttons.
 - WildFire, based on Camping Kit v1.8, integrated as its own tab, including
@@ -116,6 +114,8 @@ name, a pulsing glow, and +N for additional nearby players who need that same
 spell. Clicking a spell button buffs the named player. Shift-drag a visible
 button to move the group. The default and reset position is screen center.
 WildBuffs casts only when you press a button or its keybind.
+Hover over one of your active buffs to see its caster when the client identifies
+them. Use `/wildbuffs caster status|debug|scan|last` for diagnostics.
 
 WildFire
 Open /wildspark and select the WildFire tab to show or hide the tent, manage
@@ -143,24 +143,13 @@ Commands
 /wildspark status      Show detected target and CVar status
 /wildspark on|off      Enable or disable Wildspark
 /wildspark preview     Open or close the effect preview
-/wildspark leash       Open the integrated leash timer settings
-/wildspark leash test  Show a sample mob timer
 /wildspark buffs       Open WildBuffs settings
 /wildfirekit           Open or close WildFire settings
 /wildfire              Open or close WildFire settings
 /wildbuffs             Open WildBuffs settings
 /wb                   Alias for /wildbuffs
-/leash                 Open the leash timer settings
-/leash debug           Open its copyable diagnostic report
-
-Leash timer note
-The embedded LeashHelperForever source is version 1.0.12 from public GitHub
-commit fbd3a5e0616f61189d5fc78a1c8775555f198711. It uses public combat events,
-refreshes linked packs on qualifying hits, and pauses timers during recognized
-crowd control. The timer estimates chase time since a qualifying action; it is
-not a promise that a mob will reset after that many seconds of running. Forever
-does not expose the server's exact leash distance or reset state. Disable the
-separate LeashHelperForever addon while using Wildspark's integrated timer.
+WildLayer's layer-hop tools and the Leash Timer are no longer loaded. Their
+source and required license notices are preserved in the repository archive.
 
 Credits
 Made by Uncle Bone.

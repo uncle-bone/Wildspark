@@ -344,14 +344,14 @@ end
 local STABLE = 5           -- seconds the channel list must hold still before joining
 local JOIN_CHECK = 5       -- seconds after a join to see whether it took
 local REFUSED_WAIT = 600   -- seconds before trying again after being turned away
-local WORLD_WAIT = 60      -- seconds to wait for the game's own channels before joining anyway
 local REFUSALS = { NOT_ALLOWED_IN_CHANNEL = true, WRONG_PASSWORD = true, BANNED = true }
 
 local chans = {}           -- [name] = channel state (Net.ManageChannel)
 local current              -- this zone's channel name (zone channels, below)
 local previous = {}        -- [name] = GetTime() to leave it: the zone you just left
 local listSig, listSince   -- the channel list, and since when it's held still
-local worldWaitFrom        -- when the kit started waiting for the game's own channels
+local pendingLeaves = {}   -- joined kit channels to leave after combat lockdown ends
+local retiredLayerChannelsCleaned = false
 
 local function ChannelNumber(name)
     local id = GetChannelName and GetChannelName(name) or 0
@@ -404,7 +404,8 @@ end
 
 -- False while none of the game's own channels are in yet.
 function Net.WorldChannelsIn()
-    return LastWorldSlot() ~= 0
+    local slot = LastWorldSlot()
+    return type(slot) == "number" and slot > 0
 end
 
 -- Kept for WildSpark's optional Happy Camper bridge. New Camping Kit never
@@ -419,18 +420,45 @@ local function NotYet(t)
     if not listSince or t - listSince < STABLE then return "waiting for the channel list to settle" end
     local count, taken = ChannelList()
     if count >= (MAX_WOW_CHAT_CHANNELS or 20) then return "no free chat channels" end
-    if LastWorldSlot() == 0 then
-        worldWaitFrom = worldWaitFrom or t
-        -- Some places never join them; after a while the kit joins anyway.
-        if t - worldWaitFrom < WORLD_WAIT then return "waiting for General and Trade" end
-    else
-        worldWaitFrom = nil
-    end
+    if not Net.WorldChannelsIn() then return "waiting for the game's channels" end
     return nil
 end
 
+local function LeaveName(name)
+    if not ChannelNumber(name) then pendingLeaves[name] = nil; return end
+    if InCombatLockdown and InCombatLockdown() then
+        pendingLeaves[name] = true
+        return
+    end
+    if LeaveChannelByName then
+        pendingLeaves[name] = nil
+        pcall(LeaveChannelByName, name)
+    end
+end
+
+local function RetryPendingLeaves()
+    if InCombatLockdown and InCombatLockdown() then return end
+    for name in pairs(pendingLeaves) do LeaveName(name) end
+end
+
+-- WildLayer used to join these coordination channels. Remove its leftover
+-- joins once, now that the module is retired, so they do not occupy slots.
+local function CleanupRetiredLayerChannels(t)
+    if retiredLayerChannelsCleaned or not listSince or t - listSince < STABLE or not Net.WorldChannelsIn() then return end
+    retiredLayerChannelsCleaned = true
+    local maxChannels = Constants and Constants.ChatFrameConstants
+        and Constants.ChatFrameConstants.MaxChatChannels or 20
+    for i = 1, maxChannels do
+        local _, name = GetChannelName(i)
+        if type(name) == "string" and not U.Sealed(name) and (name == "layer" or name == "layer2" or name == "layer3"
+            or name:match("^layer%x%x%x%x%x%x%x%x$")) then
+            LeaveName(name)
+        end
+    end
+end
+
 local function Leave(c)
-    if ChannelNumber(c.name) and LeaveChannelByName then pcall(LeaveChannelByName, c.name) end
+    LeaveName(c.name)
     c.joinAt = nil
 end
 
@@ -629,7 +657,7 @@ local leftOld = false
 local function LeaveOldChannel()
     if leftOld then return end
     leftOld = true
-    if ChannelNumber(OLD_CHANNEL) and LeaveChannelByName then pcall(LeaveChannelByName, OLD_CHANNEL) end
+    LeaveName(OLD_CHANNEL)
 end
 
 function Net.ZoneChannel() return current end
@@ -1101,6 +1129,8 @@ ev:SetScript("OnUpdate", function(_, elapsed)
     cookTick = cookTick + elapsed
     if cookTick >= 1 then
         cookTick = 0
+        RetryPendingLeaves()
+        CleanupRetiredLayerChannels(GetTime())
         LeaveOldChannel()
         TickZone()
         TickChannels()

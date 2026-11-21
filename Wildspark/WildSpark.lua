@@ -167,7 +167,7 @@ local directWorks = false    -- GetNamePlateForUnit("softinteract") a d�j� a
 local lineOut = false        -- la ligne de p�che du joueur est � l'eau, et son flotteur fait partie des objets mis en lumi�re
 local lastReport             -- derni�re ligne de debug affich�e (�vite les r�p�titions)
 
-local glow = { layers = {} }  -- cadre unique de la wildspark, �tat de son animation, couches de tous ses effets
+local glow = { layers = {}, softTargetSafety = { moved = 0 } }  -- cadre unique de la wildspark, �tat de son animation, couches de tous ses effets
 local ghost                   -- cadre de dissipation
 local label                   -- nom et ic�ne de l'objet, au-dessus de la wildspark
 
@@ -281,7 +281,57 @@ end
 -- Ne touche qu'aux CVars que ce client conna�t (la liste varie d'une version � l'autre)
 local function SetCVarValue(name, value)
 	if GetCVarValue(name) == nil then return end
-	pcall(C_CVar and C_CVar.SetCVar or SetCVar, name, tostring(value))
+	local ok = pcall(C_CVar and C_CVar.SetCVar or SetCVar, name, tostring(value))
+	return ok and GetCVarValue(name) == tostring(value)
+end
+
+function glow.softTargetSafety.Position()
+	if not UnitPosition then return end
+	local ok, x, y, _, mapID = pcall(UnitPosition, "player")
+	if not ok or IsSecret(x) or IsSecret(y) or type(x) ~= "number" or type(y) ~= "number" then return end
+	return x, y, mapID
+end
+
+function glow.softTargetSafety.Pause()
+	if glow.softTargetSafety.paused or not db.enabled or InCombatLockdown() then return end
+	-- Do not suppress actual object tracking; only pause the game mechanic that can
+	-- redirect a targetless spell to a nearby living unit.
+	if SetCVarValue("SoftTargetInteract", 0) then
+		glow.softTargetSafety.paused = true
+		glow.softTargetSafety.moved = 0
+		local x, y, mapID = glow.softTargetSafety.Position()
+		if x then
+			glow.softTargetSafety.position = { x = x, y = y, mapID = mapID }
+		end
+	end
+end
+
+function glow.softTargetSafety.Resume()
+	if not glow.softTargetSafety.paused or not db.enabled or InCombatLockdown() then return end
+	if SetCVarValue("SoftTargetInteract", 3) then
+		glow.softTargetSafety.paused = false
+		glow.softTargetSafety.position = nil
+		glow.softTargetSafety.moved = 0
+	end
+end
+
+function glow.softTargetSafety.Update(elapsed)
+	if not glow.softTargetSafety.paused or inCombat or InCombatLockdown() then return end
+	local position = glow.softTargetSafety.position
+	if position then
+		local x, y, mapID = glow.softTargetSafety.Position()
+		if x then
+			if mapID ~= position.mapID or (x - position.x) ^ 2 + (y - position.y) ^ 2 >= 16 then glow.softTargetSafety.Resume() end
+			return
+		end
+	end
+	-- Some Forever builds omit UnitPosition. Speed integrates a conservative
+	-- distance estimate; if neither API is available, leave the pause in place.
+	local speed = SafeCall(GetUnitSpeed, "player")
+	if type(speed) == "number" and speed > 0 then
+		glow.softTargetSafety.moved = glow.softTargetSafety.moved + speed * elapsed
+		if glow.softTargetSafety.moved >= 4 then glow.softTargetSafety.Resume() end
+	end
 end
 
 -- Affichage natif de la cible d'interaction : sa nameplate, o� s'accroche la wildspark, et son
@@ -308,6 +358,12 @@ local function SetGate(open)
 	end
 	local wanted = open and "1" or "0"
 	if open == gateOpen and GetCVarValue("SoftTargetNameplateInteract") == wanted then
+		if not open then
+			local original = db.savedCVars and db.savedCVars.SoftTargetIconGameObject
+			if original ~= nil and original ~= false and GetCVarValue("SoftTargetIconGameObject") ~= tostring(original) then
+				SetCVarValue("SoftTargetIconGameObject", original)
+			end
+		end
 		EnsureIconCVars()
 		return
 	end
@@ -315,6 +371,10 @@ local function SetGate(open)
 	SetCVarValue("SoftTargetNameplateInteract", wanted)
 	-- SoftTargetIconGameObject doit �tre 1 pour que le jeu cr�e des nameplates pour les game objects
 	if open then SetCVarValue("SoftTargetIconGameObject", 1) end
+	if not open then
+		local original = db.savedCVars and db.savedCVars.SoftTargetIconGameObject
+		if original ~= nil and original ~= false then SetCVarValue("SoftTargetIconGameObject", original) end
+	end
 	for _, name in ipairs(ICON_CVARS) do
 		if name ~= "SoftTargetIconGameObject" then
 			local original = db.savedCVars and db.savedCVars[name]
@@ -350,7 +410,7 @@ local function ApplyCVars()
 			db.savedCVars[name] = GetCVarValue(name) or false
 		end
 	end
-	SetCVarValue("SoftTargetInteract", 3)          -- soft target d'interaction toujours actif
+	SetCVarValue("SoftTargetInteract", glow.softTargetSafety.paused and 0 or 3) -- pause after a living unit is selected
 	SetCVarValue("SoftTargetInteractRange", WantedRange())
 	SetCVarValue("SoftTargetInteractArc", db.arc)    -- angle de recherche autour du joueur
 	SetCVarValue("SoftTargetInteractOnlyInRange", 0) -- d�tecter aussi hors de port�e d'interaction
@@ -381,6 +441,9 @@ end
 local function RestoreCVars()
 	if InCombatLockdown() then pendingCVars = "restore" return end
 	if not db.savedCVars then return end
+	glow.softTargetSafety.paused = false
+	glow.softTargetSafety.position = nil
+	glow.softTargetSafety.moved = 0
 	for name, value in pairs(db.savedCVars) do
 		if value ~= false then SetCVarValue(name, value) end
 	end
@@ -789,7 +852,7 @@ end
 -- Renvoie le jeton d'unité à interroger, sa nameplate (nil si le jeu ne l'affiche pas, ou
 -- pas encore) et le chemin suivi (pour le debug). Le jeton "softinteract" suffit en général ;
 -- tant qu'il n'a jamais donné la nameplate d'un objet du décor sur ce client, on la cherche
--- aussi en balayant les nameplates visibles. Sans cible lisible, la quatrième valeur dit si
+-- aussi parmi les nameplates qui correspondent explicitement à la cible soft. Sans cible lisible, la quatrième valeur dit si
 -- c'est faute de le savoir.
 local function ResolveTarget()
 	local exists = SoftTargetExists()
@@ -801,7 +864,9 @@ local function ResolveTarget()
 	end
 	if not directWorks then
 		for unit in pairs(activeUnits) do
-			if SafeCall(UnitIsGameObject, unit) == true or SafeCall(UnitIsUnit, unit, SOFT) == true then
+			-- GameObject alone is not enough: an unrelated visible chair or mailbox
+			-- must never be mistaken for the current soft-interaction target.
+			if SafeCall(UnitIsUnit, unit, SOFT) == true then
 				plate = GetNamePlate(unit)
 				if plate then return unit, plate, L.VIA_SWEEP end
 			end
@@ -1433,6 +1498,7 @@ local function Decide()
 	local label = name or "?"
 	-- seuls les objets du décor sont mis en lumière : ni PNJ, ni cadavres
 	if SafeCall(UnitIsGameObject, unit) ~= true then
+		if SafeCall(UnitIsDeadOrGhost, unit) ~= true then glow.softTargetSafety.Pause() end
 		Report(L.DEBUG_IGNORED:format(label))
 		Release()
 		return Shut(unit, plate)
@@ -1555,6 +1621,7 @@ events:SetScript("OnUpdate", function(_, elapsed)
 	sincePoll = sincePoll + elapsed
 	if sincePoll >= POLL_INTERVAL then
 		sincePoll = 0
+		glow.softTargetSafety.Update(elapsed)
 		WatchLine()
 		EnsureIconCVars()
 		Evaluate()
@@ -1563,6 +1630,22 @@ events:SetScript("OnUpdate", function(_, elapsed)
 end)
 
 local handlers = {}
+ns.lifecycleListeners = ns.lifecycleListeners or {}
+
+-- Share events the core already owns so optional WildInfo tracking does not
+-- register another event frame (or depend on the retired leash timer).
+function ns.RegisterLifecycleListener(listener)
+	if type(listener) ~= "table" then return false end
+	ns.lifecycleListeners[#ns.lifecycleListeners + 1] = listener
+	return true
+end
+
+function ns.NotifyLifecycle(method, ...)
+	for _, listener in ipairs(ns.lifecycleListeners) do
+		local callback = listener[method]
+		if type(callback) == "function" then pcall(callback, ...) end
+	end
+end
 
 -- Track learned spells and use the game's out-of-combat cursor APIs to fill empty
 -- action slots. Existing buttons are never replaced; the initial scan only seeds
@@ -1614,9 +1697,6 @@ function handlers.ADDON_LOADED(name)
 	db = WildsparkDB
 	db.modules = type(db.modules) == "table" and db.modules or {}
 	if db.modules.wildAuctions == nil then db.modules.wildAuctions = true end
-	if type(db.modules.wildLayer) ~= "table" then db.modules.wildLayer = {} end
-	if db.modules.wildLayer.enabled == nil then db.modules.wildLayer.enabled = true end
-	if db.modules.wildLayer.autoInvites == nil then db.modules.wildLayer.autoInvites = false end
 	if db.schema ~= SCHEMA then
 		local from = db.schema or 1
 		if from < 2 then db.size = nil end -- le halo a changé de nature : l'ancienne taille n'a plus le même sens
@@ -1731,7 +1811,6 @@ function handlers.ADDON_LOADED(name)
 	if ns.WildGroups and ns.WildGroups.IsEnabled and EventRegistry then
 		EventRegistry:TriggerEvent("WildSpark.ModuleSettingsChanged")
 		if ns.WildGroups.InitializeSavedVariables then ns.WildGroups.InitializeSavedVariables() end
-		if ns.WildLayer and ns.WildLayer.InitializeSavedVariables then ns.WildLayer.InitializeSavedVariables() end
 	end
 	if ns.SetupInterface then ns.SetupInterface() end -- Menu.lua : bouton de la minimap
 end
@@ -1754,7 +1833,12 @@ function handlers.VARIABLES_LOADED()
 end
 
 function handlers.PLAYER_ENTERING_WORLD()
+	ns.NotifyLifecycle("onZoneChanged")
 	if db.enabled then ApplyCVars() end
+end
+
+function handlers.ZONE_CHANGED_NEW_AREA()
+	ns.NotifyLifecycle("onZoneChanged")
 end
 
 function handlers.PLAYER_LOGOUT()
@@ -1785,11 +1869,13 @@ function handlers.PLAYER_REGEN_ENABLED()
 end
 
 function handlers.NAME_PLATE_UNIT_ADDED(unit)
+	ns.NotifyLifecycle("onNameplateAdded", unit)
 	activeUnits[unit] = true
 	Evaluate()
 end
 
 function handlers.NAME_PLATE_UNIT_REMOVED(unit)
+	ns.NotifyLifecycle("onNameplateRemoved", unit, SafeCall(UnitIsDead, unit) == true)
 	activeUnits[unit] = nil
 	-- la nameplate de la wildspark s'en va : on la dissipe tout de suite, l� o� elle �tait
 	local plate = GetNamePlate(unit)
@@ -2193,8 +2279,6 @@ end
 local function ShowHelp()
 	Print(L.HELP_HEADER)
 	for _, line in ipairs(L.HELP) do print("  " .. Fill(line)) end
-	print("  /wildspark leash - open mob leash timer settings")
-	print("  /wildspark leash test - preview the timer display")
 	print("  /wildspark place - place a newly learned spell in an empty action slot")
 	print("  /wildspark buffs - open the WildBuffs settings")
 end
@@ -2207,11 +2291,6 @@ function COMMANDS.menu()
 	if ns.ToggleMenu then ns.ToggleMenu() end
 end
 COMMANDS[""] = COMMANDS.menu
-
-function COMMANDS.leash(arg)
-	if SlashCmdList and SlashCmdList.LEASHHELPER then SlashCmdList.LEASHHELPER(arg or "")
-	else Print("leash timer is still loading.") end
-end
 
 function COMMANDS.buffs()
 	if _G.WildBuffs and _G.WildBuffs.OpenOptions then _G.WildBuffs.OpenOptions()

@@ -287,12 +287,10 @@ function ns.GetRespawnText(npcID)
     return estimateText
 end
 
--- Reuse WildSpark's existing event owners instead of registering more frame events.
--- Forever can reject additional RegisterEvent calls from addon code.
-local leashHelper = _G.LeashHelper
-if leashHelper and leashHelper.RegisterRespawnListener then
-    leashHelper.RegisterRespawnListener({
-        onDeath = RecordNpcDeath,
+-- Reuse WildSpark's core-owned nameplate and world-entry events. The leash
+-- timer used to provide this feed; WildInfo now subscribes without requiring it.
+if ns.RegisterLifecycleListener then
+    ns.RegisterLifecycleListener({
         onNameplateAdded = OnNameplateAdded,
         onNameplateRemoved = OnNameplateRemoved,
         onZoneChanged = OnZoneChanged,
