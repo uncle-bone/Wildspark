@@ -68,8 +68,8 @@
 	</Frame>
 
 	<!--
-		WildGroups's settings row for a sentence: the one in Miscellaneous that
-		says where the other languages come from. Blizzard's only text row,
+		WildGroups's settings row for a sentence: the one at the end of
+		Miscellaneous that says where the other languages come from. Blizzard's only text row,
 		SettingsAddOnDisabledLabelTemplate (Blizzard_SettingControls.xml:36-47),
 		shows one fixed string and has no code to change it, so this is one of
 		our own, laid out like it: the text at x = 37, where every label starts.
@@ -80,7 +80,7 @@
 		(Blizzard_SettingsList.lua:68-71), and nothing of ours may change that.
 		45 is the height of Blizzard's section header (:13) and holds three lines
 		of GameFontNormal; maxLines cuts a longer translation short instead of
-		drawing it over the row below.
+		drawing it past the row.
 
 		The same rule as the row above: no Blizzard row, no Blizzard row mixin,
 		no script. The mixin holds Init alone. .claude/rules/language-packs-row.md

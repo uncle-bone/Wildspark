@@ -108,6 +108,8 @@ jobs:
 
           sed -i 's/\r$//' "$MAIN_TOC"
           grep -Fx "## Version: $VERSION" "$MAIN_TOC"
+          grep -Fx '## X-WildFireKit-Version: 1.11.1' "$MAIN_TOC"
+          grep -Fx '## X-WildGroups-Version: 2.5.0' "$MAIN_TOC"
           grep -Fx '## X-Flavor: Forever' "$MAIN_TOC"
           grep -Fq 'Libs\QuestDB\Data\Forever\_core\Drops.lua' "$MAIN_TOC"
           grep -Fq 'Libs\QuestieDB\src\api.lua' "$MAIN_TOC"
@@ -163,7 +165,21 @@ jobs:
             exit 1
           fi
           grep -Fqx 'Modules\WildGroups\core\whisperlog.lua' "$MAIN_TOC"
+          grep -Fqx 'Modules\WildGroups\core\activitynames.lua' "$MAIN_TOC"
+          grep -Fqx 'Modules\WildGroups\core\settings.lua' "$MAIN_TOC"
+          grep -Fqx 'Modules\WildGroups\core\filterpanel_search.lua' "$MAIN_TOC"
+          grep -Fqx 'Modules\WildGroups\core\blizzardlisting.lua' "$MAIN_TOC"
+          grep -Fqx 'WildFireKitEmbedded\CampNet.lua' "$MAIN_TOC"
+          grep -Fqx 'WildFireKitEmbedded\Camping.lua' "$MAIN_TOC"
+          grep -Fqx 'WildFireKitEmbedded\Libs\KitCore\KitCore.lua' "$MAIN_TOC"
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildGroups/core/whisperlog.lua$'
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildGroups/core/activitynames.lua$'
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildGroups/core/settings.lua$'
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildGroups/core/filterpanel_search.lua$'
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildGroups/core/blizzardlisting.lua$'
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/WildFireKitEmbedded/CampNet.lua$'
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/WildFireKitEmbedded/Camping.lua$'
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/WildFireKitEmbedded/Libs/KitCore/KitCore.lua$'
           if unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -qE '^(QuestDB|QuestieDB)/'; then
             echo "The quest database folders must remain embedded beneath WildSpark/Libs."
             exit 1

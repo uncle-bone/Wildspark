@@ -441,6 +441,30 @@ local function RetryPendingLeaves()
     for name in pairs(pendingLeaves) do LeaveName(name) end
 end
 
+-- Find kit zone channels left behind by a /reload or a late join completion.
+-- The client's temporary channel list survives reloads, but our in-memory
+-- channel registry does not. Leave only names matching this addon's private
+-- CK zone-channel format, and only when no live channel entry still wants one.
+local CK_ZONE_CHANNEL = "^CK[AH]%d+L.+Z%d+$"
+local CK_STRAY_RETRY = 5
+local ckStrayLeaveAt = {}
+
+local function LeaveStrayCKChannels(t)
+    if not GetChannelList then return end
+    local list = { GetChannelList() }
+    for i = 2, #list, 3 do
+        local name = list[i]
+        if type(name) == "string" and not U.Sealed(name) and name:match(CK_ZONE_CHANNEL) then
+            local channel = chans[name]
+            local wanted = channel and channel.want and channel.want()
+            if not wanted and t - (ckStrayLeaveAt[name] or 0) >= CK_STRAY_RETRY then
+                ckStrayLeaveAt[name] = t
+                LeaveName(name) -- defers during combat lockdown
+            end
+        end
+    end
+end
+
 -- WildLayer used to join these coordination channels. Remove its leftover
 -- joins once, now that the module is retired, so they do not occupy slots.
 local function CleanupRetiredLayerChannels(t)
@@ -512,6 +536,7 @@ local function TickChannels()
     local t = GetTime()
     local _, _, sig = ChannelList()
     if sig ~= listSig then listSig, listSince = sig, t end
+    LeaveStrayCKChannels(t)
     for name, c in pairs(chans) do
         TickChannel(c, t)
         -- A zone channel you've moved on from, left: forget it.

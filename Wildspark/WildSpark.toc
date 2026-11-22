@@ -8,12 +8,12 @@
 ## Notes-esES: Hace brillar los filones, las hierbas, los objetos de misión y los cofres cuando te acercas, con varios efectos de luz a elegir, y muestra hierbas y filones en el minimapa con su propio icono (usa el soft targeting de Blizzard).
 ## Notes-esMX: Hace brillar los filones, las hierbas, los objetos de misión y los cofres cuando te acercas, con varios efectos de luz a elegir, y muestra hierbas y filones en el minimapa con su propio icono (usa el soft targeting de Blizzard).
 ## Notes-ruRU: ???????????? ?????? ????, ?????, ????????? ??????? ? ??????? ??? ??????????? ? ???, ? ??????? ???????? ????????, ? ?????????? ????? ? ???? ?? ????????? ?? ???????????? ???????? (?????????? soft targeting ?? Blizzard).
-## Version: 2.2.69
-## X-WildFireKit-Version: 1.11
+## Version: 2.2.70
+## X-WildFireKit-Version: 1.11.1
 ## X-WildMaps-Version: 0.2.0
 ## X-WildMaps-Display-Name: WildMaps
 ## IconTexture: Interface\AddOns\WildSpark\Media\icon.tga
-## X-WildGroups-Version: 2.1.0
+## X-WildGroups-Version: 2.5.0
 ## X-WildAuctions-Version: forever-0.8.2
 ## AddonCompartmentFunc: Wildspark_WildGroups_OnAddonCompartmentClick
 ## AddonCompartmentFuncOnEnter: Wildspark_WildGroups_OnAddonCompartmentEnter
@@ -101,9 +101,11 @@ Modules\WildAuctionsModule.lua
 
 Modules\WildGroups\core\locale.lua
 Modules\WildGroups\core\db.lua
+Modules\WildGroups\core\activitynames.lua
 Modules\WildGroups\core\main.lua
 Modules\WildGroups\core\relations.lua
 Modules\WildGroups\core\talents.lua
+Modules\WildGroups\core\settings.lua
 Modules\WildGroups\core\settings.xml
 Modules\WildGroups\core\listpanel.lua
 Modules\WildGroups\core\playerrow.lua
@@ -113,9 +115,11 @@ Modules\WildGroups\core\playerratings.lua
 Modules\WildGroups\core\filterpanel_shared.lua
 Modules\WildGroups\core\filterpanel_miscellaneous.lua
 Modules\WildGroups\core\filterpanel_groupclasses.lua
+Modules\WildGroups\core\filterpanel_search.lua
 Modules\WildGroups\core\filterpanel.lua
 Modules\WildGroups\core\window.lua
 Modules\WildGroups\core\blizzardtab.lua
+Modules\WildGroups\core\blizzardlisting.lua
 Modules\WildGroups\core\rateleavers.lua
 Modules\WildGroups\core\minimap.lua
 Modules\WildGroups\core\slash.lua

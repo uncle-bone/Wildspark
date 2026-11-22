@@ -94,7 +94,8 @@ end
 -------------------------------------------------------
 ---------- The saved Filters tab
 -------------------------------------------------------
--- LFGForeverDB.filters: the Filters tab as last searched or reset, account-wide,
+-- LFGForeverCharDB.filters: the Filters tab as last searched, reset or applied
+-- from My filters, per character (core/db.lua),
 -- in the shape core/filterpanel.lua's FilterSnapshot hands the list --
 --   { groupFilters = { field = bool }, playerRoles = { ... },
 --     playerClasses = { CLASSFILE = bool }, playerLevels = { min = n, max = n },
@@ -368,8 +369,8 @@ end
 -------------------------------------------------------
 ---------- Collapsed filter sections
 -------------------------------------------------------
--- WHICH FILTERS-TAB SECTIONS THE PLAYER COLLAPSED, account-wide, as a set of
--- section keys ({ classes = true }): LFGForeverDB.collapsedFilterSections.
+-- WHICH FILTERS-TAB SECTIONS THE PLAYER COLLAPSED, per character, as a set of
+-- section keys ({ classes = true }): LFGForeverCharDB.collapsedFilterSections.
 -- The keys are the sections' collapseKey (core/filterpanel.lua,
 -- core/filterpanel_miscellaneous.lua). A view choice, kept apart from the
 -- filters themselves: a collapsed section's boxes still apply, and Reset
@@ -694,9 +695,13 @@ LFGF.ASK_TO_JOIN_CLASS_NAMES = {
 	DRUID = "druid",
 }
 
---- "A", "A or B", "A, B or C". Fixed English, never translated, like the
---- words %class% and %talents% become.
+--- "A", "A or B", "A, B or C"; "" for no names at all (nil or an empty list).
+--- Fixed English, never translated, like the words %class% and %talents%
+--- become.
 local function JoinNames(names)
+	if names == nil or #names == 0 then
+		return ""
+	end
 	if #names == 1 then
 		return names[1]
 	end
@@ -726,10 +731,177 @@ local function RoleWords()
 	if roles.tank then table.insert(words, "tank") end
 	if roles.healer then table.insert(words, "heal") end
 	if roles.dps then table.insert(words, "dps") end
-	if #words == 0 then
-		return ""
-	end
 	return JoinNames(words)
+end
+
+-------------------------------------------------------
+---------- The names %dungeon% and %dungeon_en% become
+-------------------------------------------------------
+-- Shared by both whispers: Ask to Join names the group's activities, Invite
+-- the player's own listing or the activity dropdown. One set of rules, so the
+-- two name an activity the same way and in the same order
+-- (.claude/rules/ask-to-join-dungeon.md, invite-whisper.md,
+-- dungeon-en-placeholder.md).
+
+-- Where the activity dropdown's selection comes from: a function answering
+-- the ticked activity IDs, or nil. core/window.lua hands it over when it
+-- builds the two columns (BuildContentPanels), the filter panel's
+-- SelectedActivityIDs, so neither panel learns of the other -- the list
+-- panel's buttons only ever ask LFGF.AskToJoinMessage and
+-- LFGF.InviteWhisperMessage. Before the window is built there is no source,
+-- and nothing counts as ticked.
+local activityFilterSource
+
+--- Hand over the activity dropdown's selection for both whispers. `source` is
+--- a function answering a list of activity IDs (or nil).
+function LFGF.SetActivityFilterSource(source)
+	activityFilterSource = source
+end
+
+--- The activity IDs ticked in the activity dropdown right now, or nil when
+--- there is no source or it answers no list. The source hands out a copy
+--- (the filter panel's SelectedActivityIDs), and nothing here changes it.
+local function TickedActivityIDs()
+	local activityIDs = activityFilterSource and activityFilterSource()
+	if type(activityIDs) ~= "table" then
+		return nil
+	end
+	return activityIDs
+end
+
+-- Quests & Zones: a local of Blizzard's (Mainline/LFGVanilla_Constants.lua:12),
+-- so copied. Its listings are the one kind with no activity to pick:
+-- Blizzard's Create Listing ticks every zone it offers for the category
+-- (Blizzard_LFGVanilla_Listing.lua:373-374, :453-457), so their activities do
+-- not say what the group is doing. core/listpanel.lua's inline note reads it
+-- too.
+LFGF.QUESTS_CATEGORY_ID = 116
+
+--- Is the game in English? GetLocale names the client's language, one string
+--- that is never nil or secret (LocaleDocumentation.lua). Blizzard's own
+--- localization tables list "enGB" beside "enUS" (Blizzard_SharedXMLGame/
+--- Shared/Localization.lua), so both count.
+local function ClientIsEnglish()
+	local locale = GetLocale()
+	return locale == "enUS" or locale == "enGB"
+end
+
+--- The names of these activities, in Blizzard's order, or nil; and second,
+--- the same names for %dungeon_en%, one for one.
+---
+--- THE ORDER IS BLIZZARD'S, the one its Listing tab draws a listing in
+--- (Blizzard_LFGVanilla_Listing.lua:1219-1222): groups by their orderIndex,
+--- then name; activities within a group the same way
+--- (Blizzard_LFGVanilla_ParentFrame.lua:175-244). Those helpers live in the
+--- LoadOnDemand Group Finder; a players-list row cannot exist without it, so
+--- their absence is a belt, answered with nil.
+---
+--- THE NAME IS THE ONE THE LIST SHOWS: LFGUtil_GetActivityInfoName, the short
+--- name when there is one (:270-273), as core/listpanel.lua's rows do. Left
+--- out of both lists: an activity the client has no info for
+--- (GetActivityInfoTable MayReturnNothing, LFGListInfoDocumentation.lua:184-198;
+--- Blizzard's organiser skips it too, ParentFrame.lua:231), and every Quests &
+--- Zones zone (LFGF.QUESTS_CATEGORY_ID), by the author's decision.
+---
+--- THE ENGLISH NAME, by the author's rules: on an English client, the client's
+--- own name, so a dungeon Blizzard renames is sent as it is now; on any other,
+--- the name LFGF.ENGLISH_ACTIVITY_NAMES (core/activitynames.lua) holds for that
+--- activity, and the client's name for one it has none for. The ORDER stays the
+--- client's: both lists name the same activities in the same order.
+local function ActivityNames(activityIDs)
+	if type(LFGUtil_OrganizeActivitiesByActivityGroup) ~= "function"
+		or type(LFGUtil_SortActivityGroupIDs) ~= "function" then
+		return nil
+	end
+
+	local organized = LFGUtil_OrganizeActivitiesByActivityGroup(activityIDs)
+	local groupIDs = {}
+	for groupID in pairs(organized) do
+		table.insert(groupIDs, groupID)
+	end
+	LFGUtil_SortActivityGroupIDs(groupIDs)
+
+	local english = not ClientIsEnglish() and LFGF.ENGLISH_ACTIVITY_NAMES or {}
+	local names, englishNames = {}, {}
+	for _, groupID in ipairs(groupIDs) do
+		for _, activityID in ipairs(organized[groupID]) do
+			local activityInfo = C_LFGList.GetActivityInfoTable(activityID)
+			if activityInfo and activityInfo.categoryID ~= LFGF.QUESTS_CATEGORY_ID then
+				local name = LFGUtil_GetActivityInfoName(activityInfo)
+				if type(name) == "string" and name ~= "" then
+					table.insert(names, name)
+					table.insert(englishNames, english[activityID] or name)
+				end
+			end
+		end
+	end
+	if #names == 0 then
+		return nil
+	end
+	return names, englishNames
+end
+
+--- `message` with %dungeon% and %dungeon_en% filled in: the names joined
+--- (JoinNames), "" when there are none. Replaced as plain text: the patterns
+--- are the literal tokens, and the replacement goes through a function so
+--- nothing in a name is read as a capture reference. %dungeon% first, then
+--- %dungeon_en% in what is left; activity names hold no "%dungeon_en%" for
+--- the second pass to find.
+local function FillDungeons(message, names, englishNames)
+	local dungeon = JoinNames(names)
+	local dungeonEnglish = JoinNames(englishNames)
+	message = message:gsub("%%dungeon%%", function() return dungeon end)
+	return (message:gsub("%%dungeon_en%%", function() return dungeonEnglish end))
+end
+
+-- How many names Ask to Join's %dungeon% takes at most, by the author's
+-- decision: the first ones in Blizzard's order.
+local ASK_TO_JOIN_MAX_DUNGEONS = 3
+
+--- The names Ask to Join's %dungeon% becomes for a group listed for these
+--- activities, and their English names for %dungeon_en%; nil when there is
+--- nothing to name. The author's rules:
+---   * the group's activities that are also ticked in the activity dropdown,
+---     read now; with nothing ticked, or none of the group's ticked, all of
+---     the group's;
+---   * named as ActivityNames names them: Blizzard's order, the name the list
+---     shows, an activity with no info and every Quests & Zones zone left out;
+---   * then the first ASK_TO_JOIN_MAX_DUNGEONS of those NAMES, so an activity
+---     left out does not take a place.
+--- `groupActivityIDs` is the readable list the players list drew the row with
+--- (core/listpanel.lua reads it through LFGF.Readable), or nil. Neither it nor
+--- the ticks are changed.
+local function GroupActivityNames(groupActivityIDs)
+	if groupActivityIDs == nil then
+		return nil
+	end
+
+	local chosen = {}
+	local ticked = TickedActivityIDs()
+	if ticked ~= nil then
+		local isTicked = {}
+		for _, activityID in ipairs(ticked) do
+			isTicked[activityID] = true
+		end
+		for _, activityID in ipairs(groupActivityIDs) do
+			if isTicked[activityID] then
+				table.insert(chosen, activityID)
+			end
+		end
+	end
+	if #chosen == 0 then
+		chosen = groupActivityIDs
+	end
+
+	local names, englishNames = ActivityNames(chosen)
+	if names == nil then
+		return nil
+	end
+	for index = #names, ASK_TO_JOIN_MAX_DUNGEONS + 1, -1 do
+		names[index] = nil
+		englishNames[index] = nil
+	end
+	return names, englishNames
 end
 
 --- The whisper Ask to Join sends, or nil when it should open a whisper box
@@ -762,10 +934,19 @@ end
 --- read now, not when the window opened. "" in the same way, leaving the same
 --- double space where the player typed it.
 ---
+--- %dungeon% AND %dungeon_en% ARE THE GROUP'S ACTIVITIES (GroupActivityNames
+--- above): `groupActivityIDs`, the readable list the players list drew the
+--- group's row with, or nil. With nothing to name -- a Quests & Zones group,
+--- an activity the game does not describe, no list -- both become "" and the
+--- rest is sent, as for %talents% and %role%, by the author's decision. No
+--- leadership is asked: anyone may ask to join a group.
+---
 --- REPLACED AS PLAIN TEXT: the patterns are the literal tokens, and the
 --- replacement goes through a function so nothing in it is read as a capture
---- reference -- any other % the player typed is left exactly as it is.
-function LFGF.AskToJoinMessage()
+--- reference -- any other % the player typed is left exactly as it is. The
+--- dungeons go in LAST, so a dungeon's name is never searched for another
+--- placeholder.
+function LFGF.AskToJoinMessage(groupActivityIDs)
 	if not LFGF.SavedSetting("askToJoinAutoWhisper") then
 		return nil
 	end
@@ -788,30 +969,18 @@ function LFGF.AskToJoinMessage()
 	message = message:gsub("%%talents%%", function() return talents end)
 	local roles = RoleWords()
 	message = message:gsub("%%role%%", function() return roles end)
-	return message
+	local names, englishNames = GroupActivityNames(groupActivityIDs)
+	return FillDungeons(message, names, englishNames)
 end
 
--- THE INVITE WHISPER, since 0.12.0-dev.1 (.claude/rules/invite-whisper.md).
--- The players list's invite button invites a solo player and then whispers
--- them this, with %dungeon% filled in from the player's OWN listing -- or,
--- since 0.15.0-dev.1, with no listing, from the activities ticked in the
--- filter panel's activity dropdown (all of them, as for a listing). Saved per
--- character as inviteMessage, the checkbox account-wide as inviteAutoWhisper;
--- the default is with the key in core/db.lua.
-
--- Where the activity dropdown's selection comes from: a function answering
--- the ticked activity IDs, or nil. core/window.lua hands it over when it
--- builds the two columns (BuildContentPanels), the filter panel's
--- SelectedActivityIDs, so neither panel learns of the other -- the list
--- panel's invite button only ever asks LFGF.InviteWhisperMessage(). Before
--- the window is built there is no source, and nothing counts as ticked.
-local inviteActivitySource
-
---- Hand over the activity dropdown's selection for the invite whisper.
---- `source` is a function answering a list of activity IDs (or nil).
-function LFGF.SetInviteActivitySource(source)
-	inviteActivitySource = source
-end
+-- THE INVITE WHISPER (.claude/rules/invite-whisper.md). The players list's
+-- invite button invites a solo player and then whispers them this, with
+-- %dungeon% filled in from the player's OWN listing -- or, with no listing,
+-- from the activities ticked in the filter panel's activity dropdown (all of
+-- them, as for a listing). %dungeon_en% is the same with English dungeon and
+-- raid names (.claude/rules/dungeon-en-placeholder.md). Saved per character as
+-- inviteMessage, the checkbox account-wide as inviteAutoWhisper; the default
+-- is with the key in core/db.lua.
 
 --- Does the player's listing count for %dungeon%? Only a listing the player
 --- LEADS: their own, while in no group, or their group's, as its leader. Not
@@ -825,6 +994,11 @@ end
 --- a secret boolean from addon code errors. Role Check fails the other way
 --- (core/filterpanel.lua, CanStartRoleCheck), because there the worst case is
 --- the server's own refusal; here it is a whisper to a stranger.
+---
+--- PUBLISHED for the players list's Delist x (core/listpanel.lua), which
+--- Blizzard shows by the same rule (Browse.lua:916). Failing closed costs that
+--- x little: a leader the client will not answer about delists on Blizzard's
+--- own tab.
 local function LeadsOwnListing()
 	local inGroup = IsInGroup()
 	if not canaccessvalue(inGroup) then
@@ -836,49 +1010,10 @@ local function LeadsOwnListing()
 	local leader = UnitIsGroupLeader("player")
 	return canaccessvalue(leader) and leader == true
 end
+LFGF.LeadsOwnListing = LeadsOwnListing
 
---- The names of these activities, in Blizzard's order, or nil. Shared by the
---- listing and the activity dropdown, so the two name a dungeon the same way
---- and in the same order.
----
---- THE ORDER IS BLIZZARD'S, the one its Listing tab draws a listing in
---- (Blizzard_LFGVanilla_Listing.lua:1219-1222): groups by their orderIndex,
---- then name; activities within a group the same way
---- (Blizzard_LFGVanilla_ParentFrame.lua:187-256). Those helpers live in the
---- LoadOnDemand Group Finder; a players-list row cannot exist without it, so
---- their absence is a belt, answered with nil.
----
---- THE NAME IS THE ONE THE LIST SHOWS: LFGUtil_GetActivityInfoName, the short
---- name when there is one (:282-285), as core/listpanel.lua's rows do. An
---- activity the client has no info for is left out (GetActivityInfoTable
---- MayReturnNothing, :184-198; Blizzard's organiser skips it too, :243).
-local function ActivityNames(activityIDs)
-	if type(LFGUtil_OrganizeActivitiesByActivityGroup) ~= "function"
-		or type(LFGUtil_SortActivityGroupIDs) ~= "function" then
-		return nil
-	end
-
-	local organized = LFGUtil_OrganizeActivitiesByActivityGroup(activityIDs)
-	local groupIDs = {}
-	for groupID in pairs(organized) do
-		table.insert(groupIDs, groupID)
-	end
-	LFGUtil_SortActivityGroupIDs(groupIDs)
-
-	local names = {}
-	for _, groupID in ipairs(groupIDs) do
-		for _, activityID in ipairs(organized[groupID]) do
-			local activityInfo = C_LFGList.GetActivityInfoTable(activityID)
-			local name = activityInfo and LFGUtil_GetActivityInfoName(activityInfo)
-			if type(name) == "string" and name ~= "" then
-				table.insert(names, name)
-			end
-		end
-	end
-	return #names > 0 and names or nil
-end
-
---- The names of the listing's activities, or nil.
+--- The names of the listing's activities, or nil; and their English names
+--- (ActivityNames).
 ---
 --- GetActiveEntryInfo is SecretInChatMessagingLockdown and MayReturnNothing
 --- (LFGListInfoDocumentation.lua:139-148), but its activityIDs field is
@@ -893,7 +1028,8 @@ local function ListingActivityNames(entry)
 end
 
 --- The names of the activities ticked in the activity dropdown, or nil when
---- none is ticked or none of them has a name.
+--- none is ticked or none of them has a name; and their English names
+--- (ActivityNames).
 ---
 --- EVERY TICKED ACTIVITY IS NAMED, the same as a listing's: no limit of its
 --- own (0.15.0-dev.1 ignored more than 3; removed in 0.15.0-dev.2 by the
@@ -906,10 +1042,10 @@ end
 --- Nothing read is secret: the IDs are the addon's own, and
 --- GetActivityInfoTable's returns carry no secret flag.
 local function DropdownActivityNames()
-	local activityIDs = inviteActivitySource and inviteActivitySource()
+	local activityIDs = TickedActivityIDs()
 	-- Nothing ticked needs no check of its own: ActivityNames answers nil for
 	-- an empty list.
-	if type(activityIDs) ~= "table" then
+	if activityIDs == nil then
 		return nil
 	end
 	return ActivityNames(activityIDs)
@@ -930,9 +1066,12 @@ end
 ---     the activities ticked in the activity dropdown, every one of them
 ---     (DropdownActivityNames); nil when nothing is ticked;
 ---   * nil, whatever the message says, %dungeon% or not, when neither names
----     a dungeon;
----   * %dungeon% becomes the names, all of them, joined; it is the only
----     placeholder. Replaced as plain text, like AskToJoinMessage's;
+---     a dungeon. A Quests & Zones zone is never named (ActivityNames), so a
+---     Quests & Zones listing, or ticked zones alone, only invites;
+---   * %dungeon% becomes the names, all of them, joined, and %dungeon_en% the
+---     same names in English (ActivityNames; the author's rules, 2026-11-16).
+---     The only two placeholders, filled in by FillDungeons, as Ask to Join's
+---     are;
 ---   * NO LENGTH CAP, by the author's decision (2026-10-12), like Ask to Join.
 ---     Until 0.21.0-dev.6 a result over 255 bytes (Blizzard's chat box,
 ---     visibleBytes="255", Blizzard_ChatFrameBase/Mainline/ChatFrameEditBox
@@ -956,19 +1095,16 @@ function LFGF.InviteWhisperMessage()
 		return nil
 	end
 	local entry = C_LFGList.GetActiveEntryInfo()
-	local names
+	local names, englishNames
 	if entry then
-		names = ListingActivityNames(entry)
+		names, englishNames = ListingActivityNames(entry)
 	else
-		names = DropdownActivityNames()
+		names, englishNames = DropdownActivityNames()
 	end
 	if names == nil then
 		return nil
 	end
-
-	local dungeon = JoinNames(names)
-	local message = template:gsub("%%dungeon%%", function() return dungeon end)
-	return message
+	return FillDungeons(template, names, englishNames)
 end
 
 -- The slash command, in ONE place. core/slash.lua registers with it and the
@@ -1685,8 +1821,8 @@ function LFGF.CreateRowActionLink(parent, label)
 end
 
 -- REMOVED 2026-09-22: the restriction guard (LFGF.ProtectedActionsAllowed /
--- ProtectedActionBlocker). Why, at the one call it guarded: RequestSearch in
--- core/filterpanel.lua; history in .claude/rules/groupfinder-window.md.
+-- ProtectedActionBlocker). Why, at the one call it guarded: RequestSearch, now in
+-- core/filterpanel_search.lua; history in .claude/rules/groupfinder-window.md.
 
 -------------------------------------------------------
 ---------- The load greeting
@@ -1725,7 +1861,7 @@ end
 -- isLoaded = false (we are still *loading*), so this takes the register branch
 -- and fires on our own ADDON_LOADED.
 EventUtil.ContinueOnAddOnLoaded(addonName, function()
-	local version = C_AddOns.GetAddOnMetadata(addonName, "Version")
+	local version = C_AddOns.GetAddOnMetadata(addonName, "X-WildGroups-Version") or C_AddOns.GetAddOnMetadata(addonName, "Version")
 
 	-- print() is the FrameXML global from Blizzard_PrintHandler.lua:93; it
 	-- routes through securecall to the default chat frame.

@@ -72,7 +72,10 @@ local L = {
 	SETTINGS_ASK_TO_JOIN_AUTO_WHISPER_TOOLTIP = "When on, Ask to Join whispers the group leader your message. "
 		.. "When off, it opens a whisper so you can type your own.",
 	SETTINGS_ASK_TO_JOIN_MESSAGE_LABEL = "Message",
-	SETTINGS_ASK_TO_JOIN_MESSAGE_TOOLTIP = "%class% and %level% become your class and level. %talents% becomes your active talent tree: the one you have spent the most points in. %role% becomes the roles you selected in Blizzard's Group Finder. Up to 200 characters. Saved for this character.",
+	SETTINGS_ASK_TO_JOIN_MESSAGE_TOOLTIP = "%class% and %level% become your class and level. %talents% becomes your active talent tree: the one you have spent the most points in. %role% becomes the roles you selected in Blizzard's Group Finder. "
+		.. "%dungeon% becomes the dungeon you are trying to join, in your game's client language. "
+		.. "%dungeon_en% becomes the dungeon you are trying to join, in English. "
+		.. "Up to 200 characters. Saved for this character.",
 	-- The "?" beside each message box: a title, then one bulleted line per
 	-- keyword, "<keyword> - <description>". Only the description is here: the
 	-- keyword, its colour and the bullet are added by core/settings.lua.
@@ -81,15 +84,23 @@ local L = {
 	SETTINGS_PLACEHOLDER_LEVEL = "your level",
 	SETTINGS_PLACEHOLDER_TALENTS = "your main talent tree: the one with the most points",
 	SETTINGS_PLACEHOLDER_ROLE = "the roles you selected in Blizzard's Group Finder",
-	SETTINGS_PLACEHOLDER_DUNGEON = "the dungeons of your listing, or with no listing, "
-		.. "the activities ticked in the activity filter",
+	-- Ask to Join's %dungeon% and %dungeon_en%: the GROUP's activities, not the
+	-- player's own listing (the two SETTINGS_PLACEHOLDER_DUNGEON keys are Invite's).
+	SETTINGS_PLACEHOLDER_GROUP_DUNGEON = "the dungeon you are trying to join, in your game's client language",
+	SETTINGS_PLACEHOLDER_GROUP_DUNGEON_EN = "the dungeon you are trying to join, in English",
+	SETTINGS_PLACEHOLDER_DUNGEON = "the dungeons of your listing in your game's client language, "
+		.. "or with no listing, the activities selected in the activity filter",
+	SETTINGS_PLACEHOLDER_DUNGEON_EN = "the dungeons of your listing in English, "
+		.. "or with no listing, the activities selected in the activity filter",
 	SETTINGS_INVITE_AUTO_WHISPER_LABEL = "Auto-whisper on Invite",
 	SETTINGS_INVITE_AUTO_WHISPER_TOOLTIP = "When on, inviting a player from the players list also "
 		.. "whispers them your message. When off, it only invites.",
 	SETTINGS_INVITE_MESSAGE_LABEL = "Message",
-	SETTINGS_INVITE_MESSAGE_TOOLTIP = "%dungeon% becomes the dungeon of your listing, or all of them "
-		.. "if it has several (\"Deadmines, Wailing Caverns or Shadowfang Keep\"). "
-		.. "With no listing, it becomes the activities ticked in the activity filter. "
+	SETTINGS_INVITE_MESSAGE_TOOLTIP = "%dungeon% becomes the dungeon of your listing in your game's "
+		.. "client language, or all of them if it has several (\"Deadmines, Wailing Caverns or Shadowfang Keep\"). "
+		.. "With no listing, it becomes the activities selected in the activity filter. "
+		.. "%dungeon_en% becomes the dungeons of your listing in English, "
+		.. "or with no listing, the activities selected in the activity filter. "
 		.. "Up to 200 characters. Saved for this character.",
 	SETTINGS_SEARCH_HEADER = "Search",
 	SETTINGS_SHOW_ALL_LEVELS_LABEL = "Show all level activities",
@@ -156,6 +167,8 @@ local L = {
 	-- The same button's tooltip once the group was asked this session.
 	ASK_TO_JOIN_AGAIN = "Ask to join again",
 	GROUP_INVITE = Blizzard("GROUP_INVITE", "Group Invite"),
+	-- The tooltip of the x on your own listing's row, Blizzard's own word.
+	DELIST = Blizzard("LFG_LIST_UNLIST", "Delist"),
 	LEVEL_ABBR = Blizzard("LEVEL_ABBR", "Lvl"),
 	ACTIVITY_COUNT_FORMAT = Blizzard("LFGBROWSE_ACTIVITY_COUNT", "%d |4activity:activities;"),
 	SEARCHING = Blizzard("SEARCHING", "Searching..."),
@@ -369,6 +382,12 @@ local L = {
 	SETTINGS = Blizzard("SETTINGS", "Settings"),
 	ACTIVITY_HEADER_DEFAULT = Blizzard("LFGBROWSE_ACTIVITY_HEADER_DEFAULT", "Filter by activity"),
 	ACTIVITY_HEADER_FORMAT = Blizzard("LFGBROWSE_ACTIVITY_HEADER", "%d |4activity:activities; selected"),
+	-- The favorite star's tooltip on an activity row: the words of the
+	-- Auction House's own favorite menu.
+	SET_FAVORITE = Blizzard("AUCTION_HOUSE_DROPDOWN_SET_FAVORITE", "Set Favorite"),
+	REMOVE_FAVORITE = Blizzard("AUCTION_HOUSE_DROPDOWN_REMOVE_FAVORITE", "Remove Favorite"),
+	-- The gold line under the star's tooltip title, on both stars.
+	FAVORITES_LISTED_AT_TOP = "Favorites are listed at the top of this list.",
 	-- A ticked activity the activity menu no longer offers (a level-up, a
 	-- listing that ended) is unticked, and ONE line, printed after
 	-- "WildGroups: ", names what was. The last %s is

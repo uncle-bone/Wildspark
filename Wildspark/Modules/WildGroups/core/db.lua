@@ -50,15 +50,19 @@ LFGF.SAVED_KEYS = {
 	-- Ask to Join: whisper the leader with the message, or open a whisper box.
 	{ key = "askToJoinAutoWhisper", scope = ACCOUNT, variable = "LFGFOREVER_ASK_TO_JOIN_AUTO_WHISPER",
 		type = "boolean", default = true },
-	-- The Ask to Join whisper, PER CHARACTER since 0.11.0. Four placeholders are
+	-- The Ask to Join whisper, PER CHARACTER since 0.11.0. Six placeholders are
 	-- filled in when the button is clicked (LFGF.AskToJoinMessage, core/main.lua):
-	-- %class%, %level%, %talents% and %role%, rather than string.format's %s and
-	-- %d, because the player edits this text and a stray % must not be read as a
-	-- format directive. No addon tag: the leader reads a greeting from a player,
-	-- not an advert. %role% (0.20.0-dev.2) is not in the default, by the author's
-	-- decision: players add it themselves (.claude/rules/role-placeholder.md).
+	-- %class%, %level%, %talents%, %role%, and the group's %dungeon% and
+	-- %dungeon_en%, rather than string.format's %s and %d, because the player
+	-- edits this text and a stray % must not be read as a format directive. No
+	-- addon tag: the leader reads a greeting from a player, not an advert. %role%
+	-- is not in the default, by the author's decision: players add it themselves
+	-- (.claude/rules/role-placeholder.md). %dungeon_en% is, at the end, by the
+	-- author's decision: a group with nothing to name (Quests & Zones) then
+	-- reads "...Inv please to ". core/settings.lua moves a character still
+	-- holding an older default to this one (.claude/rules/ask-to-join-dungeon.md).
 	{ key = "askToJoinMessage", scope = CHARACTER, variable = "LFGFOREVER_ASK_TO_JOIN_MESSAGE",
-		type = "string", default = "Hi! I am a %talents% %class%, %level%. Inv please" },
+		type = "string", default = "Hi! I am a %talents% %class%, %level%. Inv please to %dungeon_en%" },
 
 	-- Invite: whisper the invited player with the message (0.12.0-dev.1).
 	{ key = "inviteAutoWhisper", scope = ACCOUNT, variable = "LFGFOREVER_INVITE_AUTO_WHISPER",
@@ -66,12 +70,16 @@ LFGF.SAVED_KEYS = {
 	-- The Invite whisper, per character from the start, %dungeon% filled in from
 	-- the player's own listing or the ticked activities (LFGF.InviteWhisperMessage,
 	-- core/main.lua; .claude/rules/invite-whisper.md). The wording is the author's.
+	-- The default names them in English (%dungeon_en%), by the author's decision:
+	-- Forever is mostly English-speaking. core/settings.lua moves a character
+	-- still holding the older "%dungeon%" default to this one
+	-- (.claude/rules/dungeon-en-placeholder.md).
 	{ key = "inviteMessage", scope = CHARACTER, variable = "LFGFOREVER_INVITE_MESSAGE",
-		type = "string", default = "Hey! Want to join %dungeon%?" },
+		type = "string", default = "Hey! Want to join %dungeon_en%?" },
 
 	-- SHOW ALL LEVEL ACTIVITIES: when on, the filter panel offers and searches
 	-- every activity, not only those whose suggested level range holds the
-	-- player's level (LFGF.Activities, core/filterpanel.lua). OUR OWN SETTING,
+	-- player's level (LFGF.Activities, core/filterpanel_search.lua). OUR OWN SETTING,
 	-- not Blizzard's CVar disableSuggestedLevelActivityFilter, which this addon
 	-- neither reads nor writes: writing it from addon code would leave a value
 	-- set by tainted code in Blizzard's CVarCallbackRegistry cache
@@ -80,7 +88,7 @@ LFGF.SAVED_KEYS = {
 	{ key = "showAllLevelRanges", scope = ACCOUNT, variable = "LFGFOREVER_SHOW_ALL_LEVEL_RANGES",
 		type = "boolean", default = false },
 	-- SHOW SUGGESTED LEVEL RANGES: each activity menu row ends in its range,
-	-- "Deadmines (17 - 24)" (LFGF.ActivityMenuText, core/filterpanel.lua).
+	-- "Deadmines (17 - 24)" (LFGF.ActivityMenuText, core/filterpanel_search.lua).
 	{ key = "showActivityLevelRanges", scope = ACCOUNT, variable = "LFGFOREVER_SHOW_ACTIVITY_LEVEL_RANGES",
 		type = "boolean", default = true },
 
@@ -115,14 +123,27 @@ LFGF.SAVED_KEYS = {
 		type = "boolean", default = true },
 
 	-- The Filters tab as last searched, reset or applied from My filters
-	-- (core/main.lua, LFGF.SavedFilters; .claude/rules/saved-filters.md).
-	{ key = "filters", scope = ACCOUNT, type = "table" },
+	-- (core/main.lua, LFGF.SavedFilters; .claude/rules/saved-filters.md). PER
+	-- CHARACTER, by the author's decision: a level-60 main and a level-20 alt
+	-- want different filters. A character's first load copies the account-wide
+	-- record older versions wrote (LFGF.CopyAccountFiltersToCharacter, below).
+	{ key = "filters", scope = CHARACTER, type = "table" },
 	-- My filters, in save order (core/main.lua, LFGF.MyFilters; my-filters.md).
+	-- Account-wide, by the author's decision: every character can apply them.
 	{ key = "myFilters", scope = ACCOUNT, type = "table" },
 	-- The Filters tab sections the player collapsed, a set of section keys
-	-- (core/main.lua, LFGF.CollapsedFilterSections; added in 0.22.0-dev.2,
-	-- .claude/rules/collapsible-filter-sections.md).
-	{ key = "collapsedFilterSections", scope = ACCOUNT, type = "table" },
+	-- (core/main.lua, LFGF.CollapsedFilterSections;
+	-- .claude/rules/collapsible-filter-sections.md). Per character, like the
+	-- filters, and copied from the old account-wide record the same way.
+	{ key = "collapsedFilterSections", scope = CHARACTER, type = "table" },
+	-- Set once a character's first load has copied the old account-wide
+	-- filters and collapsed sections (LFGF.CopyAccountFiltersToCharacter), so a
+	-- later nil is never filled from the old record again.
+	{ key = "copiedAccountFilters", scope = CHARACTER, type = "boolean" },
+	-- The activity menu's favorite dungeons and raids, activity ID -> true
+	-- (core/filterpanel_search.lua). Per character, by the author's decision;
+	-- Blizzard's Defaults forgets them (core/settings.lua).
+	{ key = "favoriteActivities", scope = CHARACTER, type = "table" },
 	-- The players' ratings, one to three stars each, keyed by "Firstname Surname"
 	-- (core/main.lua, LFGF.PlayerRating; added in 1.5.0-dev.5,
 	-- .claude/rules/player-ratings.md). Kept when the Player ratings setting is
@@ -224,6 +245,44 @@ function LFGF.SavedSetting(key)
 		return entry.default
 	end
 	return value
+end
+
+-- THE FILTERS, PER CHARACTER. Each character keeps its own Filters tab and
+-- collapsed sections. Older versions kept one account-wide record for every
+-- character, so a character's first load starts from a copy of it, all of it,
+-- the level range too, by the author's decisions. .claude/rules/saved-filters.md
+local COPIED_FROM_ACCOUNT = { "filters", "collapsedFilterSections" }
+
+--- Copy the old account-wide filters and collapsed sections into this
+--- character's table, once per character. Called on ADDON_LOADED
+--- (core/settings.lua), after both tables exist.
+---
+--- ONCE, not "whenever the character has none": nil is a normal state for
+--- both keys (Blizzard's Defaults forgets the filters, and expanding every
+--- section clears its key), and filling it again on the next login would
+--- bring the old record back. So the copy sets `copiedAccountFilters`, even
+--- when there was nothing to copy, and only a saved `true` counts as done.
+---
+--- Never replaces what the character already holds, copies only a table (a
+--- deep copy, CopyTable, TableUtil.lua:218-228, so the two records never
+--- share a table), and NEVER WRITES THE ACCOUNT TABLE: every character still
+--- to log in needs it. The account keys stay on disk, unread by anything else,
+--- until a later release drops this copy (CLAUDE.md, Next Release Reminders).
+--- .claude/rules/saved-filters.md
+function LFGF.CopyAccountFiltersToCharacter()
+	if LFGF.SavedValue("copiedAccountFilters") == true then
+		return
+	end
+	local account = _G[GLOBAL_NAMES[ACCOUNT]]
+	if type(account) == "table" then
+		for _, key in ipairs(COPIED_FROM_ACCOUNT) do
+			local old = account[key]
+			if LFGF.SavedValue(key) == nil and type(old) == "table" then
+				LFGF.SaveValue(key, CopyTable(old))
+			end
+		end
+	end
+	LFGF.SaveValue("copiedAccountFilters", true)
 end
 
 -- THE OLD DEFAULT CONSTANTS, kept as names (settings.lua and the specs read

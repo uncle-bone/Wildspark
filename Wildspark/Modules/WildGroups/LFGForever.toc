@@ -1,10 +1,10 @@
 ## Interface: 16001
 ## Title: WildGroups
-## Notes: Forever group finder: filter by role, class, whisper, quick invite. Type /lfg
+## Notes: Advanced LFG group finder: filter by role, class, whisper, quick invite. Type /lfg
 ## Category: Group Finder
 ## IconAtlas: friends-icon-tab-quickJoin
 ## Author: Artefius
-## Version: 2.1.0
+## Version: 2.5.0
 ## X-License: GPLv3
 ## X-Category: Chat/Communication
 ## X-Curse-Project-ID: 1707849
@@ -53,8 +53,8 @@
 #   * core/db.lua comes SECOND: settings.lua reads its LFGF.SAVED_KEYS and
 #     minimap.lua its LFGF.MINIMAP_DEFAULT_ANGLE at file scope.
 #     .claude/rules/saved-variables-db.md
-#   * core/main.lua comes THIRD. Five files read what it defines at file
-#     scope: listpanel.lua (Readable, ClassIconAtlas, CreateRowActionButton,
+#   * core/main.lua comes after those two. Five files read what it defines at
+#     file scope: listpanel.lua (Readable, ClassIconAtlas, CreateRowActionButton,
 #     ApplyActionLockTo, INVITE_ICON_ATLAS), filterpanel.lua (MY_FILTERS_MAX,
 #     MY_FILTER_NAME_MAX_LETTERS), window.lua and blizzardtab.lua (TITLE) and
 #     slash.lua (SLASH_COMMAND, TITLE).
@@ -63,6 +63,10 @@
 #   * core/filterpanel_shared.lua comes before core/filterpanel_miscellaneous.lua
 #     and core/filterpanel.lua: both read its LFGF.FilterShared (the section
 #     builders) at file scope. .claude/rules/filter-miscellaneous-section.md
+# core/activitynames.lua (data only: the English names of dungeons and raids,
+# for the Invite whisper's %dungeon_en%) sits between core/db.lua and
+# core/main.lua, which reads it only at call time.
+# .claude/rules/dungeon-en-placeholder.md
 # core/playerrow.lua (the one-line player row) comes before core/whisperlog.lua
 # and core/playerratings.lua (the Player ratings tab), which read its
 # LFGF.PlayerRow at file scope. .claude/rules/player-ratings.md
@@ -71,13 +75,22 @@
 # core/filterpanel_groupclasses.lua (the Groups section's class filter) sits
 # beside the Miscellaneous section's file, before core/filterpanel.lua, which
 # builds with it. .claude/rules/group-class-filter.md
+# core/filterpanel_search.lua (the search row: the category and activity
+# dropdowns and the Search button) comes just before core/filterpanel.lua,
+# which reads its LFGF.SEARCH_* sizes at file scope and builds with it.
+# .claude/rules/filterpanel-search-row.md
 # The panel factories come before core/window.lua, which builds with them, and
 # core/blizzardtab.lua after it, since the tab opens that window.
+# core/blizzardlisting.lua (WildGroups opens after the player's own listing on
+# Blizzard's Create Listing tab) comes after core/blizzardtab.lua: it calls that
+# file's LFGF.CloseBlizzardGroupFinder and window.lua's LFGF.OpenForListing,
+# both at event time. .claude/rules/open-after-listing.md
 # core/rateleavers.lua (the "rate players who left" chat line) comes after them
 # too: its link opens that window, on the Player ratings tab.
 # .claude/rules/rate-leavers.md
 core\locale.lua
 core\db.lua
+core\activitynames.lua
 core\main.lua
 core\relations.lua
 core\talents.lua
@@ -91,9 +104,11 @@ core\playerratings.lua
 core\filterpanel_shared.lua
 core\filterpanel_miscellaneous.lua
 core\filterpanel_groupclasses.lua
+core\filterpanel_search.lua
 core\filterpanel.lua
 core\window.lua
 core\blizzardtab.lua
+core\blizzardlisting.lua
 core\rateleavers.lua
 core\minimap.lua
 core\slash.lua

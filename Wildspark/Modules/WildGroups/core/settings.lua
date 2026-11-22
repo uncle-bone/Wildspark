@@ -81,8 +81,25 @@ local MESSAGE_PLACEHOLDERS = {
 	{ "%level%", L.SETTINGS_PLACEHOLDER_LEVEL },
 	{ "%talents%", L.SETTINGS_PLACEHOLDER_TALENTS },
 	{ "%role%", L.SETTINGS_PLACEHOLDER_ROLE },
+	{ "%dungeon%", L.SETTINGS_PLACEHOLDER_GROUP_DUNGEON },
+	{ "%dungeon_en%", L.SETTINGS_PLACEHOLDER_GROUP_DUNGEON_EN },
 }
 local MESSAGE_MAX_LETTERS = 200
+
+-- EVERY OLDER DEFAULT OF THE ASK TO JOIN MESSAGE that a saved file can still
+-- hold untouched: the load below wrote it into each character with none. A
+-- character holding one exactly never edited it, so it moves to the current
+-- default; anything else the player typed is theirs. Not the defaults before
+-- these: the swap that moved them was removed once none could be left
+-- (.claude/rules/per-character-ask-to-join-message.md), so a copy now is one
+-- the player typed. The second was never released; the author's test
+-- characters hold it. Kept for as long as a character not played since 2.2.0
+-- may still hold one (.claude/rules/addon-settings.md, item 4;
+-- .claude/rules/ask-to-join-dungeon.md).
+local ASK_TO_JOIN_OLD_DEFAULT_MESSAGES = {
+	"Hi! I am a %talents% %class%, %level%. Inv please",   -- 0.9.0 to 2.2.0
+	"Hi! I am a %talents% %class%, %level%. Inv please for %dungeon_en%",   -- 2.3.0-dev.2
+}
 
 -------------------------------------------------------
 ---------- Auto-whisper on Invite
@@ -100,6 +117,18 @@ local INVITE_MESSAGE_LABEL = L.SETTINGS_INVITE_MESSAGE_LABEL
 local INVITE_MESSAGE_TOOLTIP = L.SETTINGS_INVITE_MESSAGE_TOOLTIP
 local INVITE_MESSAGE_PLACEHOLDERS = {
 	{ "%dungeon%", L.SETTINGS_PLACEHOLDER_DUNGEON },
+	{ "%dungeon_en%", L.SETTINGS_PLACEHOLDER_DUNGEON_EN },
+}
+
+-- EVERY OLDER DEFAULT OF THE INVITE MESSAGE, exactly as RegisterAddOnSetting
+-- wrote it into each character on its first load (Blizzard_Setting.lua:398-402).
+-- A character holding one of these never edited it, so it moves to the
+-- current default; anything else the player typed is theirs. Kept for as long
+-- as a character not played since 2.1.0 may still hold one
+-- (.claude/rules/addon-settings.md, item 4;
+-- .claude/rules/dungeon-en-placeholder.md).
+local INVITE_OLD_DEFAULT_MESSAGES = {
+	"Hey! Want to join %dungeon%?",   -- 0.12.0 to 2.1.0
 }
 
 -- THE MESSAGE FIELD IS OUR OWN ROW: Blizzard ships no text-input settings row
@@ -298,7 +327,7 @@ local SHOW_ALL_LEVEL_RANGES_LABEL = L.SETTINGS_SHOW_ALL_LEVELS_LABEL
 local SHOW_ALL_LEVEL_RANGES_TOOLTIP = L.SETTINGS_SHOW_ALL_LEVELS_TOOLTIP
 
 -- The section's second checkbox: each activity's suggested level range after
--- its name in the activity menu (LFGF.ActivityMenuText, core/filterpanel.lua).
+-- its name in the activity menu (LFGF.ActivityMenuText, core/filterpanel_search.lua).
 -- Read when the menu is built, and the menu is rebuilt on every open, so a
 -- change needs no announcement. The label is our own, in the author's wording
 -- (0.9.0-dev.9), and kept under the ~28 characters a row label fits on one
@@ -455,9 +484,10 @@ local function ResetWindowPosition()
 end
 
 --- What Blizzard's Defaults button resets beyond the registered settings: the
---- window position, the saved Filters tab (LFGF.ForgetSavedFilters,
---- core/main.lua), every filter in My filters (LFGF.ForgetMyFilters) and which
---- Filters-tab sections are collapsed (LFGF.ForgetCollapsedFilterSections, which
+--- window position, this character's saved Filters tab (LFGF.ForgetSavedFilters,
+--- core/main.lua; no other character's table is loaded), every filter in My
+--- filters, for the whole account (LFGF.ForgetMyFilters), and which of this
+--- character's Filters-tab sections are collapsed (LFGF.ForgetCollapsedFilterSections, which
 --- expands an already-built panel's sections), all by the author's decisions -- on All Settings too, from whatever page it was
 --- pressed. Forgetting the filters also puts an already-built filter panel's
 --- boxes back and hides its My filters dropdown; the list is left to the next
@@ -467,6 +497,9 @@ local function ResetOnDefaults()
 	LFGF.ForgetSavedFilters()
 	LFGF.ForgetMyFilters()
 	LFGF.ForgetCollapsedFilterSections()
+	-- This character's favorite activities (core/filterpanel_search.lua). The
+	-- activity menu reads them each time it opens, so nothing else follows.
+	LFGF.SaveValue("favoriteActivities", nil)
 end
 
 EventUtil.ContinueOnAddOnLoaded(addonName, function()
@@ -475,6 +508,9 @@ EventUtil.ContinueOnAddOnLoaded(addonName, function()
 	-- which is what makes the client save it on logout.
 	LFGF.SavedTable("account")
 	LFGF.SavedTable("character")
+	-- Before anything reads them: this character's filters and collapsed
+	-- sections, copied once from the old account-wide record (core/db.lua).
+	LFGF.CopyAccountFiltersToCharacter()
 
 	-- The layout is kept for rows no Settings.Create* helper builds -- the
 	-- headers and button rows below (Blizzard_ImplementationReadme.lua:13).
@@ -513,9 +549,9 @@ EventUtil.ContinueOnAddOnLoaded(addonName, function()
 	-- LFGF.AskToJoinMessage (core/main.lua) reads LFGForeverCharDB and nothing
 	-- else, with no default of its own. A character with none yet (nil) gets
 	-- the default; a message the character emptied is kept, because it is not
-	-- nil. Nothing else is ever rewritten: until 0.20.0 an exact old default
-	-- was swapped for the current one, removed once no saved file could still
-	-- hold one (.claude/rules/addon-settings.md, item 4).
+	-- nil. The only other rewrite is an exact older default
+	-- (ASK_TO_JOIN_OLD_DEFAULT_MESSAGES, above), cleared first so it gets the
+	-- current one (.claude/rules/addon-settings.md, item 4).
 	--
 	-- From 0.11.0 to 0.13.0 a character with none got a copy of the
 	-- account-wide LFGForeverDB.askToJoinMessage instead. The copy was removed
@@ -524,6 +560,12 @@ EventUtil.ContinueOnAddOnLoaded(addonName, function()
 	-- every load; that clean-up was removed in 0.21.0-dev.5, by the author's
 	-- decision, so a file last saved by 0.13.0 or older keeps the old text,
 	-- unread. .claude/rules/per-character-ask-to-join-message.md
+	local savedMessage = LFGF.SavedValue("askToJoinMessage")
+	for _, old in ipairs(ASK_TO_JOIN_OLD_DEFAULT_MESSAGES) do
+		if savedMessage == old then
+			LFGF.SaveValue("askToJoinMessage", nil)
+		end
+	end
 	if LFGF.SavedValue("askToJoinMessage") == nil then
 		LFGF.SaveValue("askToJoinMessage", LFGF.ASK_TO_JOIN_DEFAULT_MESSAGE)
 	end
@@ -541,6 +583,15 @@ EventUtil.ContinueOnAddOnLoaded(addonName, function()
 	local inviteAutoWhisper = RegisterSetting(category, "inviteAutoWhisper",
 		INVITE_AUTO_WHISPER_LABEL)
 	Settings.CreateCheckbox(category, inviteAutoWhisper, INVITE_AUTO_WHISPER_TOOLTIP)
+
+	-- An older default is cleared first, so the next line writes the current
+	-- one. Exact matches only: a message the player changed is never touched.
+	local savedInvite = LFGF.SavedValue("inviteMessage")
+	for _, old in ipairs(INVITE_OLD_DEFAULT_MESSAGES) do
+		if savedInvite == old then
+			LFGF.SaveValue("inviteMessage", nil)
+		end
+	end
 
 	-- Writes the default into this character's table when the key is nil --
 	-- `== nil`, so an emptied message is kept (Blizzard_Setting.lua:398-402).
@@ -616,13 +667,6 @@ EventUtil.ContinueOnAddOnLoaded(addonName, function()
 		EventRegistry:TriggerEvent(LFGF.EVENT_MINIMAP_BUTTON_CHANGED, value)
 	end)
 
-	-- The language packs sentence: an element row (Blizzard_Settings.lua:342),
-	-- whose data table is ours. Nothing of ours is written onto Blizzard's
-	-- initializer, and it carries no search tags, so the Options search does
-	-- not find it.
-	layout:AddInitializer(Settings.CreateElementInitializer("LFGForeverSettingsTextRowTemplate",
-		{ text = L.SETTINGS_LANGUAGE_PACKS_FORMAT:format(LANGUAGE_PACK_EXAMPLE) }))
-
 	-- Report a bug, then Reset window position: Blizzard's own button rows
 	-- (Blizzard_SettingControls.lua:1014), added the way BugSack adds its Wipe
 	-- button on this client. The fifth argument must not be nil (:1019).
@@ -636,6 +680,14 @@ EventUtil.ContinueOnAddOnLoaded(addonName, function()
 		REPORT_BUG_BUTTON, ShowReportBug, REPORT_BUG_TOOLTIP, false))
 	layout:AddInitializer(CreateSettingsButtonInitializer(RESET_WINDOW_LABEL,
 		L.RESET, ResetWindowPosition, RESET_WINDOW_TOOLTIP, false))
+
+	-- The language packs sentence, the page's last row (the author's place,
+	-- .claude/rules/language-packs-row.md): an element row
+	-- (Blizzard_Settings.lua:342), whose data table is ours. Nothing of ours is
+	-- written onto Blizzard's initializer, and it carries no search tags, so
+	-- the Options search does not find it.
+	layout:AddInitializer(Settings.CreateElementInitializer("LFGForeverSettingsTextRowTemplate",
+		{ text = L.SETTINGS_LANGUAGE_PACKS_FORMAT:format(LANGUAGE_PACK_EXAMPLE) }))
 
 	-- BLIZZARD'S DEFAULTS BUTTON RESETS THE WINDOW POSITION AND FORGETS THE
 	-- SAVED FILTERS AND MY FILTERS TOO, by the author's decisions

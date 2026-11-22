@@ -48,6 +48,12 @@ local DIVIDER_TEMPLATE = "LFGBrowseSearchEntryGroupingTemplate"
 -- Browse.lua:210-213 -- the two buckets results are split into.
 local DIVIDER_SOLO, DIVIDER_GROUP = "solo", "group"
 
+-- A row with an inline note is Blizzard's three-line row: 72 against the
+-- template's 52 (Mainline/Blizzard_LFGVanilla_Browse.xml:140, :241). The
+-- buttons and roles stay centred on the whole row: their RIGHT anchor
+-- follows its height.
+local NOTE_LINE_EXTENT = 20
+
 -------------------------------------------------------
 ---------- Reading a result safely
 -------------------------------------------------------
@@ -106,8 +112,9 @@ local askedParties = {}
 
 -- THE WHISPER IS A SETTING NOW: "Auto-whisper on Ask to Join" and its message,
 -- under Options -> AddOns -> WildGroups (core/settings.lua). The text, with
--- its placeholders (%class%, %level%, %talents%, %role%) filled in, comes from
--- LFGF.AskToJoinMessage in core/main.lua at CLICK time.
+-- its placeholders (%class%, %level%, %talents%, %role%, and the group's
+-- %dungeon% and %dungeon_en%) filled in, comes from LFGF.AskToJoinMessage in
+-- core/main.lua at CLICK time.
 
 -- THE BUTTON SHAPE AND THE ACTION COOLDOWN NOW LIVE IN core/main.lua, because
 -- core/whisperlog.lua puts the same plus on an incoming whisper. Sharing the
@@ -118,12 +125,21 @@ local CreateRowButton = LFGF.CreateRowActionButton
 local ApplyLockTo = LFGF.ApplyActionLockTo
 local INVITE_ICON_ATLAS = LFGF.INVITE_ICON_ATLAS
 
---- Build the row's two buttons, once per row frame.
+-- YOUR OWN LISTING'S DELIST X: Blizzard's red x, drawn at its atlas size,
+-- 12x12 (AtlasInfo.lua), on the shared row button, as Blizzard's own x sits in
+-- this row (Browse.xml:114-126). It takes that x's place, which stays hidden on
+-- our rows (UpdateRow): built by our code, its click ran Blizzard's
+-- RemoveListing and then Blizzard's search as WildGroups, and the client
+-- refused the search. .claude/rules/delist-own-listing.md
+local DELIST_ICON_ATLAS = "groupfinder-icon-redx"
+local DELIST_ICON_SIZE = 12
+
+--- Build the row's three buttons, once per row frame.
 ---
 --- THE DATA DISPLAY IS RE-ANCHORED to make room. The template hangs it off the
 --- row's own RIGHT (Browse.xml:192), so without this a button would sit on top
---- of the role icons. It is anchored to the invite button because both buttons
---- share that rect; the space is reserved whether or not either is showing.
+--- of the role icons. It is anchored to the invite button because all three
+--- buttons share that rect; the space is reserved whether or not any is showing.
 local function EnsureRowButtons(row)
 	if row.LFGFInvite then
 		return
@@ -131,6 +147,10 @@ local function EnsureRowButtons(row)
 
 	row.LFGFInvite = CreateRowButton(row, INVITE_ICON_ATLAS, L.GROUP_INVITE)
 	row.LFGFAskToJoin = CreateRowButton(row, ASK_TO_JOIN_ICON_ATLAS, ASK_TO_JOIN_LABEL)
+	-- The same slot again: Invite and Ask to Join never show on your own row
+	-- (CanActOnRow), and the Delist x shows only there.
+	row.LFGFDelist = CreateRowButton(row, DELIST_ICON_ATLAS, L.DELIST)
+	row.LFGFDelist.Icon:SetSize(DELIST_ICON_SIZE, DELIST_ICON_SIZE)
 	row.DataDisplay:SetPoint("RIGHT", row.LFGFInvite, "LEFT", -2, -1)
 
 	-- Anchored to the bubble, so the template's press nudge, which moves only
@@ -238,7 +258,12 @@ end
 ---
 --- WHAT THE CLICK DOES follows the setting, read when the button is CLICKED so
 --- a change in the settings takes effect on rows already drawn:
----   * LFGF.AskToJoinMessage() returns text -> whisper it to the leader;
+---   * LFGF.AskToJoinMessage(activityIDs) returns text -> whisper it to the
+---     leader. activityIDs are the group's, read with its leader's name when
+---     the row was drawn (a result update redraws the row), so %dungeon%
+---     names what the row shows; through Readable, because the field carries
+---     no NeverSecret (LFGListInfoDocumentation.lua:983) -- an unreadable list
+---     is nil, which main.lua fills in as "";
 ---   * it returns nil (checkbox off, or an empty message) -> open a whisper to
 ---     the leader for the player to type in, ChatFrameUtil.SendTell
 ---     (ChatFrameUtil.lua:383-386), the call Blizzard's own "Send Message"
@@ -276,6 +301,7 @@ local function UpdateAskToJoinButton(row, info, isDelisted, isSolo)
 	ShowAsked(button, partyGUID ~= nil and askedParties[partyGUID] == true)
 
 	local leaderName = info.leaderName
+	local activityIDs = Readable(info.activityIDs, nil)
 	button.action = function()
 		if not canaccessvalue(leaderName) then
 			return
@@ -287,7 +313,7 @@ local function UpdateAskToJoinButton(row, info, isDelisted, isSolo)
 				button:GetScript("OnEnter")(button)
 			end
 		end
-		local message = LFGF.AskToJoinMessage()
+		local message = LFGF.AskToJoinMessage(activityIDs)
 		if message == nil then
 			ChatFrameUtil.SendTell(leaderName)
 			-- Nothing was sent, so no cooldown (see RunAction, core/main.lua).
@@ -493,6 +519,54 @@ local function UpdatePlaystyle(row, info)
 	label:Show()
 end
 
+--- The INLINE NOTE: a Quests & Zones listing's details text (its comment,
+--- LFGListInfoDocumentation.lua:986), which Blizzard's Create Listing makes
+--- mandatory for that category, the only one with no activity to pick
+--- (Blizzard_LFGVanilla_Listing.lua:886-903). Nil for any other listing, for
+--- blank text, and when the comment cannot be read: it is secret in
+--- chat-messaging lockdown (:397). The text comes back on one line, trimmed,
+--- every run of spaces and line breaks one space.
+--- .claude/rules/inline-note.md.
+local function InlineNote(info)
+	local comment = Readable(info.comment, nil)
+	if comment == nil or not comment:find("%S") then
+		return nil
+	end
+	local activityIDs = Readable(info.activityIDs, nil)
+	local activity = activityIDs and activityIDs[1] and C_LFGList.GetActivityInfoTable(activityIDs[1])
+	if not activity or activity.categoryID ~= LFGF.QUESTS_CATEGORY_ID then
+		return nil
+	end
+	return (comment:match("^%s*(.-)%s*$"):gsub("%s+", " "))
+end
+
+--- Show the note under the activity line, after Blizzard's friends-list note
+--- icon (Camelot/FriendsFrame.xml:863-868), or nothing. `note` is the one the
+--- tree was built with (ListingNode), so the line and the row's height (the
+--- extent calculator in LFGF.CreateListPanel) always agree.
+---
+--- Two corner anchors give the text its width, so the client cuts a long note
+--- with "..." at the row's end; LEFT / RIGHT would pin the vertical centre
+--- too (patterns-ui.md). Built once per pooled row, set on every update.
+local function UpdateNote(row, note)
+	if not row.LFGFNote then
+		local icon = row:CreateTexture(nil, "ARTWORK")
+		icon:SetTexture("Interface\\FriendsFrame\\UI-FriendsFrame-Note")
+		icon:SetSize(14, 12)
+		icon:SetPoint("TOPLEFT", row.ActivityName, "BOTTOMLEFT", 0, -3)
+		row.LFGFNoteIcon = icon
+
+		local text = row:CreateFontString(nil, "ARTWORK", "GameFontDisableLeft")
+		text:SetPoint("TOPLEFT", row.ActivityName, "BOTTOMLEFT", 16, -2)
+		text:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -8, 10)
+		text:SetWordWrap(false)
+		row.LFGFNote = text
+	end
+	row.LFGFNote:SetText(note or "")
+	row.LFGFNote:SetShown(note ~= nil)
+	row.LFGFNoteIcon:SetShown(note ~= nil)
+end
+
 --- Colour the row, and grey it when the listing has been withdrawn.
 ---
 --- A listing can be delisted while it is on screen. Blizzard greys the row in
@@ -546,6 +620,8 @@ local function ColourRow(row, info, leaderInfo, isDelisted)
 	row.ActivityName:SetTextColor(activityColor.r, activityColor.g, activityColor.b)
 	row.LFGFZone:SetTextColor(activityColor.r, activityColor.g, activityColor.b)
 	row.LFGFPlaystyle:SetTextColor(activityColor.r, activityColor.g, activityColor.b)
+	row.LFGFNote:SetTextColor(activityColor.r, activityColor.g, activityColor.b)
+	row.LFGFNoteIcon:SetVertexColor(activityColor.r, activityColor.g, activityColor.b)
 
 	-- Set on EVERY update, not only when delisted: rows are recycled, so a
 	-- one-way rule would leave a row grey for good once any withdrawn listing
@@ -604,7 +680,39 @@ local function UpdateRatingStrip(row, resultID, info)
 	LFGF.PaintRatingStrip(row.LFGFRatingStrip, rating)
 end
 
-local function UpdateRow(row, resultID, relation)
+--- The Delist x's click: remove the player's listing, and nothing else. No
+--- search after it and no tab switch, unlike Blizzard's own x
+--- (Browse.lua:1295-1301): that search, made from this click, is the call the
+--- client refused. RemoveListing has no documentation entry (it is in the
+--- client dump, GlobalAPI.lua:2752); a client probe from /run, a tainted path
+--- like addon code, delisted in and out of combat and left Blizzard's Create
+--- Listing state clean (2026-11-21). Answers false, so the shared lock is not
+--- taken, when no listing is left to remove (HasActiveEntryInfo carries no
+--- secret or restriction, LFGListInfoDocumentation.lua:456-463).
+local function DelistOwnListing()
+	if not C_LFGList.HasActiveEntryInfo() then
+		return false
+	end
+	C_LFGList.RemoveListing()
+end
+
+--- Show the Delist x on the player's own listing, by Blizzard's rule: solo,
+--- or leading the group (Browse.lua:916, LFGF.LeadsOwnListing). Set both ways
+--- on every update, because rows are pooled. No check for a withdrawn listing:
+--- a withdrawn listing of yours is never drawn (BuildDataProvider).
+local function UpdateDelistButton(row)
+	local button = row.LFGFDelist
+	ApplyLockTo(button)
+	if row.hasSelf and LFGF.LeadsOwnListing() then
+		button.action = DelistOwnListing
+		button:Show()
+	else
+		button.action = nil
+		button:Hide()
+	end
+end
+
+local function UpdateRow(row, resultID, relation, note)
 	local info = C_LFGList.GetSearchResultInfo(resultID)
 	if not info then
 		row:Hide()
@@ -635,6 +743,7 @@ local function UpdateRow(row, resultID, relation)
 	-- The zone first: the playstyle hangs off it when it is shown.
 	UpdateZone(row, isSolo, memberInfo)
 	UpdatePlaystyle(row, info)
+	UpdateNote(row, note)
 	-- Before ColourRow too, whose name clamp makes room for it.
 	row.NewPlayerFriendlyIcon:SetShown(Readable(info.newPlayerFriendly, false) == true)
 	ColourRow(row, info, C_LFGList.GetSearchResultLeaderInfo(resultID), isDelisted)
@@ -654,16 +763,22 @@ local function UpdateRow(row, resultID, relation)
 	EnsureRowButtons(row)
 	UpdateInviteButton(row, info, isDelisted)
 	UpdateAskToJoinButton(row, info, isDelisted, isSolo)
+	UpdateDelistButton(row)
 
 	-- Blizzard's own display updater. It is argument-driven and touches only
-	-- the frame it is handed (Browse.lua:874), so reusing it couples nothing.
-	-- The comment goes in as-is: it ends at a SetText (:916).
+	-- the frame it is handed (Browse.lua:880), so reusing it couples nothing.
+	-- The comment goes in as-is: it ends at a SetText (:921-922).
+	--
+	-- hasSelf GOES IN AS false. The updater uses it for one thing, showing
+	-- Blizzard's Delist x (:916-917), and that x on our row runs Blizzard's
+	-- click as WildGroups: its search was refused. UpdateDelistButton's x
+	-- takes its place.
 	local displayType, maxNumPlayers = LFGBrowseUtil_GetBestDisplayTypeForActivityIDs(activityIDs)
 	LFGBrowseGroupDataDisplay_Update(row.DataDisplay, displayType, maxNumPlayers,
 		C_LFGList.GetSearchResultMemberCounts(resultID),
 		isDelisted, isSolo,
 		memberInfo and Readable(memberInfo.lfgRoles, nil) or nil,
-		info.comment, Readable(info.hasSelf, false))
+		info.comment, false)
 end
 
 -------------------------------------------------------
@@ -994,7 +1109,7 @@ end
 --
 -- NO ROLE CHECKED MEANS NO CONSTRAINT, matching the activity dropdown in the
 -- filter panel, where an empty selection means "all activities"
--- (core/filterpanel.lua RequestSearch). An empty filter never hides anything.
+-- (core/filterpanel_search.lua RequestSearch). An empty filter never hides anything.
 --
 -- IT FAILS OPEN: a listing whose roles cannot be read is SHOWN. lfgRoles
 -- carries no NeverSecret, so it is unreadable in a dungeon or raid, and hiding
@@ -1345,6 +1460,8 @@ local function ListingNode(resultID, info, index, relation)
 	return {
 		resultID = resultID,
 		relation = relation,
+		-- Read once a search, so a row's line and its height never disagree.
+		note = InlineNote(info),
 		age = Readable(info.age, nil),
 		guid = type(guid) == "string" and guid or "",
 		index = index,
@@ -1534,7 +1651,14 @@ end
 --- friend list changing, by decision -- the next search sees the change. The
 --- rating is read here too, once per search: a rating saved or cleared later
 --- changes the strip at once (RemarkRows) and the place on the next search.
-local function BuildDataProvider(results, filters, collapsedByDivider)
+---
+--- YOUR OWN LISTING, ONCE WITHDRAWN, IS LEFT OUT, by the author's decision: a
+--- delist (our x, Blizzard's own, your leader's) takes your row out of the list
+--- rather than leaving it grey. ownResults, the panel's, remembers the result
+--- IDs seen as yours this search, so a rebuild still knows the row after the
+--- delist: whether hasSelf stays set on a withdrawn listing is not in the
+--- sources. It is only added to here; the panel empties it per search.
+local function BuildDataProvider(results, filters, collapsedByDivider, ownResults)
 	-- Per bucket, one list per part (PARTS).
 	local groups = NewBucket()
 	local solos = NewBucket()
@@ -1571,7 +1695,10 @@ local function BuildDataProvider(results, filters, collapsedByDivider)
 
 	for index, resultID in ipairs(results) do
 		local info = C_LFGList.GetSearchResultInfo(resultID)
-		if info then
+		if info and Readable(info.hasSelf, false) then
+			ownResults[resultID] = true
+		end
+		if info and not (ownResults[resultID] and Readable(info.isDelisted, false) == true) then
 			local numMembers = Readable(info.numMembers, nil)
 			local hasSelf = Readable(info.hasSelf, false)
 
@@ -1724,9 +1851,20 @@ function LFGF.CreateListPanel(parent)
 		else
 			factory(ROW_TEMPLATE, function(frame)
 				DetachBlizzardScripts(frame)
-				UpdateRow(frame, data.resultID, data.relation)
+				UpdateRow(frame, data.resultID, data.relation, data.note)
 			end)
 		end
+	end)
+
+	-- Each element's height, from its template, plus the note's line. The view
+	-- sizes a row before its initializer runs (ScrollBoxListView.lua:383,
+	-- ScrollBoxLinearView.lua:93-96, :153-162), so no row sets its own.
+	view:SetElementExtentCalculator(function(_, elementData)
+		local data = elementData.data
+		if data.dividerType then
+			return view:GetTemplateExtent(DIVIDER_TEMPLATE)
+		end
+		return view:GetTemplateExtent(ROW_TEMPLATE) + (data.note and NOTE_LINE_EXTENT or 0)
 	end)
 
 	ScrollUtil.InitScrollBoxListWithScrollBar(scrollBox, scrollBar, view)
@@ -1755,7 +1893,7 @@ function LFGF.CreateListPanel(parent)
 
 		local provider = (totalResults == 0 or self.searchFailed)
 			and CreateTreeDataProvider()
-			or BuildDataProvider(results, self.filters, self.collapsedByDivider)
+			or BuildDataProvider(results, self.filters, self.collapsedByDivider, self.ownResults)
 
 		-- EMPTY IS EMPTY, whoever emptied it -- the question asked here is
 		-- "did anything survive to be rendered", not "did the server send
@@ -1792,6 +1930,7 @@ function LFGF.CreateListPanel(parent)
 	--- The rows are emptied on purpose: leaving the PREVIOUS results under a
 	--- spinner reads as though the search has already answered.
 	function panel:SetSearching()
+		self.ownResults = {}
 		self.SearchingSpinner:Show()
 		self.NoResultsFound:Hide()
 		self.ScrollBox:SetDataProvider(CreateTreeDataProvider())
@@ -1805,6 +1944,12 @@ function LFGF.CreateListPanel(parent)
 	-- so it also survives a search in which that category had no listings at
 	-- all and no divider was built.
 	panel.collapsedByDivider = { [DIVIDER_GROUP] = false, [DIVIDER_SOLO] = false }
+
+	-- THE RESULT IDs SEEN AS THE PLAYER'S OWN LISTING this search
+	-- (BuildDataProvider). Emptied when a search starts and when one ends: a
+	-- searchResultID is a place in one search, and nothing documents it
+	-- surviving the next.
+	panel.ownResults = {}
 
 	--- Redraw the one row showing resultID, if any row is.
 	---
@@ -1832,14 +1977,31 @@ function LFGF.CreateListPanel(parent)
 	--- most of the redrawing this does. The OnShow below redraws them instead.
 	--- IsVisible, not IsShown: closing the window hides an ANCESTOR of this
 	--- panel, and the panel's own IsShown stays true.
+	---
+	--- YOUR OWN LISTING WITHDRAWN leaves the list (BuildDataProvider), which
+	--- takes a rebuild; while closed, on opening, as a search outcome does.
+	--- Checked before the visibility test, and only for a result known as yours,
+	--- so a closed window reads one result at most. The probe (2026-11-21) saw
+	--- this event grey the row after a delist, so it is the server's word.
 	function panel:UpdateResult(resultID)
+		if self.ownResults[resultID] then
+			local info = C_LFGList.GetSearchResultInfo(resultID)
+			if info and Readable(info.isDelisted, false) == true then
+				if self:IsVisible() then
+					self:Refresh()
+				else
+					self.refreshPending = true
+				end
+				return
+			end
+		end
 		if not self:IsVisible() then
 			return
 		end
 		self.ScrollBox:ForEachFrame(function(frame, elementData)
 			local data = elementData and elementData.data
 			if data and data.resultID == resultID then
-				UpdateRow(frame, resultID, data.relation)
+				UpdateRow(frame, resultID, data.relation, data.note)
 				return true
 			end
 		end)
@@ -1911,6 +2073,7 @@ function LFGF.CreateListPanel(parent)
 	--- it as failed. One path, so the two endings cannot drift apart.
 	function panel:FinishSearch(failed)
 		self.searchFailed = failed
+		self.ownResults = {}
 		self.SearchingSpinner:Hide()
 		-- A SEARCH OUTCOME WHILE CLOSED IS RECORDED, NOT DRAWN. Not every search
 		-- is ours: Blizzard's Browse tab searches from its own controls, and by

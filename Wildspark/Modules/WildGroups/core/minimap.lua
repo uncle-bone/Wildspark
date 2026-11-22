@@ -90,7 +90,6 @@ local DRAG_HINT = L.MINIMAP_DRAG
 --- close the window, exactly as /lfg does, in combat too (the window is a
 --- plain frame, not a UI panel; core/window.lua). Right: the settings page.
 function LFGF.OnLauncherClick(mouseButton)
-	if not LFGF.IsEnabled() then return end
 	if mouseButton == "RightButton" then
 		LFGF.OpenSettings()
 	else
@@ -129,17 +128,17 @@ end
 -- (:166-173). If it is absent, the TOC lines are simply never read.
 
 --- Click: called as (addonName, buttonName) (AddonCompartment.lua:124, :128).
-function Wildspark_WildGroups_OnAddonCompartmentClick(_, mouseButton)
+function LFGForever_OnAddonCompartmentClick(_, mouseButton)
 	LFGF.OnLauncherClick(mouseButton)
 end
 
 --- Enter: called as (addonName, menuButton) (:109).
-function Wildspark_WildGroups_OnAddonCompartmentEnter(_, menuButton)
+function LFGForever_OnAddonCompartmentEnter(_, menuButton)
 	ShowLauncherTooltip(menuButton, false)
 end
 
 --- Leave: called as (addonName, menuButton) (:116).
-function Wildspark_WildGroups_OnAddonCompartmentLeave()
+function LFGForever_OnAddonCompartmentLeave()
 	GameTooltip:Hide()
 end
 
@@ -295,7 +294,7 @@ local function BuildButton()
 	end)
 
 	Place(button, SavedAngle())
-	button:SetShown(LFGF.IsEnabled() and LFGF.ShowMinimapButton())
+	button:SetShown(LFGF.ShowMinimapButton())
 
 	-- AGAIN AT LOGIN, for a skin addon that defines GetMinimapShape after our
 	-- ADDON_LOADED: LibDBIcon waits for PLAYER_LOGIN "to let any
@@ -308,7 +307,7 @@ local function BuildButton()
 	-- "Show minimap button" moved (core/settings.lua). The button is built
 	-- either way, so the change is a show or a hide, never a rebuild.
 	EventRegistry:RegisterCallback(LFGF.EVENT_MINIMAP_BUTTON_CHANGED, function(_, shown)
-		button:SetShown(LFGF.IsEnabled() and shown)
+		button:SetShown(shown)
 	end, button)
 
 	return button
@@ -321,9 +320,6 @@ end
 -- fall back (SavedAngle above, LFGF.ShowMinimapButton) to the defaults
 -- settings.lua would write on a first install.
 local button
-function LFGF.UpdateMinimapButton()
-	if button then button:SetShown(LFGF.IsEnabled() and LFGF.ShowMinimapButton()) end
-end
 EventUtil.ContinueOnAddOnLoaded(addonName, function()
 	button = button or BuildButton()
 end)

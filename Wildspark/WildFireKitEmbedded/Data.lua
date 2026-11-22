@@ -147,7 +147,7 @@ ns.WEAPON_BUFFS = {
 }
 
 -- What each weapon buff goes on: "sharp" (blades), "blunt", "poison", or
--- "imbue" (Firestone, Spellstone: Forever casts these on your weapon);
+-- "imbue" (Firestone, Spellstone: used, then put on the main hand);
 -- anything else (oils, newer items) goes on any melee weapon.
 ns.WEAPON_BUFF_KIND = {}
 for _, id in ipairs({ 2862, 2863, 2871, 7964, 12404, 18262, 23122 }) do ns.WEAPON_BUFF_KIND[id] = "sharp" end
@@ -162,6 +162,18 @@ for _, id in ipairs({ 1254, 13699, 13700, 13701, 5522, 13602, 13603 }) do ns.WEA
 -- 2026), for spotting them on a weapon by icon if the client doesn't give
 -- them an imbue enchant type.
 ns.IMBUE_SPELLS = { 758, 17945, 17947, 17949, 1237152, 1237156, 1237159 }
+
+-- The spell that makes each Firestone and Spellstone, and its kind, so a
+-- "your pick" slot holding one you've run out of makes your best one of that
+-- kind instead (as Consumables Manager does; IDs from its Weapon.lua).
+ns.IMBUE_CREATE = {
+    [1254] = 6366, [13699] = 17951, [13700] = 17952, [13701] = 17953, -- Create Firestone
+    [5522] = 2362, [13602] = 17727, [13603] = 17728,                  -- Create Spellstone
+}
+ns.IMBUE_GROUP = {
+    [1254] = "fire", [13699] = "fire", [13700] = "fire", [13701] = "fire",
+    [5522] = "spell", [13602] = "spell", [13603] = "spell",
+}
 
 -- Extra item kinds the "your pick" slots can take, each with its own
 -- setting (off by default). Found by the game's item categories, by enum key

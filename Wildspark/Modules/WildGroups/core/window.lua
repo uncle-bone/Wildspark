@@ -166,12 +166,13 @@ local function BuildContentPanels(content)
 	-- Not a search: no spinner, no query. See .claude/rules/saved-filters.md.
 	list:UseFilters(filter:CurrentFilters())
 
-	-- The invite whisper names the activities ticked in the filter panel when
-	-- the player has no listing (core/main.lua, InviteWhisperMessage). The
-	-- list panel's invite button asks main.lua, and main.lua asks the filter
-	-- panel through this, so the two panels still never learn of each other.
-	-- Read at click time, so a tick counts before any Search.
-	LFGF.SetInviteActivitySource(function() return filter:SelectedActivityIDs() end)
+	-- Both whispers read the activities ticked in the filter panel
+	-- (core/main.lua): the invite whisper names them when the player has no
+	-- listing, and Ask to Join names the group's ticked ones. The list panel's
+	-- buttons ask main.lua, and main.lua asks the filter panel through this,
+	-- so the two panels still never learn of each other. Read at click time,
+	-- so a tick counts before any Search.
+	LFGF.SetActivityFilterSource(function() return filter:SelectedActivityIDs() end)
 end
 
 -- The side tab strip, mirroring Blizzard's own so a player can move between all
@@ -700,7 +701,7 @@ end
 --- Toggle the window. Used by /lfg, the minimap button and the addon
 --- compartment.
 function LFGF.ToggleWindow()
-	if not LFGF.IsEnabled() then return end
+	if LFGF.IsEnabled and not LFGF.IsEnabled() then return end
 	local frame = Prepare()
 	frame:SetShown(not frame:IsShown())
 end
@@ -709,7 +710,7 @@ end
 --- (core/blizzardtab.lua): a launcher means "show me that window". Blizzard's
 --- Group Finder stays open beside it -- this window touches no other window.
 function LFGF.OpenWindow()
-	if not LFGF.IsEnabled() then return end
+	if LFGF.IsEnabled and not LFGF.IsEnabled() then return end
 	Prepare():Show()
 end
 
@@ -720,7 +721,7 @@ end
 --- more happens, as with a click on the greyed button; the click sound plays
 --- only when the search goes out.
 function LFGF.SearchFromKey()
-	if not LFGF.IsEnabled() then return end
+	if LFGF.IsEnabled and not LFGF.IsEnabled() then return end
 	local frame = Prepare()
 	frame:Show()
 	if frame.Content.FilterPanel:RequestSearch() then
@@ -728,10 +729,24 @@ function LFGF.SearchFromKey()
 	end
 end
 
+--- Open the window on the player's own listing, building it if needed. Used
+--- once the player's click on Blizzard's Create Listing post button is
+--- answered with a listing (core/blizzardlisting.lua). Shown first, so the
+--- list hears the wait for Blizzard's search start while it is on screen, as
+--- with the Search key. Whichever tab was up stays up: the search row and the
+--- players list are on every tab.
+function LFGF.OpenForListing(activityIDs)
+	if LFGF.IsEnabled and not LFGF.IsEnabled() then return end
+	local frame = Prepare()
+	frame:Show()
+	frame.Content.FilterPanel:FollowListing(activityIDs)
+end
+
 --- Open the window on the Player ratings tab, building it if needed. Used by
 --- the "rate players who left" chat link (core/rateleavers.lua). Shown first,
 --- so the tab's list is shown once, when the tab switch reaches it.
 function LFGF.OpenPlayerRatings()
+	if LFGF.IsEnabled and not LFGF.IsEnabled() then return end
 	local frame = Prepare()
 	frame:Show()
 	frame.Content.FilterPanel:ShowPlayerRatingsTab()

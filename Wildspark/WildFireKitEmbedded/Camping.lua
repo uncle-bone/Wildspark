@@ -931,14 +931,28 @@ end
 
 local CLEAR = "clear"
 
+-- A Firestone or Spellstone you have none of: the Create spell for the best
+-- one of that kind you know, or nil.
+local function CreateFor(id)
+    if not (IsImbue(id) and U.ItemCount(id) == 0) then return nil end
+    local group, best, bestItem = ns.IMBUE_GROUP[id], nil, nil
+    for item, spell in pairs(ns.IMBUE_CREATE) do
+        -- (item IDs rise with rank in both kinds, so the highest is the best)
+        if ns.IMBUE_GROUP[item] == group and U.Known(spell) and (not bestItem or item > bestItem) then
+            best, bestItem = spell, item
+        end
+    end
+    return best
+end
+
 local function SlotUpdate(kit, btn)
     local data = btn.slot.data
     local id = ChooseItem(kit, data)
     assigned[data.key] = id
     btn.itemID = id
     if data.pick then
-        -- A macro: "/use" the item, and for a weapon buff also open the
-        -- character panel (see the slot's PreClick).
+        -- A macro: "/use" the item, and for a weapon buff also put it on
+        -- the weapon or open the character panel (see the slot's PreClick).
         btn:SetAttribute("type", "macro")
     else
         btn:SetAttribute("type", "item")
@@ -954,7 +968,7 @@ local function SlotPaint(kit, btn)
     btn.icon:SetTexture(id and U.ItemIcon(id) or nil) -- nothing chosen: just the empty slot
     btn.count:SetText(uses > 1 and uses or "")
     if id then U.SetCooldown(btn.cooldown, U.ItemCooldown(id)) else btn.cooldown:Clear() end
-    local blocked = n == 0
+    local blocked = n == 0 and not (data.pick and CreateFor(id)) -- (a click makes one)
     btn.icon:SetDesaturated(blocked)
     btn.icon:SetVertexColor(blocked and 0.6 or 1, blocked and 0.6 or 1, blocked and 0.6 or 1)
     if data.pick then PaintWeaponSlot(kit, btn) else kit:SetGlow(btn, false) end
@@ -970,7 +984,12 @@ local function SlotTooltip(kit, btn)
         GameTooltip:SetItemByID(id)
         if not U.Owned(id) then
             GameTooltip:AddLine(" ")
-            GameTooltip:AddLine("None in your bags.", 1, 0.3, 0.3)
+            local create = data.pick and CreateFor(id)
+            if create then
+                GameTooltip:AddLine("None in your bags. Click to cast " .. (U.SpellName(create) or "Create") .. ".", 0.3, 1, 0.3, true)
+            else
+                GameTooltip:AddLine("None in your bags.", 1, 0.3, 0.3)
+            end
         end
     else
         GameTooltip:AddLine(data.profLabel or data.label)
@@ -1078,15 +1097,70 @@ local function SlotChoices(kit, btn)
     return list
 end
 
--- Using a weapon buff also opens the character panel, so your weapons are
--- right there to click ("/click" on the character button; opening it from
--- addon code taints it).
+-- The hand a sharpening stone, weightstone or oil goes on: of the weapons it
+-- fits, the one whose stone or oil runs out first (a bare one before any,
+-- the main hand on a tie). nil if none fits, or for poisons (a rogue picks
+-- which hand gets which) and Firestones/Spellstones (they cast themselves).
+local function StoneHand(id)
+    if not id or IsPoison(id) or IsImbue(id) or U.ItemCount(id) == 0 then return nil end
+    local best, bestLeft
+    for _, h in ipairs(Hands()) do
+        if Fits(id, h.sub) then
+            local left = h.stone or -1 -- (false: nothing on it)
+            if not best or left < bestLeft then best, bestLeft = h.slot, left end
+        end
+    end
+    return best, bestLeft and bestLeft >= 0
+end
+
+-- The Accept button of the game's "Replace enchant?" popup, to /click from
+-- the macro when the weapon already has a stone or oil (ReplaceEnchant() is
+-- protected, but a /click in the same secure macro is not: the popup opens
+-- during "/use 16"). Only while no popup is up, so it lands in the first one;
+-- otherwise nil and you confirm it yourself. If no popup opens after all (the
+-- stone didn't go on), the click does nothing: the game's popup ignores
+-- clicks while it's hidden.
+local function ReplaceAccept()
+    for i = 1, (STATICPOPUP_NUMDIALOGS or 4) do
+        local f = _G["StaticPopup" .. i]
+        if f and f:IsShown() then return nil end
+    end
+    return _G.StaticPopup1Button1 and "StaticPopup1Button1" or nil
+end
+
+-- One click does it all, as in Consumables Manager: "/use" the item, then
+-- "/use 16" or "/use 17" so it lands on the weapon. A stone or oil goes on
+-- the weapon it fits whose buff runs out first; a Firestone or Spellstone
+-- on the main hand, and with none left the click makes one instead. If the
+-- weapon already has a buff, the game's "Replace enchant?" question is
+-- answered too. A poison (a rogue picks the hand), or a stone no weapon in
+-- hand fits, opens the character panel instead, so your weapons are right
+-- there to click ("/click" on the character button; opening it from addon
+-- code taints it).
 local function PickSetup(kit, btn)
     btn:SetScript("PreClick", function(self, mouse)
         if InCombatLockdown() or mouse ~= "LeftButton" then return end
         local id = self.itemID
         local text = id and ("/use item:" .. id) or ""
-        if id and IsWeaponBuff(id) and not IsImbue(id) and CharacterMicroButton and not (CharacterFrame and CharacterFrame:IsShown()) then
+        local hand, replacing
+        if id and IsImbue(id) then
+            local create = CreateFor(id)
+            local name = create and U.SpellName(create)
+            if name then
+                self:SetAttribute("macrotext", "/cast " .. name)
+                return
+            end
+            if U.ItemCount(id) > 0 then
+                hand, replacing = 16, Hands()[1].imbue and true or false
+            end
+        elseif id and IsWeaponBuff(id) then
+            hand, replacing = StoneHand(id)
+        end
+        if hand then
+            text = text .. "\n/use " .. hand
+            local accept = replacing and ReplaceAccept()
+            if accept then text = text .. "\n/click " .. accept end
+        elseif id and IsWeaponBuff(id) and not IsImbue(id) and CharacterMicroButton and not (CharacterFrame and CharacterFrame:IsShown()) then
             text = text .. "\n/click CharacterMicroButton"
         end
         self:SetAttribute("macrotext", text)

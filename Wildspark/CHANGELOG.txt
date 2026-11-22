@@ -1,3 +1,8 @@
+WildSpark 2.2.70 (stable)
+- Update the embedded WildFire Kit to 1.11.1, including stale zone-channel cleanup, direct weapon-stone actions, and the updated settings window. Preserve WildSpark's artwork, Happy Camper opt-out defaults, built-in channel ordering protections, and retired WildLayer-channel cleanup.
+- Update WildGroups to upstream 2.5.0. Add dungeon/raid favorites, preserve account filters through the per-character settings migration, open on the player's own LFG listing, and include upstream protected-action fixes.
+- Update the embedded-module version metadata and load order. Package and workflow checks passed; live in-game behavior was not tested.
+
 WildSpark 2.2.69 (stable)
 - Remove WildLayer and its layer-hop tools from the active addon; preserve the complete licensed module source in archive/WildLayer.
 - Remove the Leash Timer from the active addon and preserve its code and license in archive/WildLeashTimer. WildInfo respawn tracking now listens through WildSpark's existing core-owned nameplate and world-entry events.

@@ -1,5 +1,27 @@
 # Changelog
 
+## 2.5.0
+
+- New: when you click List Self, List Group or Update on Blizzard's Create Listing tab, WildGroups opens on your listing and shows the groups and players for it, and Blizzard's window closes. In combat Blizzard's window cannot be closed by an addon, so both stay open.
+- Fixed: the red x on your own listing in WildGroups's list could show an "action blocked" error after you listed in combat. The x now only delists, with no error, and your listing then leaves the list.
+
+## 2.4.0
+
+- New: favorite dungeons and raids. Hover a row in the activity dropdown and click the star at its end. Your favorites are listed first the next time you open it, even when they are outside your level, and each character keeps its own.
+- Changed: at level 60 the activity dropdown lists activities by name, like Blizzard's Group Finder. Below 60 it still lists the highest level first, and your favorites still come first.
+- Changed: the sentence about language packs is now the last line of the settings page.
+- Changed: your filters are now saved per character. Each character keeps its own filter boxes, level range and collapsed sections. The first time a character logs in after this update, it starts with the filters you had before. My filters is still shared by all your characters.
+
+## 2.3.0
+
+- New: `%dungeon%` and `%dungeon_en%` in the Ask to Join message name the group's dungeon: the ones you ticked in the activity filter, or all of the group's, at most 3. The default message now ends "Inv please to %dungeon_en%", so if you never changed your message, Ask to Join names the dungeon in English.
+- Fixed: listed in Quests & Zones, Invite no longer whispers a list of every zone. It only invites.
+
+## 2.2.0
+
+- New: Quests & Zones listings in the LFG list show the group's details on a line of their own, after a note icon.
+- New: `%dungeon_en%` in the Invite message names the dungeon or raid in English, whatever your game's language. The default message now uses it, so if you never changed your message, Invite whispers dungeon names in English. `%dungeon%` still uses your game's language.
+
 ## 2.1.0
 
 - New: a Search key. Bind it under WildGroups in Options > Keybindings; if WildGroups is closed, it opens first.

@@ -49,10 +49,27 @@ local addonName, ns = ...
 -- reminders you tick in its settings show there (as full-size copies that
 -- glow, count down and cast like the slot) instead of beside the closed kit,
 -- and stay there while it's open. A pinned slot stays by its kit, reminder
--- or not: pinning means "keep it here".
+-- or not: pinning means "keep it here". From v26 a kit can ask for its
+-- pinned reminders to show in the panel as well (cfg.panelPinned): the slot
+-- stays by the kit and a copy of it goes in the panel too.
+--
+-- From v23 a kit can let its buttons be dragged off it (cfg.bars). In its
+-- edit mode (the kit's right-click menu, its settings, or "layout" after its
+-- slash command) every button can be dragged: dropped away from the kit it
+-- floats there, always shown, and dropping another on it makes a bar, in any
+-- order. Dropped on the kit it goes back to its place. A button on a bar is
+-- the slot itself, moved, so its drawer, corner button, glow and key binding
+-- all come with it; the kit's own layout closes up round the gap. See "Bars".
+--
+-- From v31 a zone can hold small buttons (zone small): each slot that can
+-- move between zones takes the size of the one it's in, small there and a
+-- full slot in the others (or on a bar), changing as it's dragged. A
+-- zone can take only some slots (zone only), and a ring of small buttons
+-- inside another ring can have its outline run through its buttons
+-- (zone track). See "Zones".
 ---------------------------------------------------------------------------
 
-local VERSION = 22
+local VERSION = 31
 -- Builds of the same VERSION (test builds while a version is in a pull
 -- request): the higher one wins too, so two kits carrying different builds
 -- of one version don't leave the older running for every kit. Raise it with
@@ -265,6 +282,7 @@ C.BASE_DEFAULTS = {
     spread = 1,     -- the slots' distance from the center icon (1: as made)
     shown = true,          -- false: the whole kit is hidden (settings or the shared minimap menu)
     locked = false,
+    edgeTuck = true,       -- false: on a screen edge on its own the kit stays fully out (Kit Dock v27)
     fadeIdle = false,
     fadeOpen = false,      -- the open kit fades too, once the mouse has been off it a while
     fadeOpenAfter = 5,     -- how long, in seconds
@@ -276,6 +294,7 @@ C.BASE_DEFAULTS = {
     minimapAngle = 200,    -- (before v19; carried into minimapIcon.minimapPos once)
     facing = "up",         -- which way the layout points while the kit floats: up, down, left, right
     flyoutHide = 0.5,      -- seconds a drawer stays open in combat after the mouse leaves it
+    barGap = 4,            -- room between the buttons on a bar (v23)
     -- The reminder panel (v21): its look and spot are shared by every kit, so
     -- each kit keeps a copy and the one changed last wins (see C.SyncPanel).
     -- x, y: its starting corner from the screen's centre, in UIParent units.
@@ -291,13 +310,16 @@ C.BASE_DEFAULTS = {
         grid = 16, snap = true, -- placing it (as SSBT's grid)
         stamp = 0,
     },
-    panelSlots = {},       -- [slotKey] = true: with this kit's panel on, it shows there while the kit is closed (unless pinned)
+    panelSlots = {},       -- [slotKey] = true: with this kit's panel on, it shows there while the kit is closed (unless pinned, without cfg.panelPinned)
 }
 
 C.BASE_CHAR = {
     pinned = {}, -- [slotKey] = true: out even with the kit closed
     picks = {},  -- [slotKey] = what the slot holds, when you chose it
     order = {},  -- [slotKey] = { value, ... } your order for that slot's flyout
+    -- Bars (v23): { { x, y, dir = "row" | "col", keys = { slotKey, ... } }, ... }
+    -- x, y: the bar's middle from the screen's centre, in UIParent units.
+    bars = {},
 }
 
 ---------------------------------------------------------------------------
@@ -314,6 +336,42 @@ C.BASE_CHAR = {
 --   defaults, charDefaults   on top of the base ones
 --   dock          ns.Dock (Kit Dock), or nil
 --   edgesOnly     never joins the pin, only the screen edges
+--   bars          true: the kit has an edit mode where its buttons can be
+--                 dragged off it onto bars that always show (v23). Any slot
+--                 that can be pinned can go on a bar (noBar: not this one)
+--   zones         (with bars) the places on the kit itself a button can be
+--                 dragged between, and put in any order, in edit mode:
+--                 { key = "ring", label = "Ring", ring = 1 }
+--                     the slots of cfg.ring[1]. Give that ring count = how
+--                     many it usually holds (up to that many keep its usual
+--                     spacing, more sit closer; it never moves further out),
+--                     widest = the longest its arc may get, in degrees, and
+--                     avoid = n for cfg.ring[n], a ring of small buttons it
+--                     must leave room for. With nothing in the row zones it
+--                     goes right round the kit
+--                 { key = "row", label = "Under the line", y = -112, step = 45,
+--                   keys = { slotKey, ... } }
+--                     a centred row at y, step apart, starting with keys
+--                 Each zone shows its outline in edit mode (a ring's uses the
+--                 kit's zone_ring art). Only slots that start in a zone can be
+--                 moved between zones. From v31 a zone can also have:
+--                   small = true   its slots are small round buttons (22),
+--                                  the other zones' full slots: a slot takes
+--                                  the size of the zone it's in, and changes
+--                                  as it moves (out of combat). On a bar
+--                                  it's a full slot. Used only when a zone
+--                                  has it
+--                   only = { slotKey, ... }  just these slots can be dropped
+--                                  in it (any other is offered the other
+--                                  zones); one saved there goes back to the
+--                                  zone it started in
+--                   track = true   (a ring) its outline runs through the
+--                                  middle of its buttons, for a ring inside
+--                                  another one, with its name beyond them
+--   OnZones(kit, lists)  the zones' slots changed (and once at login):
+--                 lists[zoneKey] = { slotKey, ... }, slots on bars included.
+--                 The kit puts them in its own tables (the ring's keys, its
+--                 row, the divider's "below", its edge columns)
 --   alwaysHideInCombat  the kit always hides in combat (nothing on it is any use
 --                 in a fight): no "Hide in combat" setting for it
 --   kitSize, slotSize  (60, 37)
@@ -380,10 +438,20 @@ C.BASE_CHAR = {
 --                       end of Look. S.Subheader("text", when)
 --                       starts a group inside a section; with when (a function),
 --                       the settings window shows the group only while it's true.
---   Menu(kit, root)     the kit's own lines in its right-click menu, between
+--   FirstSettings(kit, S)  pages of the kit's own in the "Kit" group, right
+--                       after General (v24)
+--   panelPinned   true: a pinned slot's reminder shows in the reminder panel
+--                 too (ticked for the panel), while the slot stays by the kit
+--                 (v26). Otherwise pinned slots stay out of the panel.
+--   buttonTable   true: the kit sets its buttons' pinning in a table of its own
+--                 (S.Table, v24), so Kit Core leaves out its "Pinned buttons" page
+--   Menu(kit, root)    the kit's own lines in its right-click menu, between
 --                 "Pin in place" and "Settings" (root is the game's menu
 --                 description: root:CreateCheckbox, root:CreateButton, ...;
 --                 kit:MenuToggle(root, label, dbKey, after) adds an on/off line)
+--   MenuAfterSettings(kit, root)  lines under "Settings" at the menu's foot
+--                 (v27), e.g. a way straight to one settings page with
+--                 kit:OpenOptions("page title")
 --   Slash(kit, cmd, rest) true if it handled cmd;  helpLines { "..." }
 --   minimapIcon   texture for the minimap button
 --
@@ -397,7 +465,8 @@ C.BASE_CHAR = {
 --   flyGap        extra room between the slot and its flyout (a sub below it)
 --   OnDrop(kit, btn)   something was dropped on the slot (cursor item)
 --   Setup(kit, btn)    once, after the slot is made (extra scripts)
---   noPin         can't be pinned
+--   noPin         can't be pinned (or put on a bar)
+--   noBar         can be pinned, but not dragged onto a bar (v23)
 --   tier          shrunk on the dock, lower tiers fan out nearest the button
 --                 (before the pinned-first, slot-order rule)
 --   binding       key binding label (default "Use <label>")
@@ -673,7 +742,7 @@ function Kit:ApplyShape(b)
     hl:SetBlendMode("ADD")
     hl:SetPoint("CENTER")
     hl:SetSize(b:GetWidth() * 1.35, b:GetHeight() * 1.35)
-    b.roundParts = { mask = mask, slotMask = slotMask, ring = ring, hl = hl }
+    b.roundParts = { mask = mask, slotMask = slotMask, ring = ring, hl = hl, masked = true }
     b.icon:AddMaskTexture(mask)
     if b.slotBg then b.slotBg:AddMaskTexture(slotMask) end
     for _, t in ipairs({ b.border, b.IconBorder, b.GetNormalTexture and b:GetNormalTexture(),
@@ -701,8 +770,16 @@ function Kit:ApplyShape(b)
 end
 
 -- The small round look (22 across, gold ring), for small slots and the
--- buttons on a slot's corner.
+-- buttons on a slot's corner. From v31 it can be called again on a slot
+-- that has been full size since (SetSlotSmall): its small parts are made
+-- the first time and shown again after that, and where its icon sat as a
+-- full slot is kept, to go back to.
 function Kit:MakeSmallRound(b)
+    if b.icon and not b.iconFull then
+        local pts = {}
+        for i = 1, (b.icon.GetNumPoints and b.icon:GetNumPoints() or 0) do pts[i] = { b.icon:GetPoint(i) } end
+        b.iconFull = { pts = pts, tc = { b.icon:GetTexCoord() } }
+    end
     b:SetSize(22, 22)
     b.isSmall = true
     if b.slotBg then b.slotBg:Hide() end
@@ -716,22 +793,103 @@ function Kit:MakeSmallRound(b)
     b.icon:SetPoint("TOPLEFT", 3, -3)
     b.icon:SetPoint("BOTTOMRIGHT", -3, 3)
     b.icon:SetTexCoord(0, 1, 0, 1)
-    local mask = b:CreateMaskTexture()
-    mask:SetTexture(self.media .. "circle_mask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
-    mask:SetAllPoints(b.icon)
-    b.icon:AddMaskTexture(mask)
-    b.roundMask = mask
-    b.ring = b:CreateTexture(nil, "OVERLAY", nil, 6)
+    if not b.roundMask then
+        local mask = b:CreateMaskTexture()
+        mask:SetTexture(self.media .. "circle_mask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+        mask:SetAllPoints(b.icon)
+        b.roundMask = mask
+    end
+    if not b.roundMasked then
+        b.icon:AddMaskTexture(b.roundMask)
+        b.roundMasked = true
+    end
+    if not b.ring then b.ring = b:CreateTexture(nil, "OVERLAY", nil, 6) end
     b.ring:SetAllPoints()
     b.ring:SetTexture(self:SmallRingArt(b), nil, nil, "LINEAR")
-    local hl = b:CreateTexture(nil, "HIGHLIGHT")
-    hl:SetTexture(self.media .. "glow_ring")
-    hl:SetBlendMode("ADD")
-    hl:SetPoint("CENTER")
-    hl:SetSize(30, 30)
-    b.roundHl = hl
+    b.ring:Show()
+    if not b.roundHl then
+        local hl = b:CreateTexture(nil, "HIGHLIGHT")
+        hl:SetTexture(self.media .. "glow_ring")
+        hl:SetBlendMode("ADD")
+        hl:SetPoint("CENTER")
+        hl:SetSize(30, 30)
+        b.roundHl = hl
+    end
+    b.roundHl:Show()
     if b.hotkey then b.hotkey:Hide() end
     if b.count then b.count:Hide() end
+end
+
+-- A slot made small or full size after it was made (v31: it moved to a zone
+-- of the other size). The look it isn't using is hidden, kept for when it
+-- changes back; the one it is using is made the first time it's needed
+-- (MakeSmallRound, ApplyShape). Its pin dot, glow and edit-mode highlight
+-- change size with it, all at the Button size setting. Out of combat only
+-- (the slots are secure); returns whether it changed.
+function Kit:SetSlotSmall(btn, small)
+    small = small and true or false
+    if (btn.isSmall and true or false) == small or InCombatLockdown() then return false end
+    local rp = btn.roundParts
+    if small then
+        if rp then
+            rp.ring:Hide()
+            rp.hl:Hide()
+            if rp.masked then btn.icon:RemoveMaskTexture(rp.mask) rp.masked = nil end
+        end
+        self:MakeSmallRound(btn)
+        btn.glowMul = 1.7
+        if btn.pin then
+            btn.pin:SetSize(8, 8)
+            btn.pin:ClearAllPoints()
+            btn.pin:SetPoint("CENTER", btn, "CENTER", -7, 7)
+        end
+    else
+        if btn.ring then btn.ring:Hide() end
+        if btn.roundHl then btn.roundHl:Hide() end
+        if btn.roundMasked then btn.icon:RemoveMaskTexture(btn.roundMask) btn.roundMasked = nil end
+        btn.isSmall = nil
+        -- (its icon back where it sat as a full slot)
+        local f = btn.iconFull
+        btn.icon:ClearAllPoints()
+        if f and #f.pts > 0 then
+            for _, pt in ipairs(f.pts) do btn.icon:SetPoint(pt[1], pt[2], pt[3], pt[4], pt[5]) end
+        else
+            btn.icon:SetAllPoints()
+        end
+        if f then btn.icon:SetTexCoord(unpack(f.tc)) end
+        if btn.slotBg then btn.slotBg:Show() end
+        if btn.hotkey then btn.hotkey:Show() end
+        if btn.count then btn.count:Show() end
+        btn:SetSize(self.BTN, self.BTN)
+        if btn.pin then btn.pin:SetSize(10, 10) end
+        if rp then
+            -- (full before: its round parts back, as ApplyShape first set them)
+            rp.ring:Show()
+            rp.hl:Show()
+            if not rp.masked then btn.icon:AddMaskTexture(rp.mask) rp.masked = true end
+            btn.glowMul = 1.6
+            if btn.hotkey then
+                btn.hotkey:ClearAllPoints()
+                btn.hotkey:SetPoint("TOPRIGHT", btn, "TOPRIGHT", -3, -4)
+            end
+            if btn.pin then
+                btn.pin:ClearAllPoints()
+                btn.pin:SetPoint("CENTER", btn, "CENTER", -11, 11)
+            end
+        end
+        self:ApplyShape(btn) -- (the first time: its round parts; after that, the ring's art for its size)
+    end
+    local w = (small and 22 or self.BTN) * (self.db.buttonSize or 1)
+    btn:SetSize(w, w)
+    if btn.glow then btn.glow:SetSize(w * (btn.glowMul or 1.6), w * (btn.glowMul or 1.6)) end
+    if btn.roundParts and btn.roundParts.hl then btn.roundParts.hl:SetSize(w * 1.35, w * 1.35) end
+    if small then btn.ring:SetTexture(self:SmallRingArt(btn), nil, nil, "LINEAR")
+    elseif btn.roundParts then btn.roundParts.ring:SetTexture(self:RingArt(btn), nil, nil, "LINEAR") end
+    if btn.kcEdit and btn.kcEdit.hl then
+        local hw = w * (small and 1.7 or 1.6)
+        btn.kcEdit.hl:SetSize(hw, hw)
+    end
+    return true
 end
 
 function Kit:ApplyShapes()
@@ -811,7 +969,9 @@ local TOGGLE_BODY = [[
     for i = 1, NFLY do FLYOUTS[i]:Hide() end
     for i = 1, NSLOT do
         local b = SLOTS[i]
-        if b:GetAttribute("kc" .. want .. "show") == 1 then
+        if b:GetAttribute("kcbar") == 1 then
+            -- (on a bar: it stays where it is, shown)
+        elseif b:GetAttribute("kc" .. want .. "show") == 1 then
             b:ClearAllPoints()
             b:SetPoint("CENTER", kit, "CENTER", b:GetAttribute("kc" .. want .. "x") or 0, b:GetAttribute("kc" .. want .. "y") or 0)
             b:Show()
@@ -1065,6 +1225,7 @@ function Kit:BuildKit()
             self:CombatToggled()
             return
         end
+        if self.editing then return end -- (editing the layout: it stays open)
         self:SetOpen(not self.open)
     end)
     self:HoverTip(kit, function(b)
@@ -1171,9 +1332,13 @@ function Kit:OpenMenu()
         root:CreateCheckbox("Pin in place",
             function() return self.db.locked and true or false end,
             function() self:SetLocked(not self.db.locked) end)
+        if self.cfg.bars then
+            root:CreateButton(self.editing and "Done editing layout" or "Edit layout", function() self:ToggleEdit() end)
+        end
         if self.cfg.Menu then self.cfg.Menu(self, root) end
         root:CreateDivider()
         root:CreateButton("Settings", function() self:OpenSettings() end)
+        if self.cfg.MenuAfterSettings then self.cfg.MenuAfterSettings(self, root) end
     end)
 end
 
@@ -1359,7 +1524,9 @@ function Kit:SlotTooltip(btn)
     if slot.flyout == "right" then hints[#hints + 1] = slot.flyoutHint or "Right-click: choose" end
     if #hints > 0 or not slot.noPin then GameTooltip:AddLine(" ") end
     for _, h in ipairs(hints) do GameTooltip:AddLine(h, 0.3, 1, 0.4) end
-    if not slot.noPin then
+    if btn.kcBar then
+        GameTooltip:AddLine("On a bar: always shown", 1, 0.82, 0)
+    elseif not slot.noPin then
         GameTooltip:AddLine(self.cdb.pinned[slot.key] and "Shift-right-click: stop always showing"
             or "Shift-right-click: always show", 1, 0.82, 0)
     end
@@ -1409,8 +1576,10 @@ function Kit:FinishSlide(btn)
     btn.slideP, btn.slideTarget, btn.slideWait, btn.slideA = target, nil, nil, nil
     if InCombatLockdown() then return end
     btn:SetScale(self.db.scale)
-    btn:ClearAllPoints()
-    btn:SetPoint("CENTER", self.kit, "CENTER", btn.placedX or btn.homeX or 0, btn.placedY or btn.homeY or 0)
+    if not btn.kcBar then -- (on a bar: PlaceBars keeps it there)
+        btn:ClearAllPoints()
+        btn:SetPoint("CENTER", self.kit, "CENTER", btn.placedX or btn.homeX or 0, btn.placedY or btn.homeY or 0)
+    end
     if target == 0 then
         btn.closing = nil
         btn:Hide()
@@ -1426,7 +1595,7 @@ function Kit:FinishSlides()
 end
 
 function Kit:SlideTo(btn, target, delay)
-    if InCombatLockdown() then return end
+    if InCombatLockdown() or btn.kcBar then return end -- (a button on a bar never slides into the kit)
     if self.Dock and self.Dock.StopTween then self.Dock.StopTween(btn) end -- (a dock glide left over)
     if btn.slideP == nil then btn.slideP = 1 - target end
     btn.slideTarget = target
@@ -1877,8 +2046,13 @@ function Kit:LayoutFlyout(btn)
     fly.nothing = slot.nothing
     local sx, sy = btn.placedX or slot.pos[1], btn.placedY or slot.pos[2]
     local grid = slot.grid and self:FaceDir(slot.grid) or FanDir(sx, sy)
+    -- Once the kit's own layout has been changed (v23), a slot's drawer opens
+    -- to suit where it is now: out from the middle on a ring, down from a row.
+    local zone = self.zonesCustom and self.zoneNow and self.zoneNow[slot.key]
+    if zone then grid = zone.ring and FanDir(sx, sy) or self:FaceDir("down") end
     if self.compactAngle then grid = FanDir(sx, sy) end
     if self.edgeSide then grid = TOWARD_MIDDLE[self.edgeSide] end
+    if btn.kcBar and btn.barGrid then grid = btn.barGrid end -- (on a bar: away from the bar's line)
     local BTN = self.BTN
     local step = BTN + 4
     local per = slot.perRow or 8
@@ -1890,7 +2064,7 @@ function Kit:LayoutFlyout(btn)
         -- A sub under the slot (not on an edge, where it's on the corner)
         -- needs the flyout to clear it when it opens that way.
         local gap = BTN + 10
-        if slot.flyGap and not self.edgeSide and grid == self:FaceDir("down") then gap = gap + slot.flyGap end
+        if slot.flyGap and not self.edgeSide and not btn.kcBar and grid == self:FaceDir("down") then gap = gap + slot.flyGap end
         if grid == "left" or grid == "right" then
             local dir = grid == "left" and -1 or 1
             x = sx + dir * (gap + at * step)
@@ -2040,7 +2214,7 @@ end
 
 function Kit:PaintSlot(btn)
     local slot = btn.slot
-    btn.pin:SetShown(self.cdb.pinned[slot.key] and true or false)
+    btn.pin:SetShown(self.cdb.pinned[slot.key] and not btn.kcBar and true or false)
     btn.note:SetText("")
     if btn.count then btn.count:SetText("") end
     if slot.Paint then slot.Paint(self, btn) end
@@ -2136,7 +2310,7 @@ function Kit:FadeAlpha()
 end
 
 function Kit:FadeIdle()
-    if self.qkbOpen then return false end -- (binding keys: everything at full)
+    if self.qkbOpen or self.editing then return false end -- (binding keys, or editing the layout: everything at full)
     if self.openFaded then return true end
     return self.db.fadeIdle and not self.open and self.hovering == 0
         and not (self.cfg.Busy and self.cfg.Busy(self))
@@ -2163,8 +2337,10 @@ end
 -- open (so its choices stand out), times its slide's fade.
 function Kit:FadeSlot(btn)
     local a = self:FadeNow()
+    if btn.kcBar then a = 1 end -- (on a bar: always shown, so it doesn't fade with the kit)
     local fly = self.flyOpen
     if fly and fly:IsShown() and btn ~= fly.slotBtn then a = 0.3 end
+    if btn.kcDragging then a = 0.35 end -- (being dragged in edit mode: a faint mark of where it would go)
     btn:SetAlpha(a * (btn.slideA or 1))
 end
 
@@ -2198,6 +2374,7 @@ end
 -- asOpen/hypothetical answer "what would show" (for the dock's spacing).
 function Kit:EdgeCols(asOpen, hypothetical)
     local function on(btn)
+        if btn.kcBar then return false end -- (on a bar: no place by the kit)
         if hypothetical then return (asOpen and not btn.hidden) or btn.wouldShow end
         if self.trial then return self.trial.vis[btn] and true or false end -- (what would show in that layout)
         return btn:IsShown() and not btn.closing
@@ -2238,7 +2415,7 @@ function Kit:PlaceRim(angle)
     if self.parked then r = self:KitHalfUnits() + 7 end
     local placed = false
     for _, btn in pairs(self.slots) do
-        if btn.slot.rim then
+        if btn.slot.rim and not btn.kcBar then
             self:PlaceAt(btn, r * math.cos(math.rad(angle)), r * math.sin(math.rad(angle)))
             if self:WouldShow(btn) then placed = true end
         end
@@ -2247,6 +2424,10 @@ function Kit:PlaceRim(angle)
 end
 
 function Kit:PlaceAt(f, x, y)
+    if f.kcBar then -- on a bar: it has no place by the kit (PlaceBars puts it on its bar)
+        if self.trial then self.trial.pos[f] = { f.placedX or 0, f.placedY or 0 } end
+        return
+    end
     if self.trial then -- a trial layout only notes where it would go
         self.trial.pos[f] = { x, y }
         return
@@ -2299,7 +2480,7 @@ function Kit:PlaceEdge()
         local i = 0
         for _, key in ipairs(beside) do
             local btn = self.slots[key]
-            if btn and not btn.hidden then
+            if btn and not btn.hidden and not btn.kcBar then
                 i = i + 1
                 self:PlaceAt(btn, self:BesideSpot(self.edgeSide, i))
             end
@@ -2349,7 +2530,7 @@ function Kit:EdgeExtent(side, asOpen)
         local n = 0
         for _, key in ipairs(self.cfg.edgeBeside) do
             local btn = self.slots[key]
-            if btn and ((asOpen and not btn.hidden) or btn.wouldShow) then n = n + 1 end
+            if btn and not btn.kcBar and ((asOpen and not btn.hidden) or btn.wouldShow) then n = n + 1 end
         end
         if n > 0 then
             local pairsOut = math.ceil(n / 2)
@@ -2415,22 +2596,103 @@ end
 
 -- cfg.ring: the slots that are there (not hidden) share the arc evenly.
 -- Fills base[btn] = { x, y } (before facing).
-function Kit:LayoutOneRing(ring, base)
+function Kit:LayoutOneRing(ring, base, index)
     local avail = {}
     for _, key in ipairs(ring.keys) do
         local btn = self.slots[key]
-        if btn and not btn.hidden then avail[#avail + 1] = btn end
+        if btn and not btn.hidden and not btn.kcBar then avail[#avail + 1] = btn end -- (one on a bar leaves no gap)
     end
     -- The full ring's spacing, centred on the arc's middle: with fewer slots
     -- the whole set (ends included) gathers round the top.
     local n = #avail
-    local full = #ring.keys
-    local step = full > 1 and (ring.to - ring.from) / (full - 1) or 0
-    local mid = (ring.from + ring.to) / 2
+    local step, radius, mid, round = self:RingGeo(ring, n, ring.count and self:BelowEmpty() or false)
+    -- A ring that has gone right round the kit with no room to spare sends
+    -- the small buttons it would cover to just outside it (still side by side).
+    if round and ring.avoid then
+        self.ringPush = self.ringPush or {}
+        self.ringPush[ring.avoid] = radius + self.BTN / 2 + 15
+    end
+    local push = index and self.ringPush and self.ringPush[index]
+    if push then
+        step = step * radius / push
+        radius = push
+    end
     for i, btn in ipairs(avail) do
         local a = mid + (i - (n + 1) / 2) * step
-        base[btn] = { math.floor(ring.radius * math.cos(math.rad(a)) + 0.5), math.floor(ring.radius * math.sin(math.rad(a)) + 0.5) }
+        base[btn] = { math.floor(radius * math.cos(math.rad(a)) + 0.5), math.floor(radius * math.sin(math.rad(a)) + 0.5) }
     end
+end
+
+-- Is there nothing on the kit below the line (in its row zones)? lists: the
+-- zones' slots (as they are, if not given).
+function Kit:BelowEmpty(lists)
+    if not (self.cfg.bars and self.cfg.zones) then return false end
+    lists = lists or self:Zones()
+    local any = false
+    for _, z in ipairs(self.cfg.zones) do
+        if z.y then
+            any = true
+            if #self:ZoneShown(lists[z.key]) > 0 then return false end
+        end
+    end
+    return any
+end
+
+-- The part of the circle a ring has to leave free for another ring's
+-- buttons (ring.avoid: the small buttons under the kit), in degrees,
+-- opposite the ring's own middle. 0 when none of them are there.
+function Kit:RingGap(ring)
+    local other = ring.avoid and self:Rings()[ring.avoid]
+    if not other then return 0 end
+    local k = 0
+    for _, key in ipairs(other.keys) do
+        local btn = self.slots[key]
+        if btn and not btn.hidden and not btn.kcBar then k = k + 1 end
+    end
+    if k == 0 then return 0 end
+    local ostep = #other.keys > 1 and math.abs(other.to - other.from) / (#other.keys - 1) or 0
+    local r, ro, d = ring.radius, other.radius, self.BTN / 2 + 12 -- (a full button and a small one, just apart)
+    local c = (r * r + ro * ro - d * d) / (2 * r * ro)
+    local clear = math.deg(math.acos(math.max(-1, math.min(1, c))))
+    return 2 * ((k - 1) * ostep / 2 + clear)
+end
+
+-- A ring's spacing (degrees between slots), radius and middle angle, for n
+-- slots on it. A ring whose slots are fixed spaces them as if all were
+-- there. One that's a zone (ring.count: how many it usually holds, v23)
+-- never moves further out. Up to its usual number it keeps its usual
+-- spacing; more sit closer together along its arc, the arc reaching a
+-- little further round (to ring.widest) before they'd touch, then closer
+-- still. loop: nothing is below the line, so it goes round the kit, evenly:
+-- as far as the buttons it has to avoid, or, when there are too many for
+-- that, the whole way (round: true), with those buttons moved outside it.
+function Kit:RingGeo(ring, n, loop)
+    local mid = (ring.from + ring.to) / 2
+    local full = #ring.keys
+    if not ring.count then
+        return full > 1 and (ring.to - ring.from) / (full - 1) or 0, ring.radius, mid
+    end
+    n = n or full
+    local span = math.abs(ring.to - ring.from)
+    local sign = ring.to < ring.from and -1 or 1
+    local cap = loop and 360 or math.max(span, ring.widest or span)
+    local gap = self:RingGap(ring)
+    if gap > 0 then cap = math.max(span, math.min(cap, 360 - gap)) end
+    local step, round = 0, false
+    if n > 1 then
+        local touch = math.deg(2 * math.asin(math.min(1, (self.BTN + 1) / (2 * ring.radius))))
+        if loop then
+            -- (too many to fit beside the buttons it avoids: the whole circle,
+            -- and those buttons move outside it, see LayoutOneRing)
+            if gap > 0 and (n - 1) * touch > cap then cap, round = 360, true end
+            step = math.min(360 / n, cap / (n - 1))
+        elseif n <= ring.count then
+            step = ring.count > 1 and span / (ring.count - 1) or 0
+        else
+            step = math.max(span, math.min(cap, (n - 1) * touch)) / (n - 1)
+        end
+    end
+    return sign * step, ring.radius, mid, round
 end
 
 -- Every slot's home spot: its place in a ring (cfg.ring) or its pos, turned
@@ -2440,7 +2702,8 @@ function Kit:LayoutHomes()
     local rings = self.cfg.ring
     if rings then
         if rings.keys then rings = { rings } end
-        for _, ring in ipairs(rings) do self:LayoutOneRing(ring, base) end
+        self.ringPush = nil
+        for i, ring in ipairs(rings) do self:LayoutOneRing(ring, base, i) end
     end
     local moved = false
     local sp = self.db.spread or 1 -- (Distance from center)
@@ -2480,6 +2743,12 @@ function Kit:WouldShow(btn)
 end
 
 function Kit:PlaceSlots()
+    self:PlaceKitSlots()
+    -- (the buttons on bars, last: the kit's own layout has left them alone)
+    if not self.trial then self:PlaceBars(true) end
+end
+
+function Kit:PlaceKitSlots()
     local ringMoved = self:LayoutHomes()
     -- In a Kit Dock box and closed: what shows (reminders, pinned slots)
     -- goes in one row along the box with the other boxed kits' (Kit Dock
@@ -2553,7 +2822,7 @@ function Kit:PlaceSlots()
     if self.cfg.PlaceExtras and not self.trial then self.cfg.PlaceExtras(self, angle) end
     local shown = {}
     for _, btn in pairs(self.slots) do
-        if self:WouldShow(btn) and not btn.slot.rim then shown[#shown + 1] = btn end
+        if self:WouldShow(btn) and not btn.slot.rim and not btn.kcBar then shown[#shown + 1] = btn end
     end
     table.sort(shown, function(a, b)
         local ta, tb = a.slot.tier or 0, b.slot.tier or 0 -- (slot.tier: nearest ring first)
@@ -2588,7 +2857,7 @@ function Kit:Reach()
     local l, r, t, b = ks, ks, ks, ks
     for _, slot in ipairs(self.cfg.slots) do
         local btn = self.slots[slot.key]
-        if not (btn and btn.hidden) then -- (a slot that isn't there doesn't need room)
+        if not (btn and (btn.hidden or btn.kcBar)) then -- (a slot that isn't there, or is on a bar, doesn't need room)
         local sp = self.db.spread or 1
         local x, y = self:Face(slot.pos[1] * sp, slot.pos[2] * sp)
         local h = slot.small and 15 or half
@@ -2631,15 +2900,18 @@ end
 -- Also whether it's there at all, whether something pops it out, and
 -- whether its reminder shows in the reminder panel (popped, not pinned,
 -- ticked for the panel): then the slot itself only shows with the kit open,
--- and a copy of it in the panel stands in for it, open or closed.
+-- and a copy of it in the panel stands in for it, open or closed. With
+-- cfg.panelPinned a pinned slot's reminder goes in the panel too, and the
+-- slot stays out by the kit as pinned slots do.
 function Kit:SlotVisible(slot, btn)
     local pop = slot.Pop and not btn.hidden and slot.Pop(self, btn) or false
     local available = self.db.shown ~= false and not btn.hidden
     local pinned = self.cdb.pinned[slot.key] and true or false
-    local out = (pinned or pop) and true or false
-    -- (pinned: it stays by the kit, reminder or not)
-    local panel = available and pop and not pinned and self:PanelAssigned(slot) or false
-    local visible = available and (self.open or (out and not panel and not self.tucked and not self.quiet)) and true or false
+    local bar = btn.kcBar and true or false -- (on a bar: always out, there)
+    local out = (pinned or pop or bar) and true or false
+    -- (pinned: it stays by the kit, reminder or not; on a bar: it stays on the bar)
+    local panel = available and pop and (self.cfg.panelPinned or not pinned) and not bar and self:PanelAssigned(slot) or false
+    local visible = available and (self.open or (out and (pinned or not panel) and not self.tucked and not self.quiet)) and true or false
     return visible, available, pop, panel and true or false
 end
 
@@ -2891,7 +3163,7 @@ function Kit:StoreSnap(open, t)
     if open and d and not self.compactAngle then -- (no divider in a fan on the pin)
         for _, key in ipairs(d.below or {}) do
             local b = self.slots[key]
-            if b and t.vis[b] then snap.rowOut = true end
+            if b and t.vis[b] and not b.kcBar then snap.rowOut = true end
         end
     end
     self.snap[open and true or false] = snap
@@ -2934,6 +3206,7 @@ function Kit:PushSnapshot()
     local ready = self:CanSecureToggle() and self.snap[true] and self.snap[false] and true or false
     for _, slot in ipairs(self.cfg.slots) do
         local btn = self.slots[slot.key]
+        btn:SetAttribute("kcbar", btn.kcBar and 1 or 0) -- (on a bar: the combat switch leaves it be)
         for _, which in ipairs({ { true, "o" }, { false, "c" } }) do
             local s = ready and self.snap[which[1]]
             local p = s and s.pos[btn]
@@ -2956,6 +3229,8 @@ function Kit:Refresh(animate)
         return
     end
     self.pending = false
+    self:MarkBars()
+    self:SizeZoneSlots() -- (a slot that moved zones while it couldn't change size)
     if self.opening then animate = "open" end -- a refresh from the dock's layout while this kit is opening
     local cfg, db, cdb = self.cfg, self.db, self.cdb
 
@@ -2995,7 +3270,7 @@ function Kit:Refresh(animate)
             CancelClose(self, btn)
             if not btn:IsShown() then
                 btn:Show()
-                if animate == "open" then
+                if animate == "open" and not btn.kcBar then
                     slides[#slides + 1] = { btn, i } -- once it knows where it's going
                 elseif animate == "untuck" and self.Dock and self.Dock.Fade and not Fighting() then
                     self.Dock.Fade(btn, false)
@@ -3003,9 +3278,9 @@ function Kit:Refresh(animate)
             end
         elseif btn:IsShown() and not btn.closing then
             if btn.fly and btn.fly:IsShown() then btn.fly:Hide() end
-            if btn.hidden or Fighting() then btn:Hide() else PlayClose(self, btn, i, total) end -- (see Fighting)
+            if btn.hidden or btn.kcBar or Fighting() then btn:Hide() else PlayClose(self, btn, i, total) end -- (see Fighting)
         end
-        btn.wouldShow = available and (cdb.pinned[slot.key] or (pop and not panel)) and true or false
+        btn.wouldShow = available and not btn.kcBar and (cdb.pinned[slot.key] or (pop and not panel)) and true or false
     end
 
     -- The divider shows while the kit is open and its row below is out.
@@ -3015,9 +3290,11 @@ function Kit:Refresh(animate)
         if self.open and not self.compactAngle then
             for _, key in ipairs(cfg.divider.below or {}) do
                 local b = self.slots[key]
-                if b and b:IsShown() and not b.closing then rowOut = true end
+                if b and b:IsShown() and not b.closing and not b.kcBar then rowOut = true end
             end
         end
+        -- (editing the layout: the line shows, so there's somewhere to drop a button below it)
+        if self.editing and not self.compactAngle then rowOut = true end
         if rowOut and not dv:IsShown() then
             dv:Show()
             dv.fadeIn:Play()
@@ -3042,6 +3319,7 @@ function Kit:Refresh(animate)
     if canToggle then self:StoreSnap(self.open, { vis = vis, pos = {}, div = self.liveDiv }) end
     self:PushSnapshot()
     self:PaintAll()
+    if self.editing then self:PaintEdit() end
 end
 
 function Kit:SetOpen(want)
@@ -3118,6 +3396,10 @@ end
 function Kit:TogglePin(key)
     local slot = self.slotByKey[key]
     if InCombatLockdown() or not slot or slot.noPin then return end
+    if self.slots[key] and self.slots[key].kcBar then
+        self:Print(slot.label .. " is on a bar, so it's always shown. Edit the layout to move it.")
+        return
+    end
     self.cdb.pinned[key] = not self.cdb.pinned[key]
     self:Print(slot.label .. (self.cdb.pinned[key] and ": always shown." or ": hides when the kit closes."))
     self:Refresh(false)
@@ -3225,6 +3507,32 @@ function Kit:PlaceFree()
     self:KeepOnScreen()
 end
 
+-- Whether the mouse is over a piece of this kit away from its button: a
+-- pinned slot, a reminder beside it, its small buttons (anything under the
+-- kit's holder). Kit Dock keeps a tucked kit tucked over these (v27).
+-- Buttons on bars or in the reminder panel don't count: they sit away from
+-- the kit.
+local function MouseFoci()
+    if GetMouseFoci then
+        local t = GetMouseFoci()
+        return t and t[1]
+    end
+    return GetMouseFocus and GetMouseFocus()
+end
+function Kit:MouseOverParts()
+    local f = MouseFoci()
+    local holder = self.holder
+    if not f or not holder or f == holder then return false end
+    local n = 0
+    while f and n < 12 do
+        if f.kcBar or f.inPanel then return false end
+        local up = f.GetParent and f:GetParent()
+        if up == holder then return true end
+        f, n = up, n + 1
+    end
+    return false
+end
+
 -- Hide (or bring back) the kit and its pinned slots while another docked
 -- kit is open on the pin. Out of combat only (the dock makes sure).
 function Kit:Tuck(on)
@@ -3319,6 +3627,8 @@ function Kit:ApplyPosition()
     end
     self:SetKitArt()
     self:ApplyShapes()
+    self:PlaceBars(false) -- (the bars' buttons, at the new size)
+    if self.editing then self:PaintEdit() end
     self:EndMove()
     if C.PanelLayout then C.PanelLayout() end -- (the slots' size in the reminder panel)
 end
@@ -3348,7 +3658,7 @@ function Kit:UpdateArea()
     local W, H = holder:GetWidth(), holder:GetHeight()
     local l, b, r, t
     for _, f in ipairs({ holder:GetChildren() }) do
-        if f ~= area and f:IsVisible() and not f.atPanel then -- (the reminder panel is elsewhere)
+        if f ~= area and f:IsVisible() and not f.atPanel and not f.kcBar then -- (the reminder panel and the bars are elsewhere)
             local fl, fb, fw, fh = f:GetRect()
             if fl and fw and fw > 0 and fh > 0 then
                 local sc = f:GetEffectiveScale() / hs
@@ -3413,6 +3723,8 @@ function Kit:RegisterDock()
         kit = self.kit,
         name = self.name,
         edgesOnly = self.cfg.edgesOnly,
+        NoTuck = function() return self.db.edgeTuck == false end,
+        OverParts = function() return self:MouseOverParts() end,
         IsOpen = function() return self.open and not self:QkbInPlace() end,
         Close = function() self:SetOpen(false) end,
         Tuck = function(on) self:Tuck(on) end,
@@ -3557,110 +3869,172 @@ function Kit:OpenSettings()
     end
 end
 
--- Every setting, in order, through a builder S with Header, Checkbox,
--- Slider, Dropdown and Button. The game's options page (BuildSettings) and
+-- Every setting, in order, through a builder S with Header, Subheader,
+-- Checkbox, Slider, Dropdown and Button (and, in the kit's own window, Note,
+-- Choice, Grid and Table: v24). The game's options page (BuildSettings) and
 -- the kit's own window (OpenOptions) both draw from it.
+--
+-- The window (v24) shows each setting's description as its tooltip, not
+-- under it, so a description can say all it needs to without making the
+-- page long. Keep the names short and plain: they're what you read.
+--
+-- A kit can put pages of its own in the "Kit" group, right after General
+-- (cfg.FirstSettings), and one with cfg.buttonTable sets its buttons' show,
+-- pin and reminder choices in one table there (S.Table) instead of on Kit
+-- Core's "Pinned buttons" page and its own lists.
 function Kit:SettingsList(S)
     local cfg, db, cdb = self.cfg, self.db, self.cdb
     local pct = function(v) return math.floor(v * 100 + 0.5) .. "%" end
     local refresh = function() self:Refresh(false) end
+    local window = S.window
+    local listed = cfg.slots
+    if cfg.menuOrder then
+        listed = {}
+        for _, key in ipairs(cfg.menuOrder) do listed[#listed + 1] = self.slotByKey[key] end
+    end
 
     S.Group("Kit")
     S.Header("General")
+    if S.Grid then S.Grid(2) end
     S.Checkbox(db, "shown", "Show " .. self.name,
         "Turn off to hide the whole kit (its button and every slot) without uninstalling it.",
         true, function() self:SetShownKit(db.shown) end)
-    S.Checkbox(db, "locked", "Pin in place", "Stop the kit from being dragged. Also in the kit's right-click menu.", false)
-    S.Checkbox(db, "minimapButton", "Show minimap button",
+    S.Checkbox(db, "locked", "Lock it in place", "Stop the kit from being dragged. Also in the kit's right-click menu.", false)
+    if self.Dock then
+        S.Checkbox(db, "edgeTuck", "Tuck at screen edge",
+            "On a screen edge on its own, the kit slides half off the screen until you mouse over it. Turn off to keep it fully on the screen. In a tuck box it still tucks with the box.",
+            true, refresh)
+    end
+    S.Checkbox(db, "minimapButton", "Minimap button",
         "Left-click for these settings, right-click to open the kit, drag to move it.", true,
         function() self:ApplyMinimap() end)
     S.Checkbox(db, "chatNotices", "Chat messages",
         "Notices in chat when something changes (pinned in place, always shown, snoozed and the like). Slash commands still answer in chat.", true)
+    if S.Grid then S.Grid(1) end
     if cfg.GeneralSettings then cfg.GeneralSettings(self, S) end
-    S.Subheader("Combat")
+    S.Subheader("In combat")
     if not self.cfg.alwaysHideInCombat then
-        S.Checkbox(db, "hideInCombat", "Hide in combat", "Hide the kit while you're in combat.", false,
+        S.Checkbox(db, "hideInCombat", "Hide the kit in combat", "Hide the kit while you're in combat.", false,
             function() self:ApplyCombatHide() end)
     end
-    S.Slider(db, "flyoutHide", "Drawer close delay in combat",
+    S.Slider(db, "flyoutHide", "Drawers close after",
         "In combat a drawer can't close when you click elsewhere, so it closes by itself this long after the mouse leaves it and its slot.",
         0.5, 0.2, 2, 0.1, function(v) return ("%.1fs"):format(v) end)
     if cfg.CombatSettings then cfg.CombatSettings(self, S) end
 
+    S.Subheader("Fading")
+    local rearm = function() self:ArmOpenFade() self:ApplyFade() end
+    local function Fading() return (db.fadeIdle or db.fadeOpen) and true or false end
+    if window then
+        S.Choice("Fade the kit",
+            "When closed: the closed kit and its pinned slots fade until you mouse over them. When left open: the open kit fades once the mouse has been off it a while (it stays open). Mouse over to bring it back.",
+            {
+                { "never", "Never" },
+                { "idle", "When closed" },
+                { "open", "When left open" },
+                { "both", "Both" },
+            },
+            function()
+                if db.fadeIdle and db.fadeOpen then return "both" end
+                return (db.fadeIdle and "idle") or (db.fadeOpen and "open") or "never"
+            end,
+            function(v)
+                db.fadeIdle = (v == "idle" or v == "both")
+                db.fadeOpen = (v == "open" or v == "both")
+                refresh()
+                rearm()
+            end)
+    else
+        S.Checkbox(db, "fadeIdle", "Fade when idle",
+            "With the kit closed, it and its pinned slots fade until you mouse over them.", false, refresh)
+        S.Checkbox(db, "fadeOpen", "Fade when left open",
+            "With the kit open, it and its slots fade once the mouse has been off them for a while. They stay open, and come back when you mouse over them.",
+            false, rearm)
+    end
+    if S.Only then S.Only(function() return db.fadeOpen and true or false end) end
+    S.Slider(db, "fadeOpenAfter", "Fade an open kit after",
+        "How long the mouse has to be off the open kit before it fades.",
+        5, 1, 30, 1, function(v) return ("%ds"):format(v) end, rearm)
+    if S.Only then S.Only(Fading) end
+    S.Slider(db, "fadeAmount", "How faded",
+        "How see-through the kit's slots get when it fades: 0% is gone until you mouse over. The kit button fades half as much, so you can still find it.",
+        0.4, 0, 0.9, 0.05, function(v) return ("%d%%"):format(math.floor(v * 100 + 0.5)) end, function() self:ApplyFade() end)
+
+    -- The kit's own pages, right after General (v24).
+    if cfg.FirstSettings then cfg.FirstSettings(self, S) end
+
     S.Header("Look")
-    S.Slider(db, "scale", "Overall size", "The whole kit: the center icon, the buttons round it and the space between them.", 1, 0.6, 1.6, 0.05, pct,
+    S.Subheader("Size")
+    S.Slider(db, "scale", "Whole kit", "The whole kit: the center icon, the buttons round it and the space between them.", 1, 0.6, 1.6, 0.05, pct,
         function() self:ApplyPosition() end)
-    S.Slider(db, "kitSize", "Center icon size", "Just the icon in the middle: the buttons round it stay where they are.",
+    S.Slider(db, "kitSize", "Center icon", "Just the icon in the middle: the buttons round it stay where they are.",
         1, 0.5, 1, 0.05, pct, function() self:ApplyPosition() end)
-    S.Slider(db, "buttonSize", "Button size", "Just the buttons round the center icon: each gets smaller in its place, so they spread out a little.",
+    S.Slider(db, "buttonSize", "Buttons", "Just the buttons round the center icon: each gets smaller in its place, so they spread out a little.",
         1, 0.6, 1, 0.05, pct, function() self:ApplyPosition() end)
-    S.Slider(db, "spread", "Distance from center", "How far the buttons sit from the center icon: lower brings them in close, higher spreads them out.",
+    S.Slider(db, "spread", "Spread", "How far the buttons sit from the center icon: lower brings them in close, higher spreads them out.",
         1, 0.8, 1.5, 0.05, pct, function() self:Refresh(false) self:ApplyPosition() end)
-    S.Dropdown(db, "facing", "Layout direction",
-        "Which way the slots lay out round the kit while it's floating (on a screen edge they always face the middle of the screen).",
+    S.Subheader("Layout")
+    S.Dropdown(db, "facing", "Buttons open toward",
+        "Which way the slots lay out round the kit while it's floating. On a screen edge they always face the middle of the screen.",
         "up", {
             { "up", "Up" },
             { "down", "Down" },
             { "left", "Left" },
             { "right", "Right" },
         }, function() self:SetFacing(db.facing) end)
-    S.Checkbox(db, "tooltipDefault", "Default tooltip position",
-        "Show slot tooltips where the game normally shows tooltips, instead of beside the slot.", false)
+    if window then
+        S.Choice("Tooltips", "Where a slot's tooltip shows: beside the slot, or where the game normally puts tooltips.",
+            { { "beside", "Beside the slot" }, { "default", "Game's spot" } },
+            function() return db.tooltipDefault and "default" or "beside" end,
+            function(v) db.tooltipDefault = (v == "default") end)
+    else
+        S.Checkbox(db, "tooltipDefault", "Default tooltip position",
+            "Show slot tooltips where the game normally shows tooltips, instead of beside the slot.", false)
+    end
     if cfg.LookSettings then cfg.LookSettings(self, S) end
 
-    S.Header("Fading")
-    S.Checkbox(db, "fadeIdle", "Fade when idle",
-        "With the kit closed, it and its pinned slots fade until you mouse over them.", false, refresh)
-    local rearm = function() self:ArmOpenFade() self:ApplyFade() end
-    S.Checkbox(db, "fadeOpen", "Fade when left open",
-        "With the kit open, it and its slots fade once the mouse has been off them for a while. They stay open, and come back when you mouse over them.",
-        false, rearm)
-    S.Slider(db, "fadeOpenAfter", "Fade open kit after",
-        "How long the mouse has to be off the open kit before it fades.",
-        5, 1, 30, 1, function(v) return ("%ds"):format(v) end, rearm)
-    S.Slider(db, "fadeAmount", "Faded opacity",
-        "How see-through the kit's slots get when it fades (when idle or left open): 0% is gone until you mouse over. The kit button fades half as much, so you can still find it.",
-        0.4, 0, 0.9, 0.05, function(v) return ("%d%%"):format(math.floor(v * 100 + 0.5)) end, function() self:ApplyFade() end)
-
-    S.Header("Pinned buttons")
-    local listed = cfg.slots
-    if cfg.menuOrder then
-        listed = {}
-        for _, key in ipairs(cfg.menuOrder) do listed[#listed + 1] = self.slotByKey[key] end
-    end
-    for _, slot in ipairs(listed) do
-        if not slot.noPin then
-            S.Checkbox(cdb.pinned, slot.key, slot.label,
-                "Keep it out when the kit is closed (this character only). You can also shift-right-click the slot.",
-                false, refresh, "pin_" .. slot.key)
+    if not (cfg.buttonTable and window) then
+        S.Header("Pinned buttons")
+        if S.Grid then S.Grid(2) end
+        for _, slot in ipairs(listed) do
+            if not slot.noPin then
+                S.Checkbox(cdb.pinned, slot.key, slot.label,
+                    "Keep it out when the kit is closed (this character only). You can also shift-right-click the slot.",
+                    false, refresh, "pin_" .. slot.key)
+            end
         end
+        if S.Grid then S.Grid(1) end
+        if cfg.PinSettings then cfg.PinSettings(self, S) end
+        S.Button("Slot choices", "Reset", "Put every slot back to its starting choice, and every list back in its starting order.", function()
+            self:ResetSlotChoices()
+        end)
     end
-    if cfg.PinSettings then cfg.PinSettings(self, S) end
-    S.Button("Slot choices", "Reset", "Put every slot back to its starting choice, and every list back in its starting order.", function()
-        if InCombatLockdown() then self:Print("That can only change out of combat.") return end
-        wipe(cdb.picks)
-        wipe(cdb.order)
-        self:Refresh(false)
-        self:Print("Slot choices reset.")
-    end)
 
-    -- The reminder panel (v21), as a section of its own in the kit's group,
-    -- right after the kit's "Reminders" (or at the end of the kit's own
-    -- settings if it has none): whether this kit uses it, and which of its
+    -- Bars (v23), for a kit that has them.
+    if cfg.bars then
+        S.Header("Bars")
+        S.Button("Edit layout", "Edit", "Opens the kit and lets you drag its buttons. The outlines show where a button can go on the kit: drop it there, between two buttons or at an end. Drop a button away from the kit and it floats there, always shown. Drop another on it to make a bar, or between two to put it there. Drop a button on the kit's icon to put it back. Drag a bar by its box to move it. This character only; out of combat. Also in the kit's right-click menu.",
+            function() self:ToggleEdit() end)
+        S.Slider(db, "barGap", "Spacing", "Room between the buttons on a bar.",
+            4, 0, 16, 1, function(v) return tostring(v) end, refresh)
+        S.Button("Layout", "Reset to defaults", "Put every button back where it started: off the bars, and the kit's own buttons in their usual places and order.", function() self:ResetLayout() end)
+    end
+
+    -- The reminder panel (v21): whether this kit uses it, and which of its
     -- reminders go there, are this kit's own; the panel's layout and spot are
-    -- shared by every kit.
+    -- shared by every kit. Its own page: in the "Kit" group for a kit with a
+    -- button table, otherwise right
+    -- after the kit's "Reminders" (or at the end of the kit's own settings if
+    -- it has none).
     local panelDone = false
     local function PanelSection()
         if panelDone then return end
         panelDone = true
-        -- The reminder panel (v21): whether this kit uses it, and which of its
-        -- reminders go there, are this kit's own; the panel's layout and spot
-        -- are shared by every kit.
         S.Header("Reminder panel")
         local rp = db.reminderPanel
         local shared = function() C.SharePanel(rp) end
         S.Checkbox(rp, "on", "Put " .. self.name .. "'s reminders in the panel",
-            "One panel for all your kits that you can put anywhere. With this on and " .. self.name .. " closed, the reminders ticked below show there, full size, instead of beside the kit. They stay in the panel while the kit is open too (and in their places in the kit). Each kit has its own switch, so some kits' reminders can be in the panel and others by their kit. A pinned button always stays by its kit.",
+            "One panel for all your kits that you can put anywhere. With this on and " .. self.name .. " closed, its reminders show there, full size, instead of beside the kit. They stay in the panel while the kit is open too (and in their places in the kit). Each kit has its own switch, so some kits' reminders can be in the panel and others by their kit. " .. (cfg.panelPinned and "A pinned button stays by its kit, and its reminder shows in the panel too." or "A pinned button always stays by its kit."),
             false, shared, "panelOn")
         local panelOn = function() return rp.on and true or false end
         S.Subheader("The panel (every kit)", panelOn)
@@ -3684,31 +4058,32 @@ function Kit:SettingsList(S)
         S.Slider(rp, "gap", "Spacing", "Room between the buttons.",
             4, 0, 16, 1, function(v) return tostring(v) end, shared)
         S.Checkbox(rp, "snap", "Snap when placing", "Line the panel up with the grid, the middle of the screen and your kit buttons as you drag it.", true, shared, "panelSnap")
+        if S.Only then S.Only(function() return rp.snap ~= false end) end
         S.Slider(rp, "grid", "Grid size", "How far apart the grid's lines are while placing it.",
             16, 8, 32, 8, function(v) return tostring(v) end, shared)
         local pops = {}
         for _, slot in ipairs(listed) do
             if not slot.noPanel and slot.Pop then pops[#pops + 1] = slot end
         end
-        local function Ticks(group, tip)
-            for _, slot in ipairs(group) do
-                S.Checkbox(db.panelSlots, slot.key, slot.label, tip, self:PanelDefault(slot), refresh, "panel_" .. slot.key)
-            end
-        end
         if #pops > 0 then
             S.Subheader("Reminders in the panel", panelOn)
-            Ticks(pops, "When it pops out with the kit closed (missing or wanted), it shows in the panel. Pinned, it stays by the kit.")
+            if S.Grid then S.Grid(2) end
+            for _, slot in ipairs(pops) do
+                S.Checkbox(db.panelSlots, slot.key, slot.label,
+                    "When it pops out with the kit closed (missing or wanted), it shows in the panel. " .. (cfg.panelPinned and "Pinned, it shows in the panel too, and stays by the kit." or "Pinned, it stays by the kit."),
+                    self:PanelDefault(slot), refresh, "panel_" .. slot.key)
+            end
+            if S.Grid then S.Grid(1) end
         end
     end
+    if cfg.buttonTable and window then PanelSection() end
 
-    S.Header("Key bindings")
-    S.Button("Key bindings", "Open", "Bind each slot, and opening the kit.", function()
-        if Settings.KEYBINDINGS_CATEGORY_ID then
-            Settings.OpenToCategory(Settings.KEYBINDINGS_CATEGORY_ID)
-        else
-            self:Print("Open Esc > Options > Keybindings and look for " .. self.name .. ".")
-        end
-    end)
+    -- (Key bindings: a link at the foot of the window's list, v24. The
+    -- game's options page keeps its button.)
+    if not window then
+        S.Header("Key bindings")
+        S.Button("Key bindings", "Open", "Bind each slot, and opening the kit.", function() self:OpenKeyBindings() end)
+    end
 
     -- The kit's own settings, under its name unless it opens with a header
     -- (and its own group in the window's list unless it names one).
@@ -3729,6 +4104,24 @@ function Kit:SettingsList(S)
     if cfg.Settings then cfg.Settings(self, KS) end
     S.Group(self.name) -- (a kit with no "Reminders": at the end of its own group)
     PanelSection()
+end
+
+-- Every slot back to its starting choice, and every list in its starting order.
+function Kit:ResetSlotChoices()
+    if InCombatLockdown() then self:Print("That can only change out of combat.") return end
+    wipe(self.cdb.picks)
+    wipe(self.cdb.order)
+    self:Refresh(false)
+    self:Print("Slot choices reset.")
+end
+
+function Kit:OpenKeyBindings()
+    if Settings and Settings.KEYBINDINGS_CATEGORY_ID then
+        if self.optionsUI and self.optionsUI.frame then self.optionsUI.frame:Hide() end
+        Settings.OpenToCategory(Settings.KEYBINDINGS_CATEGORY_ID)
+    else
+        self:Print("Open Esc > Options > Keybindings and look for " .. self.name .. ".")
+    end
 end
 
 function Kit:BuildSettings()
@@ -3757,6 +4150,15 @@ function Kit:BuildSettings()
     function S.Subheader(text) pendingSub = text end -- (its "when" is the window's only)
     function S.Group() end -- (the window's nav only)
     function S.Only() end -- (the window's only)
+    -- (the window's only, v24: a line of words, a choice read and stored by
+    -- functions, side-by-side checkboxes, and a kit's table of buttons;
+    -- v30: a kit's own frame)
+    function S.Note() end
+    function S.Choice() end
+    function S.Grid() end
+    function S.Table() end
+    function S.Custom() end
+    function S.Colors() end -- (the window's only, v29: a row of colour squares)
     local function Flush()
         if CreateSettingsListSectionHeaderInitializer then
             if pending then layout:AddInitializer(CreateSettingsListSectionHeaderInitializer(pending)) end
@@ -3987,7 +4389,7 @@ function C.SharePanel(src)
             if kit.optionsUI and kit.optionsUI.frame:IsShown() then kit:PaintOptions() end
         end
     end
-    if C.panelUnlocked then C.PaintMoveBar() end
+    if C.placeUI then C.placeUI.paint() end
 end
 
 local function Cursor()
@@ -4028,26 +4430,21 @@ function C.Panel()
     edit:Hide()
     f.edit = edit
 
-    -- Dragged by hand (not StartMoving), so it can snap as it goes.
+    -- Dragged by hand (not StartMoving), so it can snap as it goes: on the
+    -- shared placing grid (v24), with every other piece being placed.
     f:SetScript("OnMouseDown", function(p, mouse)
         if mouse ~= "LeftButton" or InCombatLockdown() or not C.panelUnlocked then return end
-        local mx, my = Cursor()
-        local cx, cy = C.PanelCentre()
-        p.offX, p.offY = cx - mx, cy - my
-        p.downAt = { mx, my }
-        p.moved = false
-        p:SetScript("OnUpdate", function(pp)
-            local x, y = Cursor()
-            if not pp.moved and math.abs(x - pp.downAt[1]) + math.abs(y - pp.downAt[2]) < 3 then return end
-            pp.moved = true
-            C.DragPanel(x + pp.offX, y + pp.offY)
+        GameTooltip:Hide()
+        C.Place.Begin("panel", p, function(x, y)
+            local cfg, corner = PanelValues()
+            local c = CORNERS[corner]
+            cfg.x = math.floor(x + c[1] * p:GetWidth() / 2 + 0.5)
+            cfg.y = math.floor(y + c[2] * p:GetHeight() / 2 + 0.5)
+            C.PlacePanel()
         end)
     end)
-    f:SetScript("OnMouseUp", function(p, mouse)
-        p:SetScript("OnUpdate", nil)
-        C.Guide(nil, nil)
-        if p.moved then
-            p.moved = false
+    f:SetScript("OnMouseUp", function(_, mouse)
+        if C.Place.Stop() then
             C.SharePanel(C.PanelCfg())
         elseif mouse == "RightButton" then
             C.SetPanelUnlocked(false)
@@ -4107,13 +4504,70 @@ function C.PanelCentre()
 end
 
 ---------------------------------------------------------------------------
--- Placing it: the grid, guides and snapping (as SSBT's Move.lua)
+-- Placing things (v24): one grid and one bar for every piece that can be
+-- moved, as SSBT's Move.lua does it
+--
+-- Any kit can register a piece of its own (C.RegisterMover: a DoT stack, a
+-- proc timer, the target bar...); the reminder panel is one too. While any
+-- piece is being placed, the screen is shaded with gold grid lines every grid
+-- step out from the middle (the middle lines brighter), and a small bar at
+-- the top has the grid size, Snap and Done (Esc closes it too). Dragged, a
+-- piece snaps to the screen's middle lines, to the other pieces' and the kit
+-- buttons' edges and middles (a bright guide line shows what it lined up
+-- with), or else its left and top edges to the grid. Shift places it freely.
+--
+-- "Move everything" (C.MoveAll: the foot of the settings window's list, or
+-- "move" after the kit's slash command) puts every piece that's in use
+-- into placing at once; Done ends them all. The grid size and Snap are the
+-- reminder panel's (shared by every kit).
 ---------------------------------------------------------------------------
+
+local movers, moverOrder = {}, {}
+C.movers = movers
+local placeUI, placeDrag
+
+-- A piece that can be placed. m = {
+--   label,                 its name
+--   frame = fn() -> frame, what's dragged (nil before it's made)
+--   test = fn(on),         shows it (a sample where it sits) to be placed, or stops
+--   can = fn() -> bool,    whether it's in use, for Move everything
+--   done = fn(),           Done or Esc: stop placing it (test(false) if not given)
+--   strata,                its usual strata (back to it when placing ends)
+-- }
+function C.RegisterMover(key, m)
+    if not movers[key] then moverOrder[#moverOrder + 1] = key end
+    local old = movers[key]
+    if old then m.placing = old.placing end
+    movers[key] = m
+end
+
+local function PlaceCfg()
+    local p = C.PanelCfg() or {}
+    return tonumber(p.grid) or 16, p.snap ~= false, p
+end
+
+-- The cursor, in UI units from the middle of the screen.
+local function Cursor()
+    local x, y = GetCursorPosition()
+    local s = UIParent:GetEffectiveScale()
+    return x / s - UIParent:GetWidth() / 2, y / s - UIParent:GetHeight() / 2
+end
+
+local function Round(v, step) return math.floor(v / step + 0.5) * step end
+
+-- A frame's middle and half-size, in UI units from the middle of the screen.
+local function Box(f)
+    local cx, cy = f:GetCenter()
+    if not cx then return nil end
+    local k = f:GetEffectiveScale() / UIParent:GetEffectiveScale()
+    local ux, uy = UIParent:GetWidth() / 2, UIParent:GetHeight() / 2
+    return cx * k - ux, cy * k - uy, f:GetWidth() * k / 2, f:GetHeight() * k / 2
+end
 
 local function BuildGrid()
     local g = CreateFrame("Frame", "KitCoreGrid", UIParent)
     g:SetAllPoints()
-    g:SetFrameStrata("BACKGROUND")
+    g:SetFrameStrata("HIGH")
     g:SetFrameLevel(1)
     g:EnableMouse(false)
     local shade = g:CreateTexture(nil, "BACKGROUND")
@@ -4126,7 +4580,7 @@ local function BuildGrid()
     g.guideH = g:CreateTexture(nil, "OVERLAY")
     g.guideH:SetHeight(2)
     g.guideH:SetColorTexture(1, 0.85, 0.45, 0.9)
-    g:SetScript("OnSizeChanged", function() C.DrawGrid() end)
+    g:SetScript("OnSizeChanged", function() if g:IsShown() then C.DrawGrid() end end)
     g:Hide()
     return g
 end
@@ -4134,8 +4588,7 @@ end
 function C.DrawGrid()
     local g = C.grid
     if not g then return end
-    local p = C.PanelCfg() or {}
-    local step = tonumber(p.grid) or 16
+    local step = PlaceCfg()
     local w, h = UIParent:GetWidth(), UIParent:GetHeight()
     local n = 0
     local function Add(vertical, at)
@@ -4205,57 +4658,57 @@ local function Nearest(values, targets)
     return best, bestAt
 end
 
--- Where the kit buttons' edges and centres are, along one axis (and the
--- screen's centre line), from the screen's centre.
-local function Targets(vertical)
+-- What a piece can line up with, along one axis: the screen's middle line,
+-- the other pieces being placed, and the kit buttons (edges and middles).
+local function Targets(skip, vertical)
     local list = { 0 }
-    local us = UIParent:GetEffectiveScale()
-    local ux, uy = UIParent:GetWidth() / 2, UIParent:GetHeight() / 2
+    local function Add(f)
+        if not (f and f:IsVisible()) then return end
+        local x, y, hw, hh = Box(f)
+        if not x then return end
+        local c, half = vertical and x or y, vertical and hw or hh
+        list[#list + 1] = c - half
+        list[#list + 1] = c
+        list[#list + 1] = c + half
+    end
+    for _, key in ipairs(moverOrder) do
+        local m = movers[key]
+        if key ~= skip and m.placing and m.frame then Add(m.frame()) end
+    end
     for _, kit in ipairs(C.kits or {}) do
-        local b = kit.built and kit.kit
-        if b and b:IsVisible() then
-            local x, y = b:GetCenter()
-            if x then
-                local k = b:GetEffectiveScale() / us
-                local half = b:GetWidth() * k / 2
-                local c = vertical and (x * k - ux) or (y * k - uy)
-                list[#list + 1] = c - half
-                list[#list + 1] = c
-                list[#list + 1] = c + half
-            end
-        end
+        if kit.built then Add(kit.kit) end
     end
     return list
 end
 
--- The box dragged so its centre is at (x, y): snapped, saved as its
--- starting corner, and moved there.
-function C.DragPanel(x, y)
-    local f = C.panel
-    local p, corner = PanelValues()
-    local c = CORNERS[corner]
-    local hw, hh = f:GetWidth() / 2, f:GetHeight() / 2
-    local gx, gy
-    if p.snap ~= false and not IsShiftKeyDown() then
-        local step = tonumber(p.grid) or 16
-        local dx, dy
-        dx, gx = Nearest({ x - hw, x, x + hw }, Targets(true))
-        dy, gy = Nearest({ y - hh, y, y + hh }, Targets(false))
-        -- (otherwise its starting corner on the grid)
-        if dx then x = x + dx else x = Round(x + c[1] * hw, step) - c[1] * hw end
-        if dy then y = y + dy else y = Round(y + c[2] * hh, step) - c[2] * hh end
-    end
-    -- Kept on screen.
-    local W, H = UIParent:GetWidth() / 2, UIParent:GetHeight() / 2
-    x = math.max(-W + hw, math.min(W - hw, x))
-    y = math.max(-H + hh, math.min(H - hh, y))
-    p.x, p.y = math.floor(x + c[1] * hw + 0.5), math.floor(y + c[2] * hh + 0.5)
-    C.PlacePanel()
-    C.Guide(gx, gy)
+-- A piece dragged so its middle would be at (x, y): where it goes, and the
+-- guide lines to show (or nil).
+local function Snap(key, x, y, hw, hh)
+    local step, snapping = PlaceCfg()
+    if not snapping or IsShiftKeyDown() then return x, y end
+    local dx, gx = Nearest({ x - hw, x, x + hw }, Targets(key, true))
+    local dy, gy = Nearest({ y - hh, y, y + hh }, Targets(key, false))
+    -- (otherwise its left and top edges on the grid)
+    if dx then x = x + dx else x = Round(x - hw, step) + hw end
+    if dy then y = y + dy else y = Round(y + hh, step) - hh end
+    return x, y, gx, gy
 end
 
--- The bar at the top while placing it.
-local GRID_SIZES = { 8, 16, 24, 32 }
+-- Every piece being placed, done (Done, Esc, or Move everything again).
+function C.EndPlacing()
+    for _, key in ipairs(moverOrder) do
+        local m = movers[key]
+        if m.placing then
+            local ok, err = pcall(m.done or function() m.test(false) end)
+            if not ok then geterrorhandler()(err) end
+            m.placing = nil
+        end
+    end
+    if placeUI then
+        C.grid:Hide()
+        if placeUI.bar:IsShown() then placeUI.bar:Hide() end
+    end
+end
 
 local function SmallButton(parent, text, w, fn)
     local b = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
@@ -4265,9 +4718,9 @@ local function SmallButton(parent, text, w, fn)
     return b
 end
 
-local function BuildMoveBar()
+local function BuildPlaceBar()
     local bar = OptPanel("Frame", "KitCoreMoveBar", UIParent)
-    bar:SetSize(420, 64)
+    bar:SetSize(360, 64)
     bar:SetPoint("TOP", 0, -20)
     bar:SetFrameStrata("FULLSCREEN_DIALOG")
     bar:EnableMouse(true)
@@ -4280,7 +4733,6 @@ local function BuildMoveBar()
 
     local title = bar:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     title:SetPoint("TOPLEFT", 12, -9)
-    title:SetText("Placing the reminder panel")
     local hint = bar:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     hint:SetPoint("LEFT", title, "RIGHT", 10, 0)
     hint:SetText("Drag to move, Shift for free")
@@ -4290,20 +4742,18 @@ local function BuildMoveBar()
         f:SetPoint("BOTTOMLEFT", x, 10)
         x = x + w + 8
     end
-
     -- Grid size: steps through the sizes.
+    local GRID_SIZES = { 8, 16, 24, 32 }
     local grid = SmallButton(bar, "", 80, nil)
     grid:SetScript("OnClick", function()
-        local p = C.PanelCfg()
+        local step, _, p = PlaceCfg()
         local i = 1
-        for n, g in ipairs(GRID_SIZES) do if g == tonumber(p.grid) then i = n end end
+        for n, g in ipairs(GRID_SIZES) do if g == step then i = n end end
         p.grid = GRID_SIZES[i % #GRID_SIZES + 1]
-        C.SharePanel(p)
+        if C.PanelCfg() == p then C.SharePanel(p) end
         C.DrawGrid()
     end)
     Place(grid, 80)
-    bar.grid = grid
-
     local snap = CreateFrame("Button", nil, bar)
     snap:SetSize(84, 22)
     local box = CreateFrame("Frame", nil, snap)
@@ -4319,34 +4769,129 @@ local function BuildMoveBar()
     label:SetPoint("LEFT", box, "RIGHT", 6, 0)
     label:SetText("Snap")
     snap:SetScript("OnClick", function()
-        local p = C.PanelCfg()
-        p.snap = p.snap == false
-        C.SharePanel(p)
+        local _, snapping, p = PlaceCfg()
+        p.snap = not snapping
+        if C.PanelCfg() == p then C.SharePanel(p) end
+        tick:SetShown(p.snap)
     end)
     Place(snap, 60)
-    bar.tick = tick
-
-    Place(SmallButton(bar, "Settings", 80, function()
-        local kit = C.kits and C.kits[1]
-        if kit then kit:OpenOptions("Reminder panel") end
-    end), 80)
     local done = SmallButton(bar, "Done", 70, function() bar:Hide() end)
     done:SetPoint("BOTTOMRIGHT", -12, 10)
     bar:Hide()
-    -- (Esc or Done: finished placing. Set only now: a new frame starts shown,
-    -- so the Hide above would otherwise end the placing it was built for.)
-    bar:SetScript("OnHide", function() if C.panelUnlocked then C.SetPanelUnlocked(false) end end)
-    return bar
+    -- (Esc or Done: every piece finished. Set only now: a new frame starts
+    -- shown, so the Hide above would otherwise end the placing it was built for.)
+    bar:SetScript("OnHide", function() C.EndPlacing() end)
+
+    placeUI = { bar = bar }
+    C.placeUI = placeUI
+    function placeUI.paint()
+        local step, snapping = PlaceCfg()
+        grid:SetText("Grid " .. step)
+        tick:SetShown(snapping)
+        -- The title says what's being placed: one piece by name, or several.
+        local names = {}
+        for _, key in ipairs(moverOrder) do
+            local m = movers[key]
+            if m.placing then names[#names + 1] = m.label or key end
+        end
+        if #names == 1 then
+            title:SetText("Placing " .. names[1])
+        else
+            title:SetText("Moving everything")
+        end
+    end
 end
 
-function C.PaintMoveBar()
-    local bar, p = C.moveBar, C.PanelCfg()
-    if not (bar and p) then return end
-    bar.grid:SetText("Grid " .. (tonumber(p.grid) or 16))
-    bar.tick:SetShown(p.snap ~= false)
+C.Place = {}
+C.Place.Box, C.Place.Cursor = Box, Cursor
+
+-- A piece starts or stops being placed: the grid and bar show while any is,
+-- and pieces being placed sit over the grid's shade.
+function C.Place.Update(key, on)
+    local m = movers[key]
+    if m then
+        m.placing = on and true or nil
+        local f = m.frame and m.frame()
+        if f and not InCombatLockdown() then f:SetFrameStrata(on and "DIALOG" or (m.strata or "MEDIUM")) end
+    end
+    local any = false
+    for _, k in ipairs(moverOrder) do if movers[k].placing then any = true end end
+    if any then
+        C.grid = C.grid or BuildGrid()
+        if not placeUI then BuildPlaceBar() end
+        C.DrawGrid()
+        C.Guide(nil, nil)
+        placeUI.paint()
+        C.grid:Show()
+        if not placeUI.bar:IsShown() then placeUI.bar:Show() end
+    elseif placeUI then
+        C.grid:Hide()
+        if placeUI.bar:IsShown() then placeUI.bar:Hide() end
+    end
 end
 
--- Placing it: the grid, the bar, its box; it takes the mouse until done.
+-- Dragging a piece: frame is what's dragged; move(x, y) puts its middle at
+-- (x, y) in UI units from the middle of the screen (and saves it).
+function C.Place.Begin(key, frame, move)
+    if InCombatLockdown() or not frame then return end
+    local x0, y0 = Box(frame)
+    if not x0 then return end
+    local mx, my = Cursor()
+    local d = { key = key, frame = frame, move = move, offX = x0 - mx, offY = y0 - my, downAt = { mx, my } }
+    placeDrag = d
+    frame:SetScript("OnUpdate", function()
+        local x, y = Cursor()
+        if not d.moved and math.abs(x - d.downAt[1]) + math.abs(y - d.downAt[2]) < 3 then return end
+        d.moved = true
+        local _, _, hw, hh = Box(frame)
+        local nx, ny, gx, gy = Snap(key, x + d.offX, y + d.offY, hw, hh)
+        local sw, sh = UIParent:GetWidth() / 2, UIParent:GetHeight() / 2
+        nx = math.max(-sw + hw, math.min(sw - hw, nx))
+        ny = math.max(-sh + hh, math.min(sh - hh, ny))
+        move(nx, ny)
+        C.Guide(gx, gy)
+    end)
+end
+
+-- The drag ends. Returns whether it moved (a plain click didn't).
+function C.Place.Stop()
+    local d = placeDrag
+    placeDrag = nil
+    if d and d.frame then d.frame:SetScript("OnUpdate", nil) end
+    C.Guide(nil, nil)
+    return d and d.moved or false
+end
+
+-- Move everything: every piece in use, placed at once (or, if anything is
+-- being placed, all of it done).
+function C.MoveAll(kit)
+    for _, key in ipairs(moverOrder) do
+        if movers[key].placing then C.EndPlacing() return end
+    end
+    if InCombatLockdown() then
+        kit:Print("Things can only be moved out of combat.", true)
+        return
+    end
+    local n = 0
+    C.movingAll = true
+    for _, key in ipairs(moverOrder) do
+        local m = movers[key]
+        local ok, can = pcall(m.can or function() return true end)
+        if ok and can and m.test then
+            local ok2, err = pcall(m.test, true)
+            if not ok2 then geterrorhandler()(err) end
+            n = n + 1
+        end
+    end
+    C.movingAll = nil
+    if n == 0 then
+        kit:Print("Nothing to move: turn on the reminder panel or a kit's timers first. The kits themselves move by dragging them.", true)
+    elseif placeUI then
+        placeUI.paint()
+    end
+end
+
+-- The reminder panel is a piece like any other.
 function C.SetPanelUnlocked(on)
     local f = C.panel
     if not f or InCombatLockdown() then return end
@@ -4354,21 +4899,17 @@ function C.SetPanelUnlocked(on)
     C.panelUnlocked = on
     f:EnableMouse(on)
     f.edit:SetShown(on)
-    if on then
-        C.grid = C.grid or BuildGrid()
-        C.moveBar = C.moveBar or BuildMoveBar()
-        C.DrawGrid()
-        C.Guide(nil, nil)
-        C.grid:Show()
-        C.PaintMoveBar()
-        C.moveBar:Show()
-    else
-        f:SetScript("OnUpdate", nil)
-        if C.grid then C.grid:Hide() end
-        if C.moveBar and C.moveBar:IsShown() then C.moveBar:Hide() end
-    end
+    if not on then f:SetScript("OnUpdate", nil) end
+    C.Place.Update("panel", on)
     C.PanelLayout()
 end
+
+C.RegisterMover("panel", {
+    label = "the reminder panel",
+    frame = function() return C.panel end,
+    can = function() return C.PanelOn() and C.panel ~= nil end,
+    test = function(on) C.SetPanelUnlocked(on) end,
+})
 
 function C.TogglePanelUnlocked(kit)
     if InCombatLockdown() then
@@ -4382,6 +4923,7 @@ function C.TogglePanelUnlocked(kit)
     C.SetPanelUnlocked(not C.panelUnlocked)
     if kit.optionsUI then kit:PaintOptions() end
 end
+
 
 ---------------------------------------------------------------------------
 -- What goes in it, and where
@@ -4589,10 +5131,998 @@ function Kit:PlacePanelSlots()
     end
 end
 
--- The list, gathered into sections: { title, items = { item, ... } }.
+---------------------------------------------------------------------------
+-- Bars (from v23), for a kit with cfg.bars
+--
+-- In the kit's edit mode every button that can be pinned can be dragged.
+-- Dropped away from the kit it floats there on its own; drop another on it
+-- and the two make a bar (a row if it landed beside it, a column if above
+-- or below), and after that a button dropped on the bar goes in where it
+-- landed: at either end or between two. Dropped on the kit, a button goes
+-- back to its place there. There's no limit to the bars or what's on them.
+--
+-- A button on a bar is always shown, kit open or closed, and it's the slot
+-- itself, moved: its drawer, its corner button, its glow, its count and its
+-- key binding all come along. The kit lays itself out as if that slot
+-- weren't there (the ring closes up, an edge column loses it), and pinning
+-- and the reminder panel don't apply to it while it's on a bar.
+--
+-- The bars are saved for the character (cdb.bars), each by its middle from
+-- the screen's centre, so they stay put when the kit is moved. The buttons
+-- hang from the kit's holder (which covers the screen) rather than from the
+-- kit button, and the kit button's combat switch skips them ("kcbar"), so
+-- opening, closing and moving the kit in combat leaves them where they are.
+-- Like everything secure, they only move out of combat: edit mode ends when
+-- a fight starts.
+--
+-- While a button is being dragged the layout is shown as it would be if you
+-- let go (kit.barPreview stands in for cdb.bars): the others make room, the
+-- dragged button sits faintly in its new place, and a copy of it follows
+-- the mouse.
+---------------------------------------------------------------------------
+
+local BAR_PAD = 7 -- round a bar's buttons, inside its box (edit mode)
+
+-- Can this slot go on a bar?
+function Kit:CanBar(slot)
+    return self.cfg.bars and slot and not slot.noPin and not slot.noBar and true or false
+end
+
+-- The bars as they are (or, while a button is being dragged, as they'd be).
+function Kit:Bars()
+    if not self.cfg.bars then return {} end
+    return self.barPreview or (self.cdb and self.cdb.bars) or {}
+end
+
+-- Is this slot on a bar (as of the last refresh)?
+function Kit:OnBar(key)
+    local btn = self.slots[key]
+    return btn and btn.kcBar and true or false
+end
+
+-- The saved bars, tidied: only slots this kit has and lets on a bar, each
+-- once, and no empty bars.
+function Kit:CleanBars()
+    local cdb = self.cdb
+    if not cdb then return end
+    local out, seen = {}, {}
+    if self.cfg.bars and type(cdb.bars) == "table" then
+        for _, bar in ipairs(cdb.bars) do
+            if type(bar) == "table" and type(bar.keys) == "table" then
+                local keys = {}
+                for _, key in ipairs(bar.keys) do
+                    if not seen[key] and self:CanBar(self.slotByKey[key]) then
+                        seen[key] = true
+                        keys[#keys + 1] = key
+                    end
+                end
+                if #keys > 0 then
+                    out[#out + 1] = { x = tonumber(bar.x) or 0, y = tonumber(bar.y) or 0,
+                        dir = bar.dir == "col" and "col" or "row", keys = keys }
+                end
+            end
+        end
+    end
+    cdb.bars = out
+end
+
+-- A copy of some bars without one slot (and without any bar that leaves empty).
+function Kit:BarsWithout(bars, key)
+    local out = {}
+    for _, bar in ipairs(bars or {}) do
+        local keys = {}
+        for _, k in ipairs(bar.keys) do
+            if k ~= key then keys[#keys + 1] = k end
+        end
+        if #keys > 0 then out[#out + 1] = { x = bar.x, y = bar.y, dir = bar.dir, keys = keys } end
+    end
+    return out
+end
+
+-- Which slots are on a bar: each button's kcBar, kept in step with the bars
+-- (out of combat, at the start of every refresh). One that has just left a
+-- bar forgets where it was put, so the kit's layout anchors it again.
+function Kit:MarkBars()
+    if not self.cfg.bars then return end
+    local on = {}
+    for _, bar in ipairs(self:Bars()) do
+        for _, key in ipairs(bar.keys) do on[key] = true end
+    end
+    for key, btn in pairs(self.slots) do
+        local want = on[key] and true or nil
+        if btn.kcBar ~= want then
+            if sliding[btn] then self:FinishSlide(btn) end
+            btn.kcBar = want
+            btn.barX, btn.barY = nil, nil
+            if not want then
+                btn.barGrid = nil
+                btn.placedX, btn.placedY = nil, nil
+            end
+        end
+    end
+end
+
+-- One cell of a bar (a full slot and the gap), in UIParent units.
+function Kit:BarCell()
+    return (self.BTN * (self.db.buttonSize or 1) + (tonumber(self.db.barGap) or 4)) * (self.db.scale or 1)
+end
+
+-- A bar's slots that are there right now (a hidden one leaves no gap).
+function Kit:BarShown(bar)
+    local shown = {}
+    for _, key in ipairs(bar.keys) do
+        local btn = self.slots[key]
+        if btn and not btn.hidden then shown[#shown + 1] = key end
+    end
+    return shown
+end
+
+-- Where the i-th of n buttons on a bar sits (UIParent units from the
+-- screen's centre): a row reads left to right, a column top to bottom, both
+-- centred on the bar's middle.
+function Kit:BarSpot(bar, i, n, cell)
+    local off = (i - (n + 1) / 2) * cell
+    if bar.dir == "col" then return bar.x, bar.y - off end
+    return bar.x + off, bar.y
+end
+
+-- The kit button's middle, in UIParent units from the screen's centre.
+function Kit:KitCentreUI()
+    local x, y = self.kit:GetCenter()
+    if not x then return nil end
+    local k = self.kit:GetEffectiveScale() / UIParent:GetEffectiveScale()
+    return x * k - UIParent:GetWidth() / 2, y * k - UIParent:GetHeight() / 2
+end
+
+-- Keep a bar's middle on the screen.
+function Kit:ClampBar(x, y)
+    local hw, hh = UIParent:GetWidth() / 2 - 20, UIParent:GetHeight() / 2 - 20
+    return math.max(-hw, math.min(hw, x)), math.max(-hh, math.min(hh, y))
+end
+
+-- Put every button that's on a bar in its place there. Out of combat only.
+-- glide: ones that move slide over (Kit Dock's glide) instead of jumping.
+function Kit:PlaceBars(glide)
+    if not self.cfg.bars or not self.built or InCombatLockdown() then return end
+    local s = self.db.scale or 1
+    local cell = self:BarCell()
+    local kx, ky = self:KitCentreUI()
+    local D = self.Dock
+    for _, bar in ipairs(self:Bars()) do
+        local shown = self:BarShown(bar)
+        -- Drawers open away from the bar's line, toward the middle of the screen.
+        local grid
+        if bar.dir == "col" then grid = bar.x > 0 and "left" or "right" else grid = bar.y > 0 and "down" or "up" end
+        for i, key in ipairs(shown) do
+            local btn = self.slots[key]
+            if btn.kcBar then
+                local ux, uy = self:BarSpot(bar, i, #shown, cell)
+                local x, y = ux / s, uy / s -- (a slot's own units: it's scaled by the kit's size)
+                btn.barGrid = grid
+                -- Where that is from the kit, for the drawer's fit on screen.
+                if kx then btn.placedX, btn.placedY = (ux - kx) / s, (uy - ky) / s end
+                if btn.barX ~= x or btn.barY ~= y then
+                    local ox, oy, os
+                    if glide and D and D.Glide and btn:IsShown() then
+                        ox, oy = btn:GetCenter()
+                        os = btn:GetEffectiveScale()
+                    end
+                    if D and D.StopTween then D.StopTween(btn) end
+                    btn:ClearAllPoints()
+                    btn:SetPoint("CENTER", self.holder, "CENTER", x, y)
+                    btn.barX, btn.barY = x, y
+                    if ox then D.Glide(btn, ox, oy, os) end
+                end
+            end
+        end
+    end
+end
+
+-- Back to how the kit started: every button off the bars, and the kit's
+-- own zones in their usual order.
+function Kit:ResetLayout()
+    if not self.cfg.bars then return end
+    if InCombatLockdown() then self:Print("That can only change out of combat.", true) return end
+    C.StopEditDrag(true)
+    self.cdb.bars = {}
+    self.cdb.zones = nil
+    self:ApplyZones()
+    self:Refresh(false)
+    if self.Dock and self.Dock.Layout then self.Dock.Layout() end
+    self:Print("Layout reset: every button is back in its usual place.")
+    self:SettingsChanged()
+end
+Kit.ResetBars = Kit.ResetLayout
+
+---------------------------------------------------------------------------
+-- Zones (v23): the places on the kit itself (cfg.zones: a ring, a row)
+-- whose buttons can be dragged from one to another, and into any order, in
+-- edit mode. What's saved (cdb.zones) is just each zone's list of slots;
+-- the kit's own tables are filled from the lists (cfg.OnZones), so its
+-- layout, divider, edge columns and reminders all follow without knowing.
+-- A slot on a bar keeps its place in its zone's list: that's where it goes
+-- back to when it's dropped on the kit's icon.
+--
+-- From v31 a zone can be one of small buttons (zone.small: a ring of them
+-- under the kit, say). Then every zone's slots take its size, so a small
+-- button dragged out to a full-size zone or onto a bar becomes a full slot,
+-- and one dragged back becomes small again (SetSlotSmall), even while the
+-- drag is only being shown. zone.only keeps a zone to the slots it lists.
+---------------------------------------------------------------------------
+
+local function CopyLists(lists)
+    local out = {}
+    for k, keys in pairs(lists or {}) do
+        out[k] = {}
+        for i, key in ipairs(keys) do out[k][i] = key end
+    end
+    return out
+end
+
+-- The kit's rings as a list (cfg.ring may be one ring or several).
+function Kit:Rings()
+    local rings = self.cfg.ring
+    if rings and rings.keys then rings = { rings } end
+    return rings or {}
+end
+
+-- Each zone's starting slots (noted once, before anything is moved).
+function Kit:ZoneDefaults()
+    if self.zoneDefaults then return self.zoneDefaults end
+    local d, home = {}, {}
+    for _, z in ipairs(self.cfg.zones or {}) do
+        local ring = z.ring and self:Rings()[z.ring]
+        d[z.key] = {}
+        for i, key in ipairs(ring and ring.keys or z.keys or {}) do
+            d[z.key][i] = key
+            home[key] = z.key
+        end
+    end
+    self.zoneDefaults, self.zoneHome = d, home
+    return d
+end
+
+-- Can this slot go in this zone? (zone.only, v31: just the slots it lists)
+local function ZoneTakes(z, key)
+    if not z.only then return true end
+    for _, k in ipairs(z.only) do
+        if k == key then return true end
+    end
+    return false
+end
+
+-- The zones' lists as they are (or, while a button is being dragged, as they'd be).
+function Kit:Zones()
+    return self.zonePreview or (self.cdb and self.cdb.zones) or self:ZoneDefaults()
+end
+
+-- The saved lists, tidied: every slot that belongs to a zone in exactly one
+-- list (one that's missing, or in a zone that doesn't take it, goes back to
+-- the zone it started in). Nothing is kept when they match the starting
+-- layout.
+function Kit:CleanZones()
+    local cdb = self.cdb
+    if not cdb then return end
+    if not (self.cfg.bars and self.cfg.zones) then cdb.zones = nil return end
+    local defaults = self:ZoneDefaults()
+    local saved = type(cdb.zones) == "table" and cdb.zones or nil
+    if not saved then cdb.zones = nil return end
+    local out, seen = {}, {}
+    for _, z in ipairs(self.cfg.zones) do
+        out[z.key] = {}
+        for _, key in ipairs(type(saved[z.key]) == "table" and saved[z.key] or {}) do
+            if self.zoneHome[key] and not seen[key] and ZoneTakes(z, key) then
+                seen[key] = true
+                table.insert(out[z.key], key)
+            end
+        end
+    end
+    local same = true
+    for _, z in ipairs(self.cfg.zones) do
+        for _, key in ipairs(defaults[z.key]) do
+            if not seen[key] then table.insert(out[z.key], key) end
+        end
+        if #out[z.key] ~= #defaults[z.key] then same = false end
+        for i, key in ipairs(defaults[z.key]) do
+            if out[z.key][i] ~= key then same = false end
+        end
+    end
+    cdb.zones = not same and out or nil
+end
+
+-- Hand the lists to the kit, and note which zone each slot is in now.
+function Kit:ApplyZones()
+    if not (self.cfg.bars and self.cfg.zones) then return end
+    local lists = self:Zones()
+    self.zonesCustom = lists ~= self:ZoneDefaults()
+    local now = {}
+    for _, z in ipairs(self.cfg.zones) do
+        for _, key in ipairs(lists[z.key] or {}) do now[key] = z end
+    end
+    self.zoneNow = now
+    self:SizeZoneSlots()
+    if self.cfg.OnZones then self.cfg.OnZones(self, CopyLists(lists)) end
+end
+
+-- With a zone of small buttons (zone.small, v31), each zone's slots take its
+-- size: small there, full slots in the others. A slot on a bar is a full
+-- one wherever its zone is (the bars' cells are full size), and so is one
+-- that's only being dragged onto a bar (kit:Bars() is the preview then).
+-- Before the slots are made this only sets slot.small, which they're made
+-- from; after, the buttons change (SetSlotSmall), out of combat. The next
+-- refresh catches up after a fight.
+function Kit:SizeZoneSlots()
+    local zones, now = self.cfg.zones, self.zoneNow
+    if not (zones and now) then return end
+    local any = false
+    for _, z in ipairs(zones) do
+        if z.small then any = true end
+    end
+    if not any then return end
+    local onBar = {}
+    for _, bar in ipairs(self:Bars()) do
+        for _, key in ipairs(bar.keys or {}) do onBar[key] = true end
+    end
+    for key, z in pairs(now) do
+        local slot = self.slotByKey[key]
+        if slot then
+            local small = (z.small and not onBar[key]) and true or false
+            slot.small = small or nil
+            local btn = self.slots[key]
+            if btn and not InCombatLockdown() then self:SetSlotSmall(btn, small) end
+        end
+    end
+end
+
+-- Copies of some lists without one slot, and with it put in a zone.
+function Kit:ZonesWithout(lists, key)
+    local out = CopyLists(lists)
+    for _, keys in pairs(out) do
+        for i = #keys, 1, -1 do
+            if keys[i] == key then table.remove(keys, i) end
+        end
+    end
+    return out
+end
+
+function Kit:ZonesWith(lists, key, target)
+    local out = CopyLists(lists)
+    local keys = out[target.zone]
+    if keys then table.insert(keys, math.max(1, math.min(#keys + 1, target.at or (#keys + 1))), key) end
+    return out
+end
+
+-- A zone's slots that are on the kit right now (not hidden, not on a bar).
+function Kit:ZoneShown(keys)
+    local shown = {}
+    for _, key in ipairs(keys or {}) do
+        local btn = self.slots[key]
+        if btn and not btn.hidden and not btn.kcBar then shown[#shown + 1] = key end
+    end
+    return shown
+end
+
+-- Where in a list to put a slot so it comes after so many of its shown ones.
+local function ListPlace(keys, shown, after)
+    local want = after < #shown and shown[after + 1] or shown[#shown]
+    for i, key in ipairs(keys) do
+        if key == want then return after < #shown and i or i + 1 end
+    end
+    return #keys + 1
+end
+
+-- The mouse (UIParent units from the screen's centre) in the kit's own
+-- layout: from its middle, in slot units, before the layout is turned or
+-- spread. nil on a screen edge or shrunk on the dock, where the zones
+-- aren't laid out as a ring and a row.
+local UNFACE = {
+    up = function(x, y) return x, y end,
+    down = function(x, y) return x, -y end,
+    left = function(x, y) return -y, -x end,
+    right = function(x, y) return -y, x end,
+}
+function Kit:LayoutPoint(mx, my)
+    if self.edgeSide or self.compactAngle or self.parked then return nil end
+    local kx, ky = self:KitCentreUI()
+    if not kx then return nil end
+    local k = (self.db.scale or 1) * (self.db.spread or 1)
+    return UNFACE[self:Facing()]((mx - kx) / k, (my - ky) / k)
+end
+
+-- Which zone a dragged slot would land in with the mouse there, and where:
+-- { zone = zoneKey, at = i } (before the list's i-th key), or nil.
+-- lists: the zones without that slot.
+function Kit:ZoneTarget(lists, key, mx, my)
+    if not (self.cfg.zones and lists and self.zoneHome and self.zoneHome[key]) then return nil end
+    local lx, ly = self:LayoutPoint(mx, my)
+    if not lx then return nil end
+    local BTN = self.BTN
+    -- Rows first: a wide ring's ends can reach down beside one.
+    for _, z in ipairs(self.cfg.zones) do
+        if z.y and lists[z.key] and ZoneTakes(z, key) then
+            local shown = self:ZoneShown(lists[z.key])
+            local n = #shown
+            local step = z.step or (BTN + 8)
+            if math.abs(ly - z.y) <= BTN / 2 + 10 and math.abs(lx) <= math.max(n + 1, 3) * step / 2 + 8 then
+                local after = math.max(0, math.min(n, math.floor(lx / step + n / 2 + 0.5)))
+                return { zone = z.key, at = ListPlace(lists[z.key], shown, after) }
+            end
+        end
+    end
+    for _, z in ipairs(self.cfg.zones) do
+        local ring = z.ring and self:Rings()[z.ring]
+        if ring and lists[z.key] and ZoneTakes(z, key) then
+            local shown = self:ZoneShown(lists[z.key])
+            local n = #shown
+            -- (as it would be with this one on it: right round, if that empties the row)
+            local step, radius, mid = self:RingGeo(ring, n + 1, self:BelowEmpty(lists))
+            local d = math.sqrt(lx * lx + ly * ly)
+            local a = math.deg(math.atan2(ly, lx))
+            while a < mid - 180 do a = a + 360 end
+            while a > mid + 180 do a = a - 360 end
+            local reach = math.max(math.abs(ring.to - ring.from) / 2, math.abs(step) * n / 2) + 22
+            if d >= radius - BTN * 0.7 and d <= radius + BTN * 0.9 and math.abs(a - mid) <= reach then
+                local after = n
+                if step ~= 0 then after = math.floor((a - mid) / step + (n + 2) / 2 + 0.5) - 1 end
+                after = math.max(0, math.min(n, after))
+                return { zone = z.key, at = ListPlace(lists[z.key], shown, after) }
+            end
+        end
+    end
+    return nil
+end
+
+-- A zone's outline in edit mode (made the first time): a dashed circle for a
+-- ring, a box for a row, with its name. It hangs from the kit button, so it
+-- follows the kit, and sits under the slots.
+function Kit:ZoneFrame(z)
+    self.zoneFrames = self.zoneFrames or {}
+    local f = self.zoneFrames[z.key]
+    if f then return f end
+    f = CreateFrame("Frame", nil, UIParent)
+    f:SetFrameStrata("MEDIUM")
+    f:SetFrameLevel(1)
+    f:EnableMouse(false)
+    f.parts = {}
+    if z.ring then
+        local t = f:CreateTexture(nil, "ARTWORK")
+        t:SetAllPoints()
+        t:SetTexture(self.media .. "zone_ring", nil, nil, "LINEAR")
+        f.parts[1] = t
+    else
+        f.fill = f:CreateTexture(nil, "BACKGROUND")
+        f.fill:SetAllPoints()
+        for _, e in ipairs({ { "TOPLEFT", "TOPRIGHT" }, { "BOTTOMLEFT", "BOTTOMRIGHT" },
+            { "TOPLEFT", "BOTTOMLEFT", true }, { "TOPRIGHT", "BOTTOMRIGHT", true } }) do
+            local t = f:CreateTexture(nil, "BORDER")
+            t:SetPoint(e[1])
+            t:SetPoint(e[2])
+            if e[3] then t:SetWidth(1) else t:SetHeight(1) end
+            f.parts[#f.parts + 1] = t
+        end
+    end
+    f.label = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    f.label:SetText(z.label or z.key)
+    f:Hide()
+    self.zoneFrames[z.key] = f
+    return f
+end
+
+-- Edit mode's outlines round the kit's zones; the one a dragged button
+-- would land in is lit.
+local ZONE_LINE = 0.965 -- (where zone_ring's line sits: this far from its middle to its edge)
+function Kit:PaintZones()
+    local zones = self.cfg.zones
+    if not zones then return end
+    local on = self.editing and not (self.edgeSide or self.compactAngle or self.parked)
+    local lists = self:Zones()
+    local sp = self.db.spread or 1
+    local BTN = self.BTN
+    for _, z in ipairs(zones) do
+        local f = (on or (self.zoneFrames and self.zoneFrames[z.key])) and self:ZoneFrame(z)
+        if f and not on then
+            f:Hide()
+        elseif f then
+            local hot = self.zoneHot == z.key
+            local ring = z.ring and self:Rings()[z.ring]
+            f:SetScale(self.db.scale or 1)
+            f:ClearAllPoints()
+            f.label:ClearAllPoints()
+            if ring and z.track then
+                -- (a ring inside another: its outline through the middle of
+                -- its buttons, clear of the other ring's, and its name just
+                -- beyond them, out from the middle of its arc)
+                local radius = ring.radius * sp
+                local size = 2 * radius / ZONE_LINE
+                f:SetSize(size, size)
+                f:SetPoint("CENTER", self.kit, "CENTER", 0, 0)
+                local mid = math.rad((ring.from + ring.to) / 2)
+                local d = radius + (z.small and 11 or BTN / 2) + 8
+                local lx, ly = self:Face(d * math.cos(mid), d * math.sin(mid))
+                f.label:SetPoint("CENTER", f, "CENTER", lx, ly)
+            elseif ring then
+                local radius = ring.radius
+                local size = 2 * (radius * sp + BTN / 2 + 7)
+                f:SetSize(size, size)
+                f:SetPoint("CENTER", self.kit, "CENTER", 0, 0)
+                local lx, ly = self:Face(0, size / 2 + 8)
+                f.label:SetPoint("CENTER", f, "CENTER", lx, ly)
+            else
+                local n = #self:ZoneShown(lists[z.key])
+                local w = math.max(n + 1, 3) * (z.step or (BTN + 8)) * sp + 16
+                local h = BTN + 20
+                local side = self:Sideways()
+                f:SetSize(side and h or w, side and w or h)
+                f:SetPoint("CENTER", self.kit, "CENTER", self:Face(0, z.y * sp))
+                local lx, ly = self:Face(0, -(h / 2 + 8))
+                f.label:SetPoint("CENTER", f, "CENTER", lx, ly)
+                f.fill:SetColorTexture(GOLD[1], GOLD[2], GOLD[3], hot and 0.16 or 0.05)
+            end
+            for _, t in ipairs(f.parts) do
+                if ring then t:SetVertexColor(1, 0.82, 0.3, hot and 1 or 0.45)
+                else t:SetColorTexture(1, 0.82, 0.3, hot and 1 or 0.45) end
+            end
+            f.label:SetAlpha(hot and 1 or 0.6)
+            f:Show()
+        end
+    end
+end
+
+---------------------------------------------------------------------------
+-- Edit mode: dragging buttons on and off bars
+---------------------------------------------------------------------------
+
+-- Where a dragged button would land with the mouse at mx, my (UIParent
+-- units from the screen's centre). bars: the bars without that button.
+--   { bar = n, dir = "row" | "col", at = i }  on bar n, before its i-th key
+--   { zone = zoneKey, at = i }                on the kit, in that zone, before its i-th key
+--                                             (lists, key: the zones without the button, and its key)
+--   { kit = true }                            back on the kit, where it was
+--   { new = true, x, y }                      on its own, there
+function Kit:BarTarget(bars, mx, my, lists, key)
+    local cell = self:BarCell()
+    local reach = cell * 0.6
+    for bi, bar in ipairs(bars) do
+        local shown = self:BarShown(bar)
+        local n = #shown
+        if n > 0 then
+            local dx, dy = mx - bar.x, my - bar.y
+            local dir = bar.dir
+            local along, across
+            if n == 1 then
+                -- One button so far: where the second lands says which way the bar runs.
+                dir = math.abs(dy) > math.abs(dx) and "col" or "row"
+                along, across = cell / 2 + reach, cell / 2 + reach
+            else
+                along, across = n * cell / 2 + reach, cell / 2 + reach
+            end
+            local a, c = dx, dy
+            if dir == "col" then a, c = -dy, dx end -- (a column reads top to bottom)
+            if math.abs(a) <= along and math.abs(c) <= across then
+                local after = math.floor(a / cell + n / 2 + 0.5) -- how many of its buttons come before
+                after = math.max(0, math.min(n, after))
+                -- (as a place among all its keys, hidden ones included)
+                local at = #bar.keys + 1
+                if after < n then
+                    for ki, key in ipairs(bar.keys) do
+                        if key == shown[after + 1] then at = ki break end
+                    end
+                end
+                return { bar = bi, dir = dir, at = at }
+            end
+        end
+    end
+    -- On one of the kit's zones: into it, there.
+    local zone = lists and self:ZoneTarget(lists, key, mx, my)
+    if zone then return zone end
+    -- On the kit (the open kit's reach round its button): back to its place.
+    local kx, ky = self:KitCentreUI()
+    if kx then
+        local l, r, t, b = self:Reach()
+        if mx >= kx - l and mx <= kx + r and my >= ky - b and my <= ky + t then return { kit = true } end
+    end
+    local x, y = self:ClampBar(mx, my)
+    return { new = true, x = x, y = y }
+end
+
+-- The bars with the button put where the target says. bars: without it
+-- (a copy the caller owns; it's changed and returned).
+function Kit:BarsWith(bars, key, target)
+    if target.bar and bars[target.bar] then
+        local bar = bars[target.bar]
+        bar.dir = target.dir or bar.dir
+        table.insert(bar.keys, math.max(1, math.min(#bar.keys + 1, target.at or (#bar.keys + 1))), key)
+    elseif target.new then
+        bars[#bars + 1] = { x = target.x, y = target.y, dir = "row", keys = { key } }
+    end
+    return bars
+end
+
+-- A gold glow on the kit button while a dragged button would drop on it.
+function Kit:DropGlow(on)
+    local k = self.kit
+    if on and not k.kcDrop then
+        local t = k:CreateTexture(nil, "OVERLAY", nil, 7)
+        t:SetTexture(self.media .. "glow_ring")
+        t:SetBlendMode("ADD")
+        t:SetPoint("CENTER")
+        t:SetVertexColor(1, 0.82, 0.3)
+        k.kcDrop = t
+    end
+    if k.kcDrop then
+        k.kcDrop:SetSize(k:GetWidth() * 1.5, k:GetHeight() * 1.5)
+        k.kcDrop:SetShown(on and true or false)
+    end
+end
+
+-- The cover over one button in edit mode (made the first time, out of
+-- combat): it takes the mouse, so a click there never uses the button, and
+-- pressing it starts the drag.
+function Kit:EditCover(btn)
+    local ov = btn.kcEdit
+    if not ov then
+        ov = CreateFrame("Button", nil, btn)
+        ov:SetAllPoints(btn)
+        ov:Hide()
+        local hl = ov:CreateTexture(nil, "OVERLAY", nil, 7)
+        hl:SetTexture(self.media .. "glow_ring")
+        hl:SetBlendMode("ADD")
+        hl:SetPoint("CENTER")
+        hl:SetVertexColor(1, 0.82, 0.3)
+        hl:SetAlpha(0.3)
+        ov.hl = hl
+        ov:SetScript("OnEnter", function(o)
+            o.hl:SetAlpha(0.8)
+            if C.editDrag then return end
+            GameTooltip:SetOwner(o, "ANCHOR_RIGHT")
+            GameTooltip:AddLine(btn.slot.label)
+            GameTooltip:AddLine("Drag to move it.", 1, 1, 1)
+            GameTooltip:AddLine(btn.kcBar and "Drop it on the kit to put it back." or "Drop it away from the kit to float it.", 1, 0.82, 0)
+            GameTooltip:Show()
+        end)
+        ov:SetScript("OnLeave", function(o)
+            o.hl:SetAlpha(0.3)
+            GameTooltip:Hide()
+        end)
+        ov:SetScript("OnMouseDown", function(_, mouse)
+            if mouse == "LeftButton" then C.StartEditDrag(self, btn) end
+        end)
+        btn.kcEdit = ov
+    end
+    ov:SetFrameLevel(btn:GetFrameLevel() + 20)
+    local w = btn:GetWidth() * (btn.isSmall and 1.7 or 1.6)
+    ov.hl:SetSize(w, w)
+    return ov
+end
+
+function Kit:EditCovers(on)
+    for _, slot in ipairs(self.cfg.slots) do
+        local btn = self.slots[slot.key]
+        if btn then
+            if on and self:CanBar(slot) then
+                if btn.kcEdit or not InCombatLockdown() then self:EditCover(btn):Show() end
+            elseif btn.kcEdit then
+                btn.kcEdit:Hide()
+            end
+        end
+    end
+end
+
+-- A bar's box in edit mode: a faint gold box round its buttons, under them,
+-- with a tab on top. Dragging either moves the bar.
+function Kit:MakeBarBox(i)
+    local box = OptPanel("Frame", nil, UIParent)
+    box:SetFrameStrata("MEDIUM")
+    box:SetFrameLevel(2) -- (under the slots, which sit at 12)
+    if box.SetBackdropColor then box:SetBackdropColor(0.78, 0.64, 0.3, 0.12) end
+    box:EnableMouse(true)
+    local function Down(_, mouse)
+        if mouse == "LeftButton" then C.StartBarDrag(self, box) end
+    end
+    local function Enter(f)
+        if C.editDrag then return end
+        GameTooltip:SetOwner(f, "ANCHOR_TOP")
+        GameTooltip:AddLine("Bar")
+        GameTooltip:AddLine("Drag to move the whole bar.", 1, 1, 1)
+        GameTooltip:Show()
+    end
+    local function Leave() GameTooltip:Hide() end
+    box:SetScript("OnMouseDown", Down)
+    box:SetScript("OnEnter", Enter)
+    box:SetScript("OnLeave", Leave)
+    local tab = CreateFrame("Button", nil, box)
+    tab:SetSize(36, 12)
+    tab:SetPoint("BOTTOM", box, "TOP", 0, -2)
+    local t = tab:CreateTexture(nil, "ARTWORK")
+    t:SetAllPoints()
+    t:SetColorTexture(GOLD[1], GOLD[2], GOLD[3], 0.7)
+    tab:SetScript("OnMouseDown", Down)
+    tab:SetScript("OnEnter", Enter)
+    tab:SetScript("OnLeave", Leave)
+    box:Hide()
+    self.barBoxes[i] = box
+    return box
+end
+
+-- Edit mode's boxes, one round each bar that has a button showing.
+function Kit:PaintEdit()
+    if not self.editing then return end
+    self:PaintZones()
+    self.barBoxes = self.barBoxes or {}
+    local cell = self:BarCell()
+    local n = 0
+    for _, bar in ipairs(self:Bars()) do
+        local count = #self:BarShown(bar)
+        if count > 0 then
+            n = n + 1
+            local box = self.barBoxes[n] or self:MakeBarBox(n)
+            box.bar = bar
+            local col = bar.dir == "col"
+            box:SetSize((col and 1 or count) * cell + 2 * BAR_PAD, (col and count or 1) * cell + 2 * BAR_PAD)
+            box:ClearAllPoints()
+            box:SetPoint("CENTER", UIParent, "CENTER", bar.x, bar.y)
+            box:Show()
+        end
+    end
+    for i = n + 1, #self.barBoxes do self.barBoxes[i]:Hide() end
+end
+
+function Kit:HideBarBoxes()
+    for _, box in ipairs(self.barBoxes or {}) do box:Hide() end
+    for _, f in pairs(self.zoneFrames or {}) do f:Hide() end
+end
+
+-- The copy of the dragged button that follows the mouse.
+local function EditGhost(kit)
+    local g = C.editGhost
+    if not g then
+        g = CreateFrame("Frame", nil, UIParent)
+        g:SetFrameStrata("TOOLTIP")
+        g:EnableMouse(false)
+        g.icon = g:CreateTexture(nil, "ARTWORK")
+        g.icon:SetAllPoints()
+        if g.CreateMaskTexture then
+            local mask = g:CreateMaskTexture()
+            mask:SetTexture(kit.media .. "circle_mask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+            mask:SetAllPoints(g.icon)
+            g.icon:AddMaskTexture(mask)
+        end
+        g.ring = g:CreateTexture(nil, "OVERLAY")
+        g.ring:SetTexture(kit.media .. "glow_ring")
+        g.ring:SetBlendMode("ADD")
+        g.ring:SetPoint("CENTER")
+        g.ring:SetVertexColor(1, 0.82, 0.3)
+        g:Hide()
+        C.editGhost = g
+    end
+    return g
+end
+
+local editDriver = CreateFrame("Frame")
+editDriver:Hide()
+
+-- A button was pressed in edit mode: it's a drag once the mouse has moved.
+function C.StartEditDrag(kit, btn)
+    if C.editDrag or InCombatLockdown() or not kit.editing then return end
+    local mx, my = Cursor()
+    local key = btn.slot.key
+    kit:ZoneDefaults()
+    C.editDrag = { kit = kit, kind = "slot", key = key, btn = btn,
+        base = kit:BarsWithout(kit.cdb.bars, key), downX = mx, downY = my,
+        -- (the kit's zones without it, if it's a slot that lives in one)
+        zbase = kit.zoneHome and kit.zoneHome[key] and kit:ZonesWithout(kit:Zones(), key) or nil }
+    editDriver:Show()
+end
+
+-- A bar's box (or its tab) was pressed: the bar follows the mouse.
+function C.StartBarDrag(kit, box)
+    if C.editDrag or InCombatLockdown() or not kit.editing or kit.barPreview or not box.bar then return end
+    GameTooltip:Hide()
+    local mx, my = Cursor()
+    C.editDrag = { kit = kit, kind = "bar", bar = box.bar, offX = box.bar.x - mx, offY = box.bar.y - my }
+    editDriver:Show()
+end
+
+-- The drag is over. cancel: leave everything as it was.
+function C.StopEditDrag(cancel)
+    local d = C.editDrag
+    if not d then return end
+    C.editDrag = nil
+    editDriver:Hide()
+    if C.editGhost then C.editGhost:Hide() end
+    local kit = d.kit
+    if d.kind == "slot" then
+        d.btn.kcDragging = nil
+        kit:DropGlow(false)
+        local changed = false
+        if not cancel and d.moved and kit.barPreview and not InCombatLockdown() then
+            kit.cdb.bars = kit.barPreview
+            if kit.zonePreview then kit.cdb.zones = kit.zonePreview end
+            changed = true
+        end
+        local had = kit.barPreview ~= nil
+        kit.barPreview, kit.zonePreview, kit.zoneHot = nil, nil, nil
+        if changed then
+            kit:CleanBars()
+            kit:CleanZones()
+        end
+        kit:ApplyZones() -- (the kit's tables as saved, whether or not anything changed)
+        if InCombatLockdown() then
+            kit.pending = true -- (put right when the fight ends)
+            return
+        end
+        -- (the refresh also ties edit mode's boxes to the bars as they are now)
+        if had then kit:Refresh(false) else kit:FadeSlot(d.btn) end
+        if changed then
+            if kit.Dock and kit.Dock.Layout then kit.Dock.Layout() end -- (an edge strip grows or shrinks)
+            kit:SettingsChanged()
+        end
+    else
+        if InCombatLockdown() then kit.pending = true return end
+        kit:Refresh(false) -- (its drawers may open the other way from there)
+        kit:SettingsChanged()
+    end
+end
+
+editDriver:SetScript("OnUpdate", function(f)
+    local d = C.editDrag
+    if not d then f:Hide() return end
+    local kit = d.kit
+    if InCombatLockdown() or not kit.editing then C.StopEditDrag(true) return end
+    local mx, my = Cursor()
+    local down = IsMouseButtonDown and IsMouseButtonDown("LeftButton")
+    if d.kind == "bar" then
+        if not down then C.StopEditDrag(false) return end
+        local x, y = kit:ClampBar(Round(mx + d.offX, 1), Round(my + d.offY, 1))
+        if x ~= d.bar.x or y ~= d.bar.y then
+            d.bar.x, d.bar.y = x, y
+            kit:PlaceBars(false)
+            kit:PaintEdit()
+        end
+        return
+    end
+    if not d.moved then
+        if not down then C.StopEditDrag(true) return end
+        if math.abs(mx - d.downX) + math.abs(my - d.downY) < 4 then return end -- (a click so far)
+        d.moved = true
+        GameTooltip:Hide()
+        kit:CloseFlyouts()
+        local g = EditGhost(kit)
+        local size = d.btn:GetWidth() * d.btn:GetEffectiveScale() / UIParent:GetEffectiveScale()
+        g:SetSize(size, size)
+        g.ring:SetSize(size * 1.6, size * 1.6)
+        g.icon:SetTexture(d.btn.icon and d.btn.icon:GetTexture())
+        g:SetAlpha(0.9)
+        g:Show()
+        d.btn.kcDragging = true
+    end
+    local g = C.editGhost
+    if g then
+        g:ClearAllPoints()
+        g:SetPoint("CENTER", UIParent, "CENTER", mx, my)
+    end
+    if not down then C.StopEditDrag(false) return end
+    -- Show the layout as it would be if it were dropped here. Only a change
+    -- of place is a refresh; a button floating on its own just follows.
+    local t = kit:BarTarget(d.base, mx, my, d.zbase, d.key)
+    local sig = t.kit and "kit" or t.new and "new" or t.zone and ("zone:" .. t.zone .. ":" .. t.at)
+        or (t.bar .. ":" .. t.dir .. ":" .. t.at)
+    if sig ~= d.sig then
+        d.sig = sig
+        kit.barPreview = kit:BarsWith(kit:BarsWithout(d.base), d.key, t)
+        kit.zonePreview = t.zone and kit:ZonesWith(d.zbase, d.key, t) or nil
+        kit.zoneHot = t.zone
+        kit:ApplyZones()
+        kit:DropGlow(t.kit)
+        kit:Refresh(false)
+    elseif t.new then
+        local bar = kit.barPreview and kit.barPreview[#kit.barPreview]
+        if bar and (bar.x ~= t.x or bar.y ~= t.y) then
+            bar.x, bar.y = t.x, t.y
+            kit:PlaceBars(false)
+            kit:PaintEdit()
+        end
+    end
+end)
+
+-- The bar at the top of the screen while a layout is being edited.
+local function BuildEditBar()
+    local bar = OptPanel("Frame", "KitCoreEditBar", UIParent)
+    bar:SetSize(500, 106)
+    bar:SetPoint("TOP", 0, -20)
+    bar:SetFrameStrata("FULLSCREEN_DIALOG")
+    bar:EnableMouse(true)
+    bar:SetMovable(true)
+    bar:SetClampedToScreen(true)
+    bar:RegisterForDrag("LeftButton")
+    bar:SetScript("OnDragStart", bar.StartMoving)
+    bar:SetScript("OnDragStop", bar.StopMovingOrSizing)
+    if UISpecialFrames then table.insert(UISpecialFrames, "KitCoreEditBar") end -- Esc closes it
+
+    bar.title = bar:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    bar.title:SetPoint("TOPLEFT", 12, -9)
+    local hint = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    hint:SetPoint("TOPLEFT", bar.title, "BOTTOMLEFT", 0, -5)
+    hint:SetWidth(476)
+    hint:SetJustifyH("LEFT")
+    hint:SetText("Drag a button onto one of the kit's outlines to move it there, between two buttons or at an end. Drop it away from the kit and it floats, always shown; drop another on it to make a bar. Drop a button on the kit's icon to put it back. Drag a bar's box to move it.")
+
+    local reset = SmallButton(bar, "Reset to defaults", 140, function()
+        local kit = C.editKit
+        if kit then kit:ResetLayout() end
+    end)
+    reset:SetPoint("BOTTOMLEFT", 12, 10)
+    local done = SmallButton(bar, "Done", 70, function() bar:Hide() end)
+    done:SetPoint("BOTTOMRIGHT", -12, 10)
+    bar:Hide()
+    -- (Esc or Done: finished editing. Set only now: a new frame starts shown,
+    -- so the Hide above would otherwise end the edit it was built for.)
+    bar:SetScript("OnHide", function()
+        local kit = C.editKit
+        if kit and kit.editing then kit:SetEdit(false) end
+    end)
+    return bar
+end
+
+-- Edit mode on or off. On: the kit opens fully (and stays open), its
+-- buttons take drags instead of clicks, and each bar shows its box. Off:
+-- everything works again, and the kit closes if it was closed before.
+function Kit:SetEdit(on)
+    on = on and true or false
+    if (self.editing and true or false) == on then return end
+    if on then
+        if not self.cfg.bars or not self.built then return end
+        if InCombatLockdown() then self:Print("The layout can only be edited out of combat.", true) return end
+        if self.db.shown == false then self:Print("Show the kit first.", true) return end
+        if self.qkbOpen then self:Print("Close Quick Keybind Mode first.", true) return end
+        if C.editKit and C.editKit ~= self then C.editKit:SetEdit(false) end
+        C.EndPlacing() -- (the reminder panel and anything else being placed)
+        self:CloseFlyouts()
+        self.editing = true
+        C.editKit = self
+        self.editWasOpen = self.open
+        if self.open then self:Refresh(false) else self:SetOpen(true) end
+        self:ApplyFade()
+        self:EditCovers(true)
+        C.editBar = C.editBar or BuildEditBar()
+        C.editBar.title:SetText("Editing " .. self.name .. "'s layout")
+        C.editBar:Show()
+        self:PaintEdit()
+    else
+        C.StopEditDrag(true)
+        self.editing = nil
+        if C.editKit == self then C.editKit = nil end
+        self:EditCovers(false)
+        self:HideBarBoxes()
+        GameTooltip:Hide()
+        if C.editBar and C.editBar:IsShown() then C.editBar:Hide() end
+        if InCombatLockdown() then self.editLeavePending = true return end
+        self:EditRestore()
+    end
+end
+
+-- Edit mode is over: the kit as it was before (closed, if it was closed).
+function Kit:EditRestore()
+    self.editLeavePending = nil
+    if InCombatLockdown() then return end
+    local was = self.editWasOpen
+    self.editWasOpen = nil
+    if was == false and self.open then self:SetOpen(false) else self:Refresh(false) end
+    self:ArmOpenFade()
+    self:ApplyFade()
+end
+
+function Kit:ToggleEdit()
+    self:SetEdit(not self.editing)
+    if self.optionsUI then self:PaintOptions() end
+end
+
+-- The list, gathered into sections: { title, group, items = { item, ... } }.
+-- Each sub-heading is an item of its own (kind "sub") that starts a group
+-- of the items after it; the window draws each group as a card.
 function Kit:CollectOptions()
     local sections, cur, pending, pendingSub, when, group = {}, nil, nil, nil, nil, nil
-    local itemWhen
+    local itemWhen, cols
     local function Add(item)
         if pending or not cur then
             cur = { title = pending or self.name, items = {}, group = group }
@@ -4600,7 +6130,9 @@ function Kit:CollectOptions()
             pending = nil
         end
         if pendingSub then
-            cur.items[#cur.items + 1] = { kind = "sub", name = pendingSub, when = when }
+            pendingSub.when = when
+            pendingSub.section = cur
+            cur.items[#cur.items + 1] = pendingSub
             pendingSub = nil
         end
         -- (S.Only: this item alone, inside its group's own "when")
@@ -4611,17 +6143,26 @@ function Kit:CollectOptions()
         else
             item.when = only or grp
         end
+        if cols and cols > 1 and item.kind == "check" then item.cols = 2 end
+        item.section = cur
         cur.items[#cur.items + 1] = item
     end
-    local S = {}
-    -- The next setting only shows while fn says true (the window only).
+    local S = { window = true }
+    -- The next setting only shows while fn says true.
     function S.Only(fn) itemWhen = fn end
-    function S.Header(text) pending, pendingSub, when = text, nil, nil end
-    -- A group inside a section. when (optional): a function; the window shows
-    -- the group only while it says true (settings for one style, say).
-    function S.Subheader(text, w) pendingSub, when = text, w end
+    function S.Header(text) pending, pendingSub, when, cols = text, nil, nil, nil end
+    -- A group inside a section, drawn as a card under its title. when
+    -- (optional): a function; the group only shows while it says true
+    -- (settings for one style, say). opts.fold: the group starts folded away
+    -- under its title, for settings few people need (click the title).
+    function S.Subheader(text, w, opts)
+        pendingSub, when, cols = { kind = "sub", name = text, fold = opts and opts.fold or nil }, w, nil
+    end
     -- A label over the next sections in the window's list down the left.
     function S.Group(text) group = text end
+    -- Grid(2): the checkboxes that follow sit two to a line (until Grid(1)
+    -- or the next heading).
+    function S.Grid(n) cols = n end
     function S.Checkbox(tbl, key, name, tip, default, fn)
         Add({ kind = "check", tbl = tbl, key = key, name = name, tip = tip, default = default, fn = fn })
     end
@@ -4629,17 +6170,75 @@ function Kit:CollectOptions()
         Add({ kind = "slider", tbl = tbl, key = key, name = name, tip = tip, default = default,
             min = min, max = max, step = step, fmt = fmt, fn = fn })
     end
+    -- (Up to four short choices show as a row of buttons, more as a menu.)
     function S.Dropdown(tbl, key, name, tip, default, list, fn)
         Add({ kind = "dropdown", tbl = tbl, key = key, name = name, tip = tip, default = default, list = list, fn = fn })
     end
+    -- A choice whose value is read and stored by functions (one choice over
+    -- two switches, say). A list entry can carry its own tooltip, for its
+    -- button: { value, label, tip, title } (v27, title defaults to the
+    -- label). opts.heads (v27): small gold words over each
+    -- choice when they show as a row of buttons, like a table's column
+    -- heads; rows under it with the same choices line up beneath them.
+    function S.Choice(name, tip, list, get, set, fn, opts)
+        Add({ kind = "dropdown", name = name, tip = tip, list = list, get = get, set = set, fn = fn,
+            heads = opts and opts.heads or nil })
+    end
+    -- A colour, as a row of coloured squares (v29): one per preset, the one
+    -- in use marked, then a Custom... button with your own colour in its
+    -- square that opens the game's colour picker (Cancel puts back what you
+    -- had). list: { { value, label, { r, g, b } }, ... }; get/set read and
+    -- store the value, as S.Choice. opts.custom: the value that means your
+    -- own colour, with opts.getRGB() giving it ({ r, g, b }, or nil while
+    -- none is picked) and opts.setRGB(r, g, b) storing it (nil clears it).
+    -- Without opts.custom, just the presets.
+    function S.Colors(name, tip, list, get, set, fn, opts)
+        opts = opts or {}
+        Add({ kind = "colors", name = name, tip = tip, list = list, get = get, set = set, fn = fn,
+            custom = opts.custom, getRGB = opts.getRGB, setRGB = opts.setRGB })
+    end
     function S.Button(name, text, tip, fn)
         Add({ kind = "button", name = name, text = text, tip = tip, fn = fn })
+    end
+    -- A line of small grey words, for the little that has to be read.
+    function S.Note(text)
+        Add({ kind = "note", name = "", tip = text })
+    end
+    -- A table of the kit's buttons, a row each, with a tick box per column
+    -- (show, pinned, glow...). spec = {
+    --   cols = { { key, label, tip }, ... },
+    --   rows = {
+    --     { group = "Round the orb" },       -- a heading between rows
+    --     { label, icon = function, sub = true (indented),
+    --       hint = "a line shown when the row is opened",
+    --       dim = "show" (the column whose tick, off, greys the row),
+    --       cells = { [colKey] = { tbl, key, default, fn, off = function } },
+    --       more = { { kind = "check", tbl, key, name, tip, default, fn, when },
+    --                { kind = "chips", name, items = { { tbl, key, name, default, fn }, ... } } } },
+    --   } }
+    -- A cell's off() saying true greys it out and it can't be clicked.
+    function S.Table(spec)
+        Add({ kind = "table", spec = spec, name = spec.name or "", tip = "" })
+    end
+    -- A frame the kit draws itself (v30), for what the other rows can't
+    -- show: a preview, say. make(parent, w) builds it, w wide, and returns
+    -- it with its height set. Its Paint(), if it has one, runs each time the
+    -- page is painted (as a setting changes); it can change the frame's
+    -- height there, and the page is laid out again after. make runs once
+    -- for each page it's on (the search page makes its own), so it must
+    -- build a new frame each time. name and tip are what the search box
+    -- finds it by; the frame shows its own tooltips. The window's only: a
+    -- kit with the game's options page too can check S.window and give
+    -- that page plain settings instead.
+    function S.Custom(name, tip, make)
+        Add({ kind = "custom", name = name or "", tip = tip or "", make = make })
     end
     self:SettingsList(S)
     return sections
 end
 
 local function Value(item)
+    if item.get then return item.get() end
     local v = item.tbl[item.key]
     if v == nil then v = item.default end
     return v
@@ -4648,65 +6247,116 @@ end
 -- A change from the window: store it, run its follow-up, and keep the
 -- game's options page in step.
 function Kit:OptionChanged(item, v)
-    item.tbl[item.key] = v
+    if item.set then
+        local ok, err = pcall(item.set, v)
+        if not ok then geterrorhandler()(err) end
+    else
+        item.tbl[item.key] = v
+    end
     if item.fn then
         local ok, err = pcall(item.fn, v)
         if not ok then geterrorhandler()(err) end
     end
     if self.OnSettingsChanged then pcall(self.OnSettingsChanged) end
-    -- Groups shown only for some choices: lay the page out again.
-    local ui = self.optionsUI
-    local page = ui and ui.current and ui.pages[ui.current]
-    if page and page.dynamic then
-        page.Relayout()
-        ui.child:SetHeight(page:GetHeight())
-        ui.UpdateBar()
-    end
+    -- Settings shown only for some choices, and ones that follow others:
+    -- paint the page and lay it out again.
+    self:PaintOptions()
 end
 
--- Label and description down the left of a row; returns the bottom offset.
--- (Widths are set outright so the wrapped heights can be measured now.)
-local function Words(row, item, left, right, top, w)
-    local tw = math.max(60, w - left - right)
-    row.label = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    row.label:SetPoint("TOPLEFT", left, -top)
-    row.label:SetWidth(tw)
-    row.label:SetJustifyH("LEFT")
-    row.label:SetText(item.name)
-    local h = top + row.label:GetStringHeight()
-    if item.tip and item.tip ~= "" then
-        row.desc = row:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-        row.desc:SetPoint("TOPLEFT", row.label, "BOTTOMLEFT", 0, -3)
-        row.desc:SetWidth(tw)
-        row.desc:SetJustifyH("LEFT")
-        row.desc:SetSpacing(2)
-        row.desc:SetText(item.tip)
-        h = h + 3 + row.desc:GetStringHeight()
-    end
-    return h
+-- The page in view, laid out again (something came or went, or grew).
+function Kit:RelayoutOptions()
+    local ui = self.optionsUI
+    local page = ui and ui.shown
+    if not page then return end
+    page.Relayout()
+    ui.child:SetHeight(page:GetHeight())
+    ui.UpdateBar()
+end
+
+-- A setting's description, as its tooltip: beside the window, level with
+-- the row (v24; it used to sit under every setting).
+local function Tip(f, item, anchor)
+    f:HookScript("OnEnter", function(self)
+        if not (item.tip and item.tip ~= "") then return end
+        GameTooltip:SetOwner(self, "ANCHOR_NONE")
+        GameTooltip:ClearAllPoints()
+        local win = anchor and anchor()
+        if win then
+            GameTooltip:SetPoint("TOP", self, "TOP", 0, 4)
+            GameTooltip:SetPoint("LEFT", win, "RIGHT", 4, 0)
+        else
+            GameTooltip:SetPoint("BOTTOMLEFT", self, "TOPRIGHT", 0, 0)
+        end
+        local name = item.name
+        if name and name ~= "" then
+            GameTooltip:SetText(name, 1, 0.82, 0)
+            GameTooltip:AddLine(item.tip, 0.9, 0.9, 0.9, true)
+        else
+            GameTooltip:SetText(item.tip, 0.9, 0.9, 0.9, 1, true)
+        end
+        GameTooltip:Show()
+    end)
+    f:HookScript("OnLeave", function() GameTooltip:Hide() end)
 end
 
 local ROW = {}
+local ROW_H = 22      -- a one-line row
+local HEADS_H = 14    -- column heads over a row of buttons (S.Choice heads)
+local SLIDER_W = 150  -- a slider's track
+local CARD_PAD = 12   -- inside a card
+local ROW_GAP = 8     -- between rows
+local BLOCK_GAP = 12  -- between cards
+local COL_GAP = 16    -- between two side-by-side checkboxes
+
+-- A small dark button with a gold edge and gold words.
+local function GoldButton(parent, text, h)
+    local b = CreateFrame("Button", nil, parent)
+    Well(b, 0.55)
+    b.text = b:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    b.text:SetPoint("CENTER")
+    b.text:SetText(text)
+    b:SetSize(math.max(64, math.floor(b.text:GetStringWidth() + 24)), h or 22)
+    local hl = b:CreateTexture(nil, "HIGHLIGHT")
+    hl:SetAllPoints()
+    hl:SetColorTexture(GOLD[1], GOLD[2], GOLD[3], 0.15)
+    return b
+end
+
+-- A label down the left of a row, `room` wide; returns the row's height.
+local function Label(row, item, room, x)
+    row.label = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    row.label:SetPoint("LEFT", x or 0, 0)
+    row.label:SetWidth(math.max(60, room))
+    row.label:SetJustifyH("LEFT")
+    row.label:SetText(item.name)
+    return math.max(ROW_H, math.ceil(row.label:GetStringHeight()) + 6)
+end
+
+-- A tick box (16 square, a dark well with the gold edge).
+local function TickBox(parent)
+    local box = CreateFrame("Frame", nil, parent)
+    box:SetSize(16, 16)
+    Well(box, 0.7)
+    box.tick = box:CreateTexture(nil, "OVERLAY")
+    box.tick:SetPoint("CENTER", 1, 0)
+    box.tick:SetSize(22, 22)
+    box.tick:SetTexture("Interface\\Buttons\\UI-CheckBox-Check")
+    box.tick:SetVertexColor(1, 0.85, 0.4)
+    return box
+end
 
 function ROW.check(kit, parent, item, w)
     local row = CreateFrame("Button", nil, parent)
     row:SetWidth(w)
-    local box = CreateFrame("Frame", nil, row)
-    box:SetSize(16, 16)
-    box:SetPoint("TOPLEFT", 2, -3)
-    Well(box, 0.7)
-    local tick = box:CreateTexture(nil, "OVERLAY")
-    tick:SetPoint("CENTER", 1, 0)
-    tick:SetSize(22, 22)
-    tick:SetTexture("Interface\\Buttons\\UI-CheckBox-Check")
-    tick:SetVertexColor(1, 0.85, 0.4)
-    local h = Words(row, item, 28, 4, 3, w)
-    row:SetHeight(h + 4)
+    local box = TickBox(row)
+    box:SetPoint("LEFT", 2, 0)
+    row:SetHeight(Label(row, item, w - 30, 26))
     local hl = row:CreateTexture(nil, "HIGHLIGHT")
-    hl:SetPoint("TOPLEFT", -6, 2)
-    hl:SetPoint("BOTTOMRIGHT", 6, -2)
+    hl:SetPoint("TOPLEFT", -4, 1)
+    hl:SetPoint("BOTTOMRIGHT", 4, -1)
     hl:SetColorTexture(GOLD[1], GOLD[2], GOLD[3], 0.07)
-    function row.Paint() tick:SetShown(Value(item) and true or false) end
+    Tip(row, item, kit.optAnchor)
+    function row.Paint() box.tick:SetShown(Value(item) and true or false) end
     row:SetScript("OnClick", function()
         kit:OptionChanged(item, not Value(item))
         row.Paint()
@@ -4717,15 +6367,16 @@ end
 function ROW.slider(kit, parent, item, w)
     local row = CreateFrame("Frame", nil, parent)
     row:SetWidth(w)
-    local h = Words(row, item, 0, 64, 0, w)
+    row:EnableMouse(true)
+    row:SetHeight(Label(row, item, w - SLIDER_W - 60))
     local val = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    val:SetPoint("TOPRIGHT", 0, 0)
+    val:SetPoint("RIGHT", 0, 0)
+    val:SetWidth(44)
     val:SetJustifyH("RIGHT")
     local s = CreateFrame("Slider", nil, row)
     s:SetOrientation("HORIZONTAL")
-    s:SetPoint("TOPLEFT", 6, -(h + 10))
-    s:SetPoint("TOPRIGHT", -6, -(h + 10))
-    s:SetHeight(16)
+    s:SetPoint("RIGHT", val, "LEFT", -8, 0)
+    s:SetSize(SLIDER_W, 16)
     s:SetMinMaxValues(item.min, item.max)
     if s.SetValueStep then s:SetValueStep(item.step) end
     if s.SetObeyStepOnDrag then s:SetObeyStepOnDrag(true) end
@@ -4739,13 +6390,13 @@ function ROW.slider(kit, parent, item, w)
     fill:SetHeight(4)
     fill:SetColorTexture(GOLD[1], GOLD[2], GOLD[3], 0.75)
     local thumb = s:CreateTexture(nil, "OVERLAY")
-    thumb:SetSize(10, 16)
+    thumb:SetSize(8, 14)
     thumb:SetColorTexture(1, 0.85, 0.45, 1)
     s:SetThumbTexture(thumb)
     local function Show(v)
         val:SetText(item.fmt and item.fmt(v) or tostring(v))
         local k = (item.max > item.min) and (v - item.min) / (item.max - item.min) or 0
-        fill:SetWidth(math.max(1, k * (s:GetWidth() or 1)))
+        fill:SetWidth(math.max(1, k * SLIDER_W))
     end
     local painting
     function row.Paint()
@@ -4761,12 +6412,12 @@ function ROW.slider(kit, parent, item, w)
             v = tonumber(("%.4f"):format(v))
         end
         Show(v)
-        if painting or v == item.tbl[item.key] then return end
+        if painting or v == Value(item) then return end
         kit:OptionChanged(item, v)
     end)
-    s:SetScript("OnSizeChanged", function() Show(Value(item)) end)
     s:EnableMouseWheel(false)
-    row:SetHeight(h + 30)
+    Tip(row, item, kit.optAnchor)
+    Tip(s, item, kit.optAnchor)
     return row
 end
 
@@ -4775,14 +6426,102 @@ local function OptionLabel(item, v)
     return tostring(v)
 end
 
+-- Up to four short choices: a row of buttons, the chosen one lit.
+local function Segments(kit, row, item, w)
+    if #item.list > 4 then return end
+    local probe = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    local widths, total = {}, 0
+    for i, o in ipairs(item.list) do
+        probe:SetText(o[2])
+        widths[i] = math.floor(probe:GetStringWidth() + 20)
+        total = total + widths[i]
+    end
+    probe:Hide()
+    if total > w - 110 then return end
+    local box = CreateFrame("Frame", nil, row)
+    box:SetSize(total, 22)
+    box:SetPoint("RIGHT", 0, 0)
+    row.segBox = box
+    GoldEdge(box, 0.45)
+    local bg = box:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints()
+    bg:SetColorTexture(0, 0, 0, 0.5)
+    local buttons, x = {}, 0
+    for i, o in ipairs(item.list) do
+        local b = CreateFrame("Button", nil, box)
+        b:SetSize(widths[i], 22)
+        b:SetPoint("LEFT", x, 0)
+        x = x + widths[i]
+        b.sel = b:CreateTexture(nil, "ARTWORK")
+        b.sel:SetAllPoints()
+        b.sel:SetColorTexture(1, 0.82, 0, 0.15)
+        if i > 1 then
+            local div = b:CreateTexture(nil, "BORDER")
+            div:SetPoint("TOPLEFT")
+            div:SetPoint("BOTTOMLEFT")
+            div:SetWidth(1)
+            div:SetColorTexture(GOLD[1], GOLD[2], GOLD[3], 0.25)
+        end
+        local hl = b:CreateTexture(nil, "HIGHLIGHT")
+        hl:SetAllPoints()
+        hl:SetColorTexture(GOLD[1], GOLD[2], GOLD[3], 0.1)
+        b.text = b:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        b.text:SetPoint("CENTER")
+        b.text:SetText(o[2])
+        b.value = o[1]
+        b:SetScript("OnClick", function()
+            kit:OptionChanged(item, o[1])
+            row.Paint()
+        end)
+        -- (a choice with its own tooltip, list entry { value, label, tip,
+        -- title }, v27: that one over the button instead of the row's)
+        Tip(b, o[3] and { name = o[4] or o[2], tip = o[3] } or item, kit.optAnchor)
+        buttons[i] = b
+        -- (its column head, over it)
+        local head = item.heads and item.heads[i]
+        if head and head ~= "" then
+            local fs = box:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            fs:SetPoint("BOTTOM", b, "TOP", 0, 3)
+            fs:SetText(head)
+        end
+    end
+    function row.Paint()
+        local v = Value(item)
+        for _, b in ipairs(buttons) do
+            local on = b.value == v
+            b.sel:SetShown(on)
+            if on then b.text:SetTextColor(1, 0.82, 0) else b.text:SetTextColor(0.75, 0.72, 0.63) end
+        end
+    end
+    return total
+end
+
 function ROW.dropdown(kit, parent, item, w)
     local row = CreateFrame("Frame", nil, parent)
     row:SetWidth(w)
-    local bw = 190
-    local h = Words(row, item, 0, bw + 14, 3, w)
+    row:EnableMouse(true)
+    Tip(row, item, kit.optAnchor)
+    local segW = Segments(kit, row, item, w)
+    if segW then
+        local h = Label(row, item, w - segW - 12)
+        if item.heads then
+            -- Column heads over the buttons: the label and buttons drop
+            -- below them.
+            row.label:ClearAllPoints()
+            row.label:SetPoint("LEFT", row, "BOTTOMLEFT", 0, h / 2)
+            local box = row.segBox
+            box:ClearAllPoints()
+            box:SetPoint("RIGHT", row, "BOTTOMRIGHT", 0, h / 2)
+            h = h + HEADS_H
+        end
+        row:SetHeight(h)
+        return row
+    end
+    local bw = 180
+    row:SetHeight(Label(row, item, w - bw - 12))
     local b = CreateFrame("Button", nil, row)
     b:SetSize(bw, 22)
-    b:SetPoint("TOPRIGHT", 0, 0)
+    b:SetPoint("RIGHT", 0, 0)
     Well(b, 0.7)
     local text = b:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     text:SetPoint("LEFT", 8, 0)
@@ -4796,6 +6535,7 @@ function ROW.dropdown(kit, parent, item, w)
     local hl = b:CreateTexture(nil, "HIGHLIGHT")
     hl:SetAllPoints()
     hl:SetColorTexture(GOLD[1], GOLD[2], GOLD[3], 0.12)
+    Tip(b, item, kit.optAnchor)
     function row.Paint() text:SetText(OptionLabel(item, Value(item))) end
     b:SetScript("OnClick", function(self)
         if MenuUtil and MenuUtil.CreateContextMenu then
@@ -4816,106 +6556,702 @@ function ROW.dropdown(kit, parent, item, w)
             row.Paint()
         end
     end)
-    row:SetHeight(math.max(h, 22) + 4)
     return row
 end
 
--- A sub-heading inside a section: small gold words over a faint gold line.
-function ROW.sub(kit, parent, item, w)
+-- A colour (S.Colors, v29): a square per preset, the one in use marked with
+-- a gold edge and an x, then Custom... with your own colour in its square.
+local SWATCH = 18     -- a colour square
+local SWATCH_GAP = 4  -- between squares
+
+-- A square of colour: a dark rim, the colour inside, and (when it's the one
+-- in use) a gold edge round it and an x on it.
+local function Swatch(parent, size)
+    local s = CreateFrame("Button", nil, parent)
+    s:SetSize(size, size)
+    s.edge = s:CreateTexture(nil, "BACKGROUND", nil, -8)
+    s.edge:SetPoint("TOPLEFT", -2, 2)
+    s.edge:SetPoint("BOTTOMRIGHT", 2, -2)
+    s.edge:SetColorTexture(1, 0.82, 0, 1)
+    s.edge:Hide()
+    local rim = s:CreateTexture(nil, "BACKGROUND")
+    rim:SetAllPoints()
+    rim:SetColorTexture(0, 0, 0, 0.9)
+    s.fill = s:CreateTexture(nil, "ARTWORK")
+    s.fill:SetPoint("TOPLEFT", 2, -2)
+    s.fill:SetPoint("BOTTOMRIGHT", -2, 2)
+    s.x = s:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    s.x:SetPoint("CENTER", 0, 1)
+    s.x:SetText("x")
+    s.x:Hide()
+    return s
+end
+
+-- Colour a square (nil: empty, a dark well).
+local function SwatchColor(s, rgb)
+    s.rgb = rgb
+    if rgb then
+        s.fill:SetColorTexture(rgb[1], rgb[2], rgb[3], 1)
+    else
+        s.fill:SetColorTexture(0.12, 0.1, 0.14, 1)
+    end
+end
+
+-- Mark a square as the one in use (or not). The x is dark on a light
+-- colour and white on a dark one.
+local function SwatchChosen(s, on)
+    s.edge:SetShown(on)
+    s.x:SetShown(on)
+    if on then
+        local c = s.rgb
+        local light = c and (0.299 * c[1] + 0.587 * c[2] + 0.114 * c[3]) > 0.55
+        if light then s.x:SetTextColor(0.05, 0.05, 0.05) else s.x:SetTextColor(1, 1, 1) end
+    end
+end
+
+-- Custom...: the game's colour picker on the item's own colour (or, with
+-- none picked yet, the colour in use). It's chosen as it opens; Cancel puts
+-- back your own colour and what was chosen before.
+local function PickCustom(kit, item)
+    if not ColorPickerFrame then return end
+    local before = Value(item)
+    local had = item.getRGB and item.getRGB()
+    local start = had
+    if not start then
+        for _, o in ipairs(item.list) do
+            if o[1] == before then start = o[3] end
+        end
+    end
+    start = start or { 1, 1, 1 }
+    local function SetRGB(r, g, b)
+        if not item.setRGB then return end
+        local ok, err = pcall(item.setRGB, r, g, b)
+        if not ok then geterrorhandler()(err) end
+    end
+    -- Your own colour changed: the kit redraws, and so does the window.
+    local function Changed()
+        if item.fn then
+            local ok, err = pcall(item.fn, Value(item))
+            if not ok then geterrorhandler()(err) end
+        end
+        if kit.OnSettingsChanged then pcall(kit.OnSettingsChanged) end
+        kit:PaintOptions()
+    end
+    local function Picked()
+        local r, g, b = ColorPickerFrame:GetColorRGB()
+        SetRGB(r, g, b)
+        if Value(item) ~= item.custom then kit:OptionChanged(item, item.custom) else Changed() end
+    end
+    local function Cancelled()
+        if had then SetRGB(had[1], had[2], had[3]) else SetRGB(nil) end
+        if Value(item) ~= before then kit:OptionChanged(item, before) else Changed() end
+    end
+    if not had then SetRGB(start[1], start[2], start[3]) end
+    if before ~= item.custom then kit:OptionChanged(item, item.custom) else Changed() end
+    local info = {
+        r = start[1], g = start[2], b = start[3], hasOpacity = false,
+        swatchFunc = Picked, cancelFunc = Cancelled,
+    }
+    if ColorPickerFrame.SetupColorPickerAndShow then
+        ColorPickerFrame:SetupColorPickerAndShow(info)
+    else
+        ColorPickerFrame.func, ColorPickerFrame.cancelFunc, ColorPickerFrame.hasOpacity = Picked, Cancelled, false
+        ColorPickerFrame:SetColorRGB(start[1], start[2], start[3])
+        ColorPickerFrame:Show()
+    end
+end
+
+function ROW.colors(kit, parent, item, w)
     local row = CreateFrame("Frame", nil, parent)
     row:SetWidth(w)
+    row:EnableMouse(true)
+    Tip(row, item, kit.optAnchor)
+    local box = CreateFrame("Frame", nil, row)
+    local squares, x = {}, 2
+    for i, o in ipairs(item.list) do
+        local s = Swatch(box, SWATCH)
+        s:SetPoint("LEFT", x, 0)
+        x = x + SWATCH + SWATCH_GAP
+        SwatchColor(s, o[3])
+        s.value = o[1]
+        local hl = s:CreateTexture(nil, "HIGHLIGHT")
+        hl:SetPoint("TOPLEFT", 2, -2)
+        hl:SetPoint("BOTTOMRIGHT", -2, 2)
+        hl:SetColorTexture(1, 1, 1, 0.25)
+        s:SetScript("OnClick", function()
+            kit:OptionChanged(item, o[1])
+            row.Paint()
+        end)
+        Tip(s, { name = o[2], tip = item.tip }, kit.optAnchor)
+        squares[i] = s
+    end
+    local custom
+    if item.custom then
+        custom = CreateFrame("Button", nil, box)
+        Well(custom, 0.55)
+        custom.sel = custom:CreateTexture(nil, "ARTWORK")
+        custom.sel:SetAllPoints()
+        custom.sel:SetColorTexture(1, 0.82, 0, 0.15)
+        local hl = custom:CreateTexture(nil, "HIGHLIGHT")
+        hl:SetAllPoints()
+        hl:SetColorTexture(GOLD[1], GOLD[2], GOLD[3], 0.12)
+        custom.chip = Swatch(custom, 14)
+        custom.chip:EnableMouse(false)
+        custom.chip:SetPoint("LEFT", 6, 0)
+        custom.text = custom:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        custom.text:SetPoint("LEFT", custom.chip, "RIGHT", 6, 0)
+        custom.text:SetText("Custom...")
+        custom:SetSize(math.floor(custom.text:GetStringWidth() + 14 + 6 + 6 + 10), 22)
+        custom:SetPoint("LEFT", x + 4, 0)
+        x = x + 4 + custom:GetWidth()
+        custom:SetScript("OnClick", function() PickCustom(kit, item) end)
+        Tip(custom, { name = "Custom", tip = "Pick any colour in the game's colour picker. Cancel puts back what you had." }, kit.optAnchor)
+    else
+        x = x - SWATCH_GAP + 2
+    end
+    box:SetSize(x, 22)
+    -- Beside the label, or under it when they don't both fit.
+    local h
+    if w - x - 12 >= 90 then
+        box:SetPoint("RIGHT", 0, 0)
+        h = Label(row, item, w - x - 12)
+    else
+        h = Label(row, item, w)
+        row.label:ClearAllPoints()
+        row.label:SetPoint("TOPLEFT", 0, -4)
+        box:SetPoint("BOTTOMRIGHT", 0, 0)
+        h = h + 26
+    end
+    row:SetHeight(h)
+    function row.Paint()
+        local v = Value(item)
+        for _, s in ipairs(squares) do SwatchChosen(s, s.value == v) end
+        if custom then
+            local on = v == item.custom
+            SwatchColor(custom.chip, item.getRGB and item.getRGB() or nil)
+            SwatchChosen(custom.chip, on)
+            custom.sel:SetShown(on)
+            if on then custom.text:SetTextColor(1, 0.82, 0) else custom.text:SetTextColor(0.75, 0.72, 0.63) end
+        end
+    end
+    return row
+end
+
+-- A card's title: gold words. A folding one is a button, with an arrow.
+local function FoldKey(item)
+    return (item.section and item.section.title or "") .. "/" .. item.name
+end
+
+function ROW.sub(kit, parent, item, w)
+    local row = CreateFrame("Button", nil, parent)
+    row:SetWidth(w)
+    row:SetHeight(18)
+    local x = 0
+    if item.fold then
+        row.arrow = row:CreateTexture(nil, "OVERLAY")
+        row.arrow:SetSize(12, 12)
+        row.arrow:SetPoint("LEFT", 0, 0)
+        row.arrow:SetTexture("Interface\\Buttons\\Arrow-Down-Up")
+        row.arrow:SetVertexColor(1, 0.85, 0.45)
+        x = 16
+        row:SetScript("OnClick", function()
+            local ui = kit.optionsUI
+            ui.unfolded[FoldKey(item)] = not ui.unfolded[FoldKey(item)]
+            row.Paint()
+            kit:RelayoutOptions()
+        end)
+        local hl = row:CreateTexture(nil, "HIGHLIGHT")
+        hl:SetPoint("TOPLEFT", -4, 2)
+        hl:SetPoint("BOTTOMRIGHT", 4, -2)
+        hl:SetColorTexture(GOLD[1], GOLD[2], GOLD[3], 0.07)
+    else
+        row:EnableMouse(false)
+    end
     local text = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    text:SetPoint("TOPLEFT", 0, -6)
+    text:SetPoint("LEFT", x, 0)
     text:SetText(item.name)
-    local line = row:CreateTexture(nil, "BORDER")
-    line:SetPoint("TOPLEFT", 0, -22)
-    line:SetPoint("TOPRIGHT", 0, -22)
-    line:SetHeight(1)
-    line:SetColorTexture(GOLD[1], GOLD[2], GOLD[3], 0.18)
-    function row.Paint() end
-    row:SetHeight(24)
+    function row.Paint()
+        if row.arrow then
+            local open = kit.optionsUI.unfolded[FoldKey(item)]
+            if row.arrow.SetRotation then row.arrow:SetRotation(open and 0 or math.pi / 2) end
+        end
+    end
     return row
 end
 
 function ROW.button(kit, parent, item, w)
     local row = CreateFrame("Frame", nil, parent)
     row:SetWidth(w)
-    local h = Words(row, item, 0, 124, 3, w)
-    local b = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
-    b:SetSize(110, 22)
-    b:SetPoint("TOPRIGHT", 0, 0)
-    b:SetText(item.text)
+    row:EnableMouse(true)
+    Tip(row, item, kit.optAnchor)
+    local b = GoldButton(row, item.text)
+    b:SetPoint("RIGHT", 0, 0)
+    Tip(b, item, kit.optAnchor)
     b:SetScript("OnClick", function()
         local ok, err = pcall(item.fn)
         if not ok then geterrorhandler()(err) end
         if kit.optionsUI then kit:PaintOptions() end
     end)
+    row:SetHeight(Label(row, item, w - b:GetWidth() - 12))
     function row.Paint() end
-    row:SetHeight(math.max(h, 22) + 4)
     return row
 end
 
--- One section's page (built the first time it's shown).
-local function BuildPage(kit, ui, index)
-    local sec = ui.sections[index]
+function ROW.note(kit, parent, item, w)
+    local row = CreateFrame("Frame", nil, parent)
+    row:SetWidth(w)
+    local fs = row:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    fs:SetPoint("TOPLEFT", 0, 0)
+    fs:SetWidth(w)
+    fs:SetJustifyH("LEFT")
+    fs:SetSpacing(2)
+    fs:SetText(item.tip)
+    row:SetHeight(math.ceil(fs:GetStringHeight()) + 2)
+    function row.Paint() end
+    return row
+end
+
+-- A kit's own frame (S.Custom, v30). An error in the kit's make or Paint
+-- goes to the error handler and leaves the rest of the page working.
+function ROW.custom(kit, parent, item, w)
+    local ok, row = pcall(item.make, parent, w)
+    if not ok or type(row) ~= "table" or not row.SetPoint then
+        if not ok then geterrorhandler()(row) end
+        row = CreateFrame("Frame", nil, parent)
+        row:SetHeight(1)
+    end
+    row:SetParent(parent)
+    row:SetWidth(w)
+    local paint = row.Paint
+    function row.Paint()
+        if not paint then return end
+        local okP, err = pcall(paint)
+        if not okP then geterrorhandler()(err) end
+    end
+    return row
+end
+
+-- The table of a kit's buttons (S.Table): a row each, a tick box per column,
+-- and a name to click for the rest (a line about it, a few more choices).
+local TCOL = 54
+local TROW_H = 26
+
+local function Chips(kit, parent, item, w)
+    local row = CreateFrame("Frame", nil, parent)
+    row:SetWidth(w)
+    local label = row:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    label:SetPoint("TOPLEFT", 0, -5)
+    label:SetText(item.name or "")
+    local x, y = math.floor(label:GetStringWidth()) + (item.name and 8 or 0), 0
+    local chips = {}
+    for _, c in ipairs(item.items) do
+        local b = CreateFrame("Button", nil, row)
+        b.text = b:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        b.text:SetPoint("CENTER")
+        b.text:SetText(c.name)
+        local cw = math.floor(b.text:GetStringWidth() + 20)
+        if x + cw > w and x > 0 then x, y = 0, y + 24 end
+        b:SetSize(cw, 20)
+        b:SetPoint("TOPLEFT", x, -y)
+        x = x + cw + 6
+        GoldEdge(b, 0.35)
+        b.sel = b:CreateTexture(nil, "BACKGROUND")
+        b.sel:SetAllPoints()
+        b.sel:SetColorTexture(1, 0.82, 0, 0.14)
+        local hl = b:CreateTexture(nil, "HIGHLIGHT")
+        hl:SetAllPoints()
+        hl:SetColorTexture(GOLD[1], GOLD[2], GOLD[3], 0.1)
+        b:SetScript("OnClick", function()
+            kit:OptionChanged(c, not Value(c))
+            row.Paint()
+        end)
+        Tip(b, c, kit.optAnchor)
+        b.item = c
+        chips[#chips + 1] = b
+    end
+    row:SetHeight(y + 20)
+    function row.Paint()
+        for _, b in ipairs(chips) do
+            local on = Value(b.item) and true or false
+            b.sel:SetShown(on)
+            if on then b.text:SetTextColor(1, 0.82, 0) else b.text:SetTextColor(0.6, 0.58, 0.5) end
+        end
+    end
+    return row
+end
+
+function ROW.table(kit, parent, item, w)
+    local spec = item.spec
+    local cols = spec.cols
+    local row = CreateFrame("Frame", nil, parent)
+    row:SetWidth(w)
+    local labelW = w - #cols * TCOL
+    for i, c in ipairs(cols) do
+        local h = CreateFrame("Frame", nil, row)
+        h:SetSize(TCOL, 16)
+        h:SetPoint("TOPLEFT", labelW + (i - 1) * TCOL, 0)
+        h:EnableMouse(true)
+        local fs = h:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        fs:SetPoint("CENTER")
+        fs:SetText(c.label)
+        Tip(h, { name = c.label, tip = c.tip }, kit.optAnchor)
+    end
+    local lines = {}
+    for _, r in ipairs(spec.rows) do
+        if r.group then
+            local g = CreateFrame("Frame", nil, row)
+            g:SetSize(w, 26)
+            local fs = g:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            fs:SetPoint("BOTTOMLEFT", 2, 6)
+            fs:SetText(r.group)
+            local line = g:CreateTexture(nil, "BORDER")
+            line:SetPoint("BOTTOMLEFT", 0, 1)
+            line:SetPoint("BOTTOMRIGHT", 0, 1)
+            line:SetHeight(1)
+            line:SetColorTexture(GOLD[1], GOLD[2], GOLD[3], 0.25)
+            g.isGroup = true
+            lines[#lines + 1] = g
+        else
+            local L = CreateFrame("Frame", nil, row)
+            L:SetWidth(w)
+            L.r = r
+            local under = L:CreateTexture(nil, "BORDER")
+            under:SetPoint("BOTTOMLEFT")
+            under:SetPoint("BOTTOMRIGHT")
+            under:SetHeight(1)
+            under:SetColorTexture(GOLD[1], GOLD[2], GOLD[3], 0.08)
+            L.openBg = L:CreateTexture(nil, "BACKGROUND")
+            L.openBg:SetAllPoints()
+            L.openBg:SetColorTexture(1, 0.82, 0, 0.035)
+            local more = (r.hint and r.hint ~= "") or (r.more and #r.more > 0)
+            local nb = CreateFrame("Button", nil, L)
+            nb:SetPoint("TOPLEFT", 0, 0)
+            nb:SetSize(labelW - 4, TROW_H)
+            local x = r.sub and 18 or 0
+            if more then
+                L.arrow = nb:CreateTexture(nil, "OVERLAY")
+                L.arrow:SetSize(10, 10)
+                L.arrow:SetPoint("LEFT", x + 1, 0)
+                L.arrow:SetTexture("Interface\\Buttons\\Arrow-Down-Up")
+                L.arrow:SetVertexColor(0.75, 0.65, 0.4)
+                local hl = nb:CreateTexture(nil, "HIGHLIGHT")
+                hl:SetAllPoints()
+                hl:SetColorTexture(GOLD[1], GOLD[2], GOLD[3], 0.07)
+            end
+            L.icon = nb:CreateTexture(nil, "ARTWORK")
+            L.icon:SetSize(18, 18)
+            L.icon:SetPoint("LEFT", x + 14, 0)
+            L.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92) -- (square, the icon's own border trimmed)
+            L.label = nb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+            L.label:SetPoint("LEFT", L.icon, "RIGHT", 7, 0)
+            L.label:SetPoint("RIGHT", nb, "RIGHT", -2, 0)
+            L.label:SetJustifyH("LEFT")
+            L.label:SetWordWrap(false)
+            L.label:SetText(r.label)
+            nb:SetScript("OnClick", function()
+                if not more then return end
+                L.open = not L.open
+                row.Paint()
+                kit:RelayoutOptions()
+            end)
+            L.cells = {}
+            for i, c in ipairs(cols) do
+                local cell = r.cells and r.cells[c.key]
+                local cx = labelW + (i - 0.5) * TCOL
+                if cell then
+                    cell.name = cell.name or (r.label .. ": " .. c.label)
+                    cell.tip = cell.tip or c.tip
+                    local b = CreateFrame("Button", nil, L)
+                    b:SetSize(TCOL - 8, TROW_H - 4)
+                    b:SetPoint("CENTER", L, "TOPLEFT", cx, -TROW_H / 2)
+                    b.box = TickBox(b)
+                    b.box:SetPoint("CENTER")
+                    local hl = b:CreateTexture(nil, "HIGHLIGHT")
+                    hl:SetAllPoints()
+                    hl:SetColorTexture(GOLD[1], GOLD[2], GOLD[3], 0.08)
+                    b.cell = cell
+                    Tip(b, cell, kit.optAnchor)
+                    b:SetScript("OnClick", function()
+                        if b.off then return end
+                        kit:OptionChanged(cell, not Value(cell))
+                        row.Paint()
+                    end)
+                    L.cells[#L.cells + 1] = b
+                else
+                    local dash = L:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+                    dash:SetPoint("CENTER", L, "TOPLEFT", cx, -TROW_H / 2)
+                    dash:SetText("-")
+                    dash:SetAlpha(0.5)
+                end
+            end
+            -- What opens under the row.
+            local det = CreateFrame("Frame", nil, L)
+            det:SetPoint("TOPLEFT", 32, -(TROW_H + 2))
+            local dw = w - 40
+            det:SetWidth(dw)
+            det.parts = {}
+            if r.hint and r.hint ~= "" then
+                det.parts[#det.parts + 1] = ROW.note(kit, det, { tip = r.hint }, dw)
+            end
+            for _, m in ipairs(r.more or {}) do
+                local p
+                if m.kind == "chips" then
+                    p = Chips(kit, det, m, dw)
+                else
+                    p = ROW.check(kit, det, m, dw)
+                end
+                p.item = m
+                det.parts[#det.parts + 1] = p
+            end
+            function det.Layout()
+                local y = 0
+                for _, p in ipairs(det.parts) do
+                    local show = true
+                    if p.item and p.item.when then
+                        local ok, s = pcall(p.item.when)
+                        show = ok and s
+                    end
+                    if show then
+                        p:ClearAllPoints()
+                        p:SetPoint("TOPLEFT", 0, -y)
+                        p:Show()
+                        y = y + p:GetHeight() + 6
+                    else
+                        p:Hide()
+                    end
+                end
+                det:SetHeight(math.max(1, y))
+            end
+            L.det = det
+            lines[#lines + 1] = L
+        end
+    end
+    function row.Layout()
+        local y = 18
+        for _, L in ipairs(lines) do
+            L:ClearAllPoints()
+            L:SetPoint("TOPLEFT", 0, -y)
+            if L.isGroup then
+                y = y + L:GetHeight()
+            else
+                local h = TROW_H
+                if L.open then
+                    L.det.Layout()
+                    L.det:Show()
+                    h = TROW_H + 2 + L.det:GetHeight() + 6
+                else
+                    L.det:Hide()
+                end
+                L:SetHeight(h)
+                y = y + h
+            end
+        end
+        row:SetHeight(y)
+    end
+    function row.Paint()
+        for _, L in ipairs(lines) do
+            if not L.isGroup then
+                local r = L.r
+                local tex
+                if r.icon then
+                    local ok, t = pcall(r.icon)
+                    tex = ok and t or nil
+                end
+                L.icon:SetTexture(tex or 134400)
+                local dim = r.dim and r.cells and r.cells[r.dim] and not Value(r.cells[r.dim])
+                L.label:SetAlpha(dim and 0.45 or 1)
+                L.icon:SetAlpha(dim and 0.45 or 1)
+                for _, b in ipairs(L.cells) do
+                    b.box.tick:SetShown(Value(b.cell) and true or false)
+                    local off = false
+                    if b.cell.off then
+                        local ok, o = pcall(b.cell.off)
+                        off = ok and o and true or false
+                    end
+                    b.off = off
+                    b:SetAlpha(off and 0.3 or 1)
+                end
+                if L.arrow and L.arrow.SetRotation then L.arrow:SetRotation(L.open and 0 or math.pi / 2) end
+                L.openBg:SetShown(L.open and true or false)
+                for _, p in ipairs(L.det.parts) do p.Paint() end
+            end
+        end
+        row.Layout()
+    end
+    row.Layout()
+    return row
+end
+
+-- A page: a title, then its settings in cards (one per sub-heading; the
+-- settings before the first sub-heading sit on the page itself). Rows are
+-- made the first time they're needed and kept.
+local function MakePage(kit, ui)
     local page = CreateFrame("Frame", nil, ui.child)
     page:SetPoint("TOPLEFT")
     local w = ui.child:GetWidth()
     page:SetWidth(w)
-    local head = page:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    head:SetPoint("TOPLEFT", 0, 0)
-    head:SetText(sec.title)
+    page.head = page:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    page.head:SetPoint("TOPLEFT", 0, 0)
     local line = page:CreateTexture(nil, "BORDER")
     line:SetPoint("TOPLEFT", 0, -26)
     line:SetPoint("TOPRIGHT", 0, -26)
     line:SetHeight(1)
     line:SetColorTexture(GOLD[1], GOLD[2], GOLD[3], 0.25)
-    page.rows = {}
-    for _, item in ipairs(sec.items) do
-        local make = ROW[item.kind]
-        if make then
-            local row = make(kit, page, item, w)
+    local rowFor, cardFor = {}, {}
+    page.rows, page.blocks = {}, {}
+
+    local function RowFor(item, inner)
+        local row = rowFor[item]
+        if not row then
+            local make = ROW[item.kind]
+            if not make then return end
+            local rw = inner
+            if item.cols then rw = math.floor((inner - COL_GAP) / 2) end
+            row = make(kit, page, item, rw)
             row.item = item
-            if item.when then page.dynamic = true end
-            page.rows[#page.rows + 1] = row
+            rowFor[item] = row
+        end
+        return row
+    end
+    local function CardFor(sub)
+        local card = cardFor[sub]
+        if not card then
+            card = CreateFrame("Frame", nil, page)
+            card:SetFrameLevel(page:GetFrameLevel())
+            local bg = card:CreateTexture(nil, "BACKGROUND")
+            bg:SetAllPoints()
+            bg:SetColorTexture(1, 1, 1, 0.025)
+            GoldEdge(card, 0.2)
+            cardFor[sub] = card
+        end
+        return card
+    end
+
+    -- The page's settings (in order, sub-headings included).
+    function page.SetItems(items)
+        for _, row in pairs(rowFor) do
+            row:Hide()
+            row.atX, row.atY = nil, nil
+        end
+        for _, card in pairs(cardFor) do card:Hide() end
+        page.rows, page.blocks = {}, {}
+        local b
+        for _, item in ipairs(items) do
+            if item.kind == "sub" then
+                b = { sub = item, items = {} }
+                page.blocks[#page.blocks + 1] = b
+            else
+                if not b then
+                    b = { items = {} }
+                    page.blocks[#page.blocks + 1] = b
+                end
+                b.items[#b.items + 1] = item
+            end
+        end
+        for _, blk in ipairs(page.blocks) do
+            local inner = blk.sub and (w - 2 * CARD_PAD) or w
+            if blk.sub then
+                blk.subRow = RowFor(blk.sub, inner)
+                blk.card = CardFor(blk.sub)
+                page.rows[#page.rows + 1] = blk.subRow
+            end
+            blk.rows = {}
+            for _, item in ipairs(blk.items) do
+                local row = RowFor(item, inner)
+                if row then
+                    blk.rows[#blk.rows + 1] = row
+                    page.rows[#page.rows + 1] = row
+                end
+            end
         end
     end
-    -- Stack the rows, leaving out groups whose "when" says no.
+
+    local function Shown(item)
+        if not item.when then return true end
+        local ok, show = pcall(item.when)
+        return ok and show and true or false
+    end
+
+    -- Stack the cards and their rows, leaving out what's hidden or folded.
+    -- (Rows already in place stay shown and stay put: hiding or re-anchoring
+    -- one would drop a slider being dragged, since every change lays the page
+    -- out again.)
+    local function Put(row, x, y)
+        row.keep = true
+        if row.atX ~= x or row.atY ~= y or not row:IsShown() then
+            row.atX, row.atY = x, y
+            row:ClearAllPoints()
+            row:SetPoint("TOPLEFT", x, -y)
+            row:Show()
+        end
+    end
     function page.Relayout()
+        for _, row in ipairs(page.rows) do row.keep = nil end
         local y = 38
-        for _, row in ipairs(page.rows) do
-            local ok, show = true, true
-            if row.item.when then ok, show = pcall(row.item.when) end
-            if ok and show then
-                row:ClearAllPoints()
-                row:SetPoint("TOPLEFT", 0, -y)
-                row:Show()
-                y = y + row:GetHeight() + OPT.gap
-            else
-                row:Hide()
+        for _, blk in ipairs(page.blocks) do
+            if blk.card then blk.card:Hide() end
+            local vis = {}
+            if not blk.sub or Shown(blk.sub) then
+                for _, row in ipairs(blk.rows) do
+                    if Shown(row.item) then vis[#vis + 1] = row end
+                end
             end
+            if #vis > 0 then
+                local folded = blk.sub and blk.sub.fold and not ui.unfolded[FoldKey(blk.sub)]
+                local x0 = blk.sub and CARD_PAD or 0
+                local top = y
+                local yy = y + (blk.sub and CARD_PAD or 0)
+                if blk.sub then
+                    Put(blk.subRow, x0, yy)
+                    yy = yy + blk.subRow:GetHeight() + (folded and 0 or ROW_GAP)
+                end
+                if not folded then
+                    local i = 1
+                    while i <= #vis do
+                        local row, nxt = vis[i], vis[i + 1]
+                        Put(row, x0, yy)
+                        local h = row:GetHeight()
+                        if row.item.cols and nxt and nxt.item.cols then
+                            Put(nxt, x0 + row:GetWidth() + COL_GAP, yy)
+                            h = math.max(h, nxt:GetHeight())
+                            i = i + 2
+                        else
+                            i = i + 1
+                        end
+                        yy = yy + h + ROW_GAP
+                    end
+                    yy = yy - ROW_GAP
+                end
+                if blk.sub then
+                    blk.card:ClearAllPoints()
+                    blk.card:SetPoint("TOPLEFT", 0, -top)
+                    blk.card:SetSize(w, yy - top + CARD_PAD)
+                    blk.card:Show()
+                    y = yy + CARD_PAD + BLOCK_GAP
+                else
+                    y = yy + BLOCK_GAP
+                end
+            end
+        end
+        for _, row in ipairs(page.rows) do
+            if not row.keep and row:IsShown() then row:Hide() end
         end
         page:SetHeight(y)
     end
-    page.Relayout()
+
     page:Hide()
     return page
 end
 
-local function ShowPage(kit, index)
+local function Painted(kit, page)
+    for _, row in ipairs(page.rows) do if row.Paint then row.Paint() end end
+end
+
+local function Present(kit, page)
     local ui = kit.optionsUI
-    index = math.max(1, math.min(index or 1, #ui.sections))
-    ui.current = index
-    for i, nav in ipairs(ui.nav) do
-        local on = i == index
-        nav.text:SetFontObject(on and "GameFontNormal" or "GameFontHighlightSmall")
-        nav.bar:SetShown(on)
-        nav.sel:SetShown(on)
-    end
-    for _, page in pairs(ui.pages) do page:Hide() end
-    ui.pages[index] = ui.pages[index] or BuildPage(kit, ui, index)
-    local page = ui.pages[index]
-    for _, row in ipairs(page.rows) do row.Paint() end
+    if ui.shown and ui.shown ~= page then ui.shown:Hide() end
+    ui.shown = page
+    Painted(kit, page)
     page.Relayout()
     page:Show()
     ui.child:SetHeight(page:GetHeight())
@@ -4923,14 +7259,91 @@ local function ShowPage(kit, index)
     ui.UpdateBar()
 end
 
+local function LightNav(ui, index)
+    for i, nav in ipairs(ui.nav) do
+        local on = i == index
+        nav.text:SetFontObject(on and "GameFontNormal" or "GameFontHighlightSmall")
+        nav.bar:SetShown(on)
+        nav.sel:SetShown(on)
+    end
+end
+
+local function ShowPage(kit, index)
+    local ui = kit.optionsUI
+    index = math.max(1, math.min(index or 1, #ui.sections))
+    ui.current = index
+    if ui.search and ui.search:GetText() ~= "" then
+        ui.quiet = true
+        ui.search:SetText("")
+        ui.quiet = nil
+    end
+    LightNav(ui, index)
+    local page = ui.pages[index]
+    if not page then
+        local sec = ui.sections[index]
+        page = MakePage(kit, ui)
+        page.head:SetText(sec.title)
+        page.SetItems(sec.items)
+        ui.pages[index] = page
+    end
+    Present(kit, page)
+end
+
+-- Typing in the search box: every setting whose name or description has
+-- the words in it, under the name of the page it's on.
+local function Matches(item, q)
+    if item.kind == "sub" or item.kind == "note" then return false end
+    local text = ((item.name or "") .. " " .. (item.tip or "")):lower()
+    if text:find(q, 1, true) then return true end
+    if item.kind == "table" then
+        for _, c in ipairs(item.spec.cols) do
+            if ((c.label or "") .. " " .. (c.tip or "")):lower():find(q, 1, true) then return true end
+        end
+        for _, r in ipairs(item.spec.rows) do
+            if ((r.label or "") .. " " .. (r.hint or "")):lower():find(q, 1, true) then return true end
+        end
+    end
+    return false
+end
+
+local function ShowSearch(kit, q)
+    local ui = kit.optionsUI
+    ui.secSub = ui.secSub or {}
+    local list = {}
+    for _, sec in ipairs(ui.sections) do
+        local first = true
+        for _, item in ipairs(sec.items) do
+            if Matches(item, q) then
+                if first then
+                    first = false
+                    ui.secSub[sec] = ui.secSub[sec] or { kind = "sub", name = sec.title, section = { title = "?search" } }
+                    list[#list + 1] = ui.secSub[sec]
+                end
+                list[#list + 1] = item
+            end
+        end
+    end
+    if #list == 0 then
+        ui.noMatch = ui.noMatch or { kind = "note", name = "", tip = "No setting matches that. Try another word." }
+        list[1] = ui.noMatch
+    end
+    ui.results = ui.results or MakePage(kit, ui)
+    ui.results.head:SetText(("Settings with \"%s\""):format(q))
+    ui.results.SetItems(list)
+    LightNav(ui, 0)
+    Present(kit, ui.results)
+end
+
 function Kit:PaintOptions()
     local ui = self.optionsUI
-    if not (ui and ui.current and ui.pages[ui.current]) then return end
-    for _, row in ipairs(ui.pages[ui.current].rows) do row.Paint() end
+    if not (ui and ui.shown) then return end
+    if ui.headerArt then pcall(ui.headerArt) end -- (the center icon may have changed)
+    Painted(self, ui.shown)
+    self:RelayoutOptions()
 end
 
 function Kit:BuildOptions()
-    local ui = { sections = self:CollectOptions(), pages = {}, nav = {} }
+    local ui = { sections = self:CollectOptions(), pages = {}, nav = {}, unfolded = {} }
     local name = self.prefix .. "Options"
     local f = OptPanel("Frame", name, UIParent)
     f:SetSize(OPT.w, OPT.h)
@@ -4945,13 +7358,37 @@ function Kit:BuildOptions()
     f:SetScript("OnDragStop", f.StopMovingOrSizing)
     f:Hide()
     if UISpecialFrames then table.insert(UISpecialFrames, name) end -- Esc closes it
+    -- (descriptions show beside the window, level with their setting)
+    self.optAnchor = function() return f end
 
-    -- Header: the kit's art, its name, and a close button, over a faint gold line.
+    -- Header: the kit's art, its name, a search box and a close button, over
+    -- a faint gold line.
     local art = f:CreateTexture(nil, "ARTWORK")
     art:SetSize(26, 26)
     art:SetPoint("TOPLEFT", OPT.pad - 2, -8)
-    local tex = self.cfg.minimapArt and (type(self.cfg.minimapArt) == "function" and self.cfg.minimapArt(self) or self.cfg.minimapArt)
-    if tex then art:SetTexture(tex, nil, nil, "LINEAR") else art:Hide() end
+    -- The kit's own look: its minimap art, or else the icon in the middle of
+    -- the kit as it is now (its center icon setting), or the minimap icon.
+    local function HeaderArt()
+        local tex = self.cfg.minimapArt and (type(self.cfg.minimapArt) == "function" and self.cfg.minimapArt(self) or self.cfg.minimapArt)
+        if tex then
+            art:SetTexture(tex, nil, nil, "LINEAR")
+            art:SetTexCoord(0, 1, 0, 1)
+        else
+            local icon = self.kit and self.kit.icon
+            tex = icon and icon:GetTexture()
+            if tex then
+                art:SetTexture(tex)
+                art:SetTexCoord(icon:GetTexCoord())
+            else
+                tex = self.cfg.minimapIcon and (type(self.cfg.minimapIcon) == "function" and self.cfg.minimapIcon(self) or self.cfg.minimapIcon)
+                art:SetTexture(tex or 134400)
+                art:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+            end
+        end
+        art:Show()
+    end
+    pcall(HeaderArt)
+    ui.headerArt = HeaderArt
     local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     title:SetPoint("LEFT", art, "RIGHT", 8, 0)
     title:SetText(self.name .. " settings")
@@ -4964,6 +7401,42 @@ function Kit:BuildOptions()
     sep:SetPoint("TOPRIGHT", -OPT.pad, -OPT.head)
     sep:SetHeight(1)
     sep:SetColorTexture(GOLD[1], GOLD[2], GOLD[3], 0.35)
+
+    local sb = CreateFrame("EditBox", nil, f)
+    sb:SetSize(160, 20)
+    sb:SetPoint("RIGHT", close, "LEFT", -6, 0)
+    sb:SetAutoFocus(false)
+    sb:SetFontObject("GameFontHighlightSmall")
+    sb:SetTextInsets(20, 6, 0, 0)
+    sb:SetMaxLetters(40)
+    Well(sb, 0.6)
+    local glass = sb:CreateTexture(nil, "OVERLAY")
+    glass:SetSize(12, 12)
+    glass:SetPoint("LEFT", 5, 0)
+    glass:SetTexture("Interface\\Common\\UI-Searchbox-Icon")
+    glass:SetVertexColor(0.75, 0.7, 0.55)
+    local hint = sb:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    hint:SetPoint("LEFT", 20, 0)
+    hint:SetText("Find a setting")
+    local function Hint() hint:SetShown(sb:GetText() == "" and not sb:HasFocus()) end
+    sb:SetScript("OnEditFocusGained", Hint)
+    sb:SetScript("OnEditFocusLost", Hint)
+    sb:SetScript("OnEscapePressed", function(e)
+        e:SetText("")
+        e:ClearFocus()
+    end)
+    sb:SetScript("OnEnterPressed", function(e) e:ClearFocus() end)
+    sb:SetScript("OnTextChanged", function(e)
+        Hint()
+        if ui.quiet then return end
+        local q = (e:GetText() or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
+        if #q >= 2 then
+            ShowSearch(self, q)
+        elseif ui.shown == ui.results then
+            ShowPage(self, ui.current)
+        end
+    end)
+    ui.search = sb
 
     -- Sections down the left, with a faint gold line beside them.
     -- Grouped under small grey labels (Kit, the kit's name, and any groups
@@ -5001,6 +7474,34 @@ function Kit:BuildOptions()
         b:SetScript("OnClick", function() ShowPage(self, i) end)
         ui.nav[i] = b
     end
+    -- Move everything and Key bindings, at the foot of the list.
+    local move = CreateFrame("Button", nil, f)
+    move:SetSize(OPT.nav - OPT.pad - 6, 20)
+    move.text = move:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    move.text:SetPoint("LEFT", 10, 0)
+    move.text:SetText("Move everything")
+    local mhl = move:CreateTexture(nil, "HIGHLIGHT")
+    mhl:SetAllPoints()
+    mhl:SetColorTexture(GOLD[1], GOLD[2], GOLD[3], 0.06)
+    move:SetScript("OnClick", function() C.MoveAll(self) end)
+    Tip(move, { name = "Move everything", tip = "The reminder panel and every timer and bar in use, shown where they sit on a grid so you can drag them all at once. Done (or Esc) when you're finished." .. (self.cfg.slash and (" Also " .. self.cfg.slash[1] .. " move.") or "") }, self.optAnchor)
+    local keys = CreateFrame("Button", nil, f)
+    keys:SetSize(OPT.nav - OPT.pad - 6, 20)
+    keys:SetPoint("BOTTOMLEFT", OPT.pad, OPT.pad)
+    keys.text = keys:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    keys.text:SetPoint("LEFT", 10, 0)
+    keys.text:SetText("Key bindings")
+    local khl = keys:CreateTexture(nil, "HIGHLIGHT")
+    khl:SetAllPoints()
+    khl:SetColorTexture(GOLD[1], GOLD[2], GOLD[3], 0.06)
+    keys:SetScript("OnClick", function() self:OpenKeyBindings() end)
+    move:SetPoint("BOTTOMLEFT", keys, "TOPLEFT", 0, 2)
+    local kline = f:CreateTexture(nil, "BORDER")
+    kline:SetPoint("BOTTOMLEFT", move, "TOPLEFT", 0, 4)
+    kline:SetPoint("BOTTOMRIGHT", move, "TOPRIGHT", 0, 4)
+    kline:SetHeight(1)
+    kline:SetColorTexture(GOLD[1], GOLD[2], GOLD[3], 0.18)
+
     local vline = f:CreateTexture(nil, "BORDER")
     vline:SetPoint("TOPLEFT", OPT.nav, -(OPT.head + 8))
     vline:SetPoint("BOTTOMLEFT", OPT.nav, OPT.pad)
@@ -5111,7 +7612,10 @@ function Kit:BuildOptions()
     end)
     ui.scroll, ui.child, ui.UpdateBar = scroll, child, UpdateBar
     ui.frame = f
-    f:SetScript("OnShow", function() self:PaintOptions() end)
+    f:SetScript("OnShow", function()
+        pcall(HeaderArt)
+        self:PaintOptions()
+    end)
     self.optionsUI = ui
     ShowPage(self, 1)
 end
@@ -5194,7 +7698,9 @@ function Kit:RunSlash(msg)
         self:Print(slash .. " - settings   " .. slash .. " lock | unlock | show | hide | reset")
         self:Print(slash .. " minimap - show or hide the minimap button")
         self:Print(slash .. " face up | down | left | right - which way the layout points")
+        self:Print(slash .. " move - move everything: the reminder panel and the kits' timers and bars, all at once")
         self:Print(slash .. " panel - move the reminder panel (shared by every kit)")
+        if cfg.bars then self:Print(slash .. " layout - drag buttons off the kit onto bars   " .. slash .. " layout reset") end
         if self.Dock and not cfg.edgesOnly then self:Print(slash .. " dock - dock every kit on the pin   " .. slash .. " flip") end
         for _, line in ipairs(cfg.helpLines or {}) do self:Print(line) end
     elseif InCombatLockdown() then
@@ -5221,6 +7727,10 @@ function Kit:RunSlash(msg)
         end
     elseif cmd == "panel" then
         C.TogglePanelUnlocked(self)
+    elseif cmd == "move" then
+        C.MoveAll(self)
+    elseif (cmd == "layout" or cmd == "bars") and cfg.bars then
+        if (rest or ""):lower():match("^reset") then self:ResetLayout() else self:ToggleEdit() end
     elseif cmd == "flip" and self.Dock and not cfg.edgesOnly then
         self.Dock.Flip()
     elseif cmd == "reset" then
@@ -5266,6 +7776,9 @@ function Kit:OnEvent(event, ...)
         for _, slot in ipairs(cfg.slots) do
             cdb.pinned[slot.key] = (not slot.noPin and cdb.pinned[slot.key]) and true or false
         end
+        self:CleanBars()
+        self:CleanZones()
+        self:ApplyZones()
         self.events:UnregisterEvent("ADDON_LOADED")
         return
     elseif event == "PLAYER_LOGIN" then
@@ -5310,6 +7823,7 @@ function Kit:OnEvent(event, ...)
         end
     elseif event == "PLAYER_REGEN_DISABLED" then
         GameTooltip:Hide()
+        if self.editing then self:SetEdit(false) end -- (the layout is only edited out of combat)
         if self:HidesInCombat() and not InCombatLockdown() then self.holder:Hide() end
         -- Combat is about to start (still allowed now): flyouts opened from
         -- here on, and any open already, close themselves once the mouse
@@ -5354,6 +7868,7 @@ function Kit:OnEvent(event, ...)
         self:StopGhost()
         self.combatPress = nil
         if self.qkbLeavePending then self:QkbRestore() end -- (Quick Keybind Mode closed in combat)
+        if self.editLeavePending then self:EditRestore() end -- (so did the layout's edit mode)
         self:Refresh(false)
         -- Moved or opened in combat: catch the dock up a frame from now (see
         -- FinishCombatMove), the move first, so the dock lays the kit out
@@ -5575,6 +8090,9 @@ function C.SetQuickKeybind(on)
     for _, kit in ipairs(kits) do D = D or kit.Dock end
     if on then
         if InCombatLockdown() then C.qkb = false return end
+        for _, kit in ipairs(kits) do
+            if kit.editing then pcall(kit.SetEdit, kit, false) end -- (one mode at a time)
+        end
         for _, kit in ipairs(kits) do pcall(kit.QkbClose, kit) end
         for _, kit in ipairs(kits) do pcall(kit.QkbOpen, kit) end
         -- Kits on an edge lay out with room for being open, and the tuck

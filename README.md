@@ -1,14 +1,20 @@
 # WildSpark
 
-> **[Download WildSpark 2.2.69 - Latest Published Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.69/WildSpark-2.2.69.zip)**
+> **[Download WildSpark 2.2.70 - Latest Published Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.70/WildSpark-2.2.70.zip)**
 
-**Latest published stable release: 2.2.69 for WoW Forever 1.60.1.** The package contains one install folder, `WildSpark`. QuestDB, QuestieDB Forever data, and WildInfo's quest-drop datasets are embedded and load automatically with WildSpark.
+**Latest published stable release: 2.2.70 for WoW Forever 1.60.1.** The package contains one install folder, `WildSpark`. QuestDB, QuestieDB Forever data, and WildInfo's quest-drop datasets are embedded and load automatically with WildSpark.
 
 WildSpark is a modular WoW Forever utility suite for gathering highlights, quest-drop tooltips, buffs, the WildMaps minimap lens, WildFire camping, auctions, group finding, and WildInfo respawn estimates.
 
 Install the single `WildSpark` folder from the ZIP into `Interface/AddOns`. WildMaps keeps the integrated Minimap Lens based on the authorized Quantum Dungeon Tools lens source. The dungeon atlas and WildGear are saved on the GitHub archive branch `archive/wildgear-2.2.59` for possible future work.
 
 WildMaps enlarges the current minimap in place and restores its original size, position, shape, tracking and zoom when closed. The separate dungeon atlas has been removed from the active package.
+
+## What's new in 2.2.70
+
+- Update the embedded WildFire Kit to 1.11.1, including cleanup for stale per-zone camp channels and the updated weapon-stone actions. WildSpark's icon artwork, channel defaults, and built-in channel ordering protections are preserved.
+- Update WildGroups to upstream 2.5.0: favorites, per-character filter migration, richer Quests & Zones rows, listing-aware opening, and the latest action-block fix.
+- Keep module-version metadata and load order synchronized with the new embedded code. Package/workflow checks passed; live-client behavior was not tested.
 
 ## What's new in 2.2.69
 

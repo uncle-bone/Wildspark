@@ -25,7 +25,7 @@
 -- breaking, in code we never wrote.
 --
 -- So this file attaches a tab, and does exactly one thing to Blizzard's window:
--- when the tab is clicked out of combat, it closes it (CloseBlizzardGroupFinder
+-- when the tab is clicked out of combat, it closes it (LFGF.CloseBlizzardGroupFinder
 -- below, which says why that one call is safe). It never shows or reads a
 -- Blizzard LFG panel, never writes LFGParentFrame.selectedTab, and hooks no
 -- Blizzard function. Specs assert each of those as a property.
@@ -46,31 +46,31 @@ local TAB_NAME = "LFGForeverBlizzardTab"
 local TAB_TOOLTIP = LFGF.TITLE
 
 local tab
-function LFGF.UpdateBlizzardTab()
-	if tab then tab:SetShown(LFGF.IsEnabled()) end
-end
 
--- Close Blizzard's Group Finder, which the player just left by clicking our tab.
---
--- HideUIPanel, because it hands the hide to Blizzard's panel manager -- the
--- forbidden FramePositionDelegate, "Dispatch to secure code"
--- (UIParentPanelManager.lua:930-933) -- which also clears the left slot. A
--- bare LFGParentFrame:Hide() would leave the manager treating the slot as taken.
---
--- Not LFGVanilla_ToggleFrame: it reads LFGParentFrame.selectedTab before
--- anything else (Blizzard_LFGVanilla_ParentFrame.lua:138), the field whose
--- taint once broke the player's own Group Finder key in combat
--- (.claude/rules/whisper-location-lookup.md, History).
---
--- Hiding runs Blizzard's OnHide, not their OnShow: UpdateMicroButtons and a
--- sound (ParentFrame.lua:60-63), SetWhoToUi(false) and one EventRegistry
--- unregister (WhoList.lua:158, :253). None of it writes a field their opener
--- reads before its combat check, and none of it reads C_LFGList.
---
--- In combat HideUIPanel refuses addon code with Blizzard's red "blocked"
--- message (UIParentPanelManager.lua:854-861), so we do not ask: both windows
--- stay open, by the author's decision.
-local function CloseBlizzardGroupFinder()
+--- Close Blizzard's Group Finder, out of combat. Called when the player leaves
+--- it for WildGroups: by clicking our tab below, and after the player's own
+--- listing on its Create Listing tab is answered (core/blizzardlisting.lua).
+---
+--- HideUIPanel, because it hands the hide to Blizzard's panel manager -- the
+--- forbidden FramePositionDelegate, "Dispatch to secure code"
+--- (UIParentPanelManager.lua:930-933, the delegate :124-133, :152-154) -- which
+--- hides the window and clears the left slot as Blizzard. A bare
+--- LFGParentFrame:Hide() would leave the manager treating the slot as taken.
+---
+--- Not LFGVanilla_ToggleFrame: it reads LFGParentFrame.selectedTab before
+--- anything else (Blizzard_LFGVanilla_ParentFrame.lua:126), the field whose
+--- taint once broke the player's own Group Finder key in combat
+--- (.claude/rules/whisper-location-lookup.md, History).
+---
+--- Hiding runs Blizzard's OnHide, not their OnShow: UpdateMicroButtons and a
+--- sound (ParentFrame.lua:48-51), SetWhoToUi(false) and one EventRegistry
+--- unregister (WhoList.lua:159, :254). None of it writes a field their opener
+--- reads before its combat check, and none of it reads C_LFGList.
+---
+--- In combat HideUIPanel refuses addon code with Blizzard's red "blocked"
+--- message (UIParentPanelManager.lua:854-861), so we do not ask: both windows
+--- stay open, by the author's decision.
+function LFGF.CloseBlizzardGroupFinder()
 	if InCombatLockdown() then
 		return
 	end
@@ -92,10 +92,10 @@ local function BuildTab()
 	local t = _G.CreateFrame("Frame", TAB_NAME, parent, "LargeSideTabButtonTemplate")
 
 	-- Transcribed from LFGParentFrameRightTabMixin:OnLoad
-	-- (Blizzard_LFGVanilla_ParentFrame.lua:101-112) so the icon is inset and
+	-- (Blizzard_LFGVanilla_ParentFrame.lua:93-105) so the icon is inset and
 	-- cropped exactly as the other three.
 	-- SetAtlas, then SetSize to the 30x30 the other three are forced to
-	-- (LFGParentFrameRightTabMixin:OnLoad, ParentFrame.lua:101-112). No
+	-- (LFGParentFrameRightTabMixin:OnLoad, ParentFrame.lua:93-105). No
 	-- SetTexCoord here: Blizzard's three need it to crop the border off a square
 	-- ICONS file, whereas SetAtlas sets the coords from the atlas itself and a
 	-- later SetTexCoord would overwrite them with the wrong region.
@@ -118,14 +118,14 @@ local function BuildTab()
 	-- press animation and click sound (:361-371). Using it rather than
 	-- SetScript("OnMouseUp") keeps both.
 	t:SetCustomOnMouseUpHandler(function(_, button, upInside)
-		if button == "LeftButton" and upInside and LFGF.IsEnabled() then
+		if button == "LeftButton" and upInside then
 			-- Open, not toggle: a launcher means "show me that window". Ours
 			-- first, so it opens whatever happens to theirs. Our handler is the
 			-- last thing the mixin's OnMouseUp does (SharedUIPanelTemplates.lua
 			-- :361-371), so hiding this tab's parent here leaves nothing of
 			-- Blizzard's to run on a hidden tab.
 			LFGF.OpenWindow()
-			CloseBlizzardGroupFinder()
+			LFGF.CloseBlizzardGroupFinder()
 		end
 	end)
 
@@ -149,6 +149,5 @@ end
 EventUtil.ContinueOnAddOnLoaded("Blizzard_GroupFinder_VanillaStyle", function()
 	if not tab then
 		tab = BuildTab()
-		tab:SetShown(LFGF.IsEnabled())
 	end
 end)

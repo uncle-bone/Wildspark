@@ -209,7 +209,7 @@ end
 --
 -- IT WORKS ON THE SERVER, unlike every other filter: a result carries no
 -- language (LfgSearchResultData, LFGListInfoDocumentation.lua:978-1014), so
--- the choice goes into C_LFGList.Search (core/filterpanel.lua, RequestSearch)
+-- the choice goes into C_LFGList.Search (core/filterpanel_search.lua, RequestSearch)
 -- and the list panel never sees it. Tested in the client: no language filter
 -- returns your own language only, and any language set returns those
 -- languages and your own (.claude/rules/language-filter.md). Hence the locked
