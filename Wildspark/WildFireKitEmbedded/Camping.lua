@@ -1390,6 +1390,7 @@ ns.kit = Core.NewKit({
     addon = addonName,
     key = "ck",
     name = "Camping Kit",
+    settingsTitle = "WildFire Settings",
     prefix = "CampingKit",
     color = "e0a040",
     media = MEDIA,

@@ -1,3 +1,6 @@
+WildSpark 2.2.71 (stable)
+- Change the embedded camping settings-window title to "WildFire Settings"; other kit naming and stored settings are unchanged.
+
 WildSpark 2.2.70 (stable)
 - Update the embedded WildFire Kit to 1.11.1, including stale zone-channel cleanup, direct weapon-stone actions, and the updated settings window. Preserve WildSpark's artwork, Happy Camper opt-out defaults, built-in channel ordering protections, and retired WildLayer-channel cleanup.
 - Update WildGroups to upstream 2.5.0. Add dungeon/raid favorites, preserve account filters through the per-character settings migration, open on the player's own LFG listing, and include upstream protected-action fixes.

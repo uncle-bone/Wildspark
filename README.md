@@ -1,14 +1,18 @@
 # WildSpark
 
-> **[Download WildSpark 2.2.70 - Latest Published Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.70/WildSpark-2.2.70.zip)**
+> **[Download WildSpark 2.2.71 - Latest Published Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.71/WildSpark-2.2.71.zip)**
 
-**Latest published stable release: 2.2.70 for WoW Forever 1.60.1.** The package contains one install folder, `WildSpark`. QuestDB, QuestieDB Forever data, and WildInfo's quest-drop datasets are embedded and load automatically with WildSpark.
+**Latest published stable release: 2.2.71 for WoW Forever 1.60.1.** The package contains one install folder, `WildSpark`. QuestDB, QuestieDB Forever data, and WildInfo's quest-drop datasets are embedded and load automatically with WildSpark.
 
 WildSpark is a modular WoW Forever utility suite for gathering highlights, quest-drop tooltips, buffs, the WildMaps minimap lens, WildFire camping, auctions, group finding, and WildInfo respawn estimates.
 
 Install the single `WildSpark` folder from the ZIP into `Interface/AddOns`. WildMaps keeps the integrated Minimap Lens based on the authorized Quantum Dungeon Tools lens source. The dungeon atlas and WildGear are saved on the GitHub archive branch `archive/wildgear-2.2.59` for possible future work.
 
 WildMaps enlarges the current minimap in place and restores its original size, position, shape, tracking and zoom when closed. The separate dungeon atlas has been removed from the active package.
+
+## What's new in 2.2.71
+
+- Rename the embedded camping settings-window heading to **WildFire Settings**. The kit's display name and internal settings remain unchanged.
 
 ## What's new in 2.2.70
 

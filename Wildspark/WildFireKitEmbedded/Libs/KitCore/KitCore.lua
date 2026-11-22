@@ -7391,7 +7391,7 @@ function Kit:BuildOptions()
     ui.headerArt = HeaderArt
     local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     title:SetPoint("LEFT", art, "RIGHT", 8, 0)
-    title:SetText(self.name .. " settings")
+    title:SetText(self.cfg.settingsTitle or (self.name .. " settings"))
     local close = CreateFrame("Button", nil, f, "UIPanelCloseButton")
     close:SetSize(24, 24)
     close:SetPoint("TOPRIGHT", -2, -2)
