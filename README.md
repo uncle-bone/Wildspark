@@ -1,14 +1,21 @@
 # WildSpark
 
-> **[Download WildSpark 2.2.71 - Latest Published Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.71/WildSpark-2.2.71.zip)**
+> **[Download WildSpark 2.2.72 - Latest Published Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.72/WildSpark-2.2.72.zip)**
 
-**Latest published stable release: 2.2.71 for WoW Forever 1.60.1.** The package contains one install folder, `WildSpark`. QuestDB, QuestieDB Forever data, and WildInfo's quest-drop datasets are embedded and load automatically with WildSpark.
+**Latest published stable release: 2.2.72 for WoW Forever 1.60.1.** The package contains one install folder, `WildSpark`. QuestDB, QuestieDB Forever data, and WildInfo's quest-drop datasets are embedded and load automatically with WildSpark.
 
 WildSpark is a modular WoW Forever utility suite for gathering highlights, quest-drop tooltips, buffs, the WildMaps minimap lens, WildFire camping, auctions, group finding, and WildInfo respawn estimates.
 
 Install the single `WildSpark` folder from the ZIP into `Interface/AddOns`. WildMaps keeps the integrated Minimap Lens based on the authorized Quantum Dungeon Tools lens source. The dungeon atlas and WildGear are saved on the GitHub archive branch `archive/wildgear-2.2.59` for possible future work.
 
 WildMaps enlarges the current minimap in place and restores its original size, position, shape, tracking and zoom when closed. The separate dungeon atlas has been removed from the active package.
+
+## What's new in 2.2.72
+
+- Update embedded WildFire Kit to 1.11.2, including paced channel joins/leaves, channel-notice filtering, latest Kit Core and Kit Dock fixes. Preserve the WildFire Settings title, custom artwork, channel ordering, and optional Happy Camper defaults.
+- Update WildGroups to 2.6.0 with compact mode, listing notes, and in-place whisper location lookup.
+- Update bundled QuestDB to 0.2.0 and QuestieDB Forever to 1.1.6; update WildInfo source-version notices and packaging checks.
+- Package/workflow checks passed; live-client behavior was not tested.
 
 ## What's new in 2.2.71
 

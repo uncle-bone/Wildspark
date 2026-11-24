@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.6.0
+
+- Add the upstream compact layout, which hides the filters, whispers, and player ratings while preserving active filters.
+- Show listing notes on their own line and display whisper locations in place in the Whispers tab.
+- Integrate the upstream location lookup, branding it as WildGroups and retaining WildSpark's module enable switch.
+
 ## 2.5.0
 
 - New: when you click List Self, List Group or Update on Blizzard's Create Listing tab, WildGroups opens on your listing and shows the groups and players for it, and Blizzard's window closes. In combat Blizzard's window cannot be closed by an addon, so both stay open.

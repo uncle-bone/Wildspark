@@ -519,22 +519,18 @@ local function UpdatePlaystyle(row, info)
 	label:Show()
 end
 
---- The INLINE NOTE: a Quests & Zones listing's details text (its comment,
---- LFGListInfoDocumentation.lua:986), which Blizzard's Create Listing makes
---- mandatory for that category, the only one with no activity to pick
---- (Blizzard_LFGVanilla_Listing.lua:886-903). Nil for any other listing, for
---- blank text, and when the comment cannot be read: it is secret in
---- chat-messaging lockdown (:397). The text comes back on one line, trimmed,
---- every run of spaces and line breaks one space.
---- .claude/rules/inline-note.md.
+--- The INLINE NOTE: a listing's details text (its comment,
+--- LFGListInfoDocumentation.lua:986), in every category, while "Show listing
+--- notes" is on. Nil while it is off, for blank text, and when the comment
+--- cannot be read: it is secret in chat-messaging lockdown (:397). The text
+--- comes back on one line, trimmed, every run of spaces and line breaks one
+--- space. .claude/rules/inline-note.md.
 local function InlineNote(info)
-	local comment = Readable(info.comment, nil)
-	if comment == nil or not comment:find("%S") then
+	if not LFGF.ShowListingNotes() then
 		return nil
 	end
-	local activityIDs = Readable(info.activityIDs, nil)
-	local activity = activityIDs and activityIDs[1] and C_LFGList.GetActivityInfoTable(activityIDs[1])
-	if not activity or activity.categoryID ~= LFGF.QUESTS_CATEGORY_ID then
+	local comment = Readable(info.comment, nil)
+	if comment == nil or not comment:find("%S") then
 		return nil
 	end
 	return (comment:match("^%s*(.-)%s*$"):gsub("%s+", " "))
@@ -2169,6 +2165,16 @@ function LFGF.CreateListPanel(parent)
 			panel.refreshPending = true
 		end
 	end, panel)
+
+	--- Leave `height` free above the list: Compact mode's search row sits
+	--- there (core/window.lua); 0 puts the list back at the panel's top. Only
+	--- the scroll box's TOPLEFT moves -- SetPoint at a point the box already
+	--- has replaces it -- and the scroll bar and the empty notice hang off
+	--- the box, so they follow. The inset is LFGF.CreateScrollList's own.
+	function panel:ReserveTop(height)
+		local inset = LFGF.SCROLL_LIST_INSET
+		self.ScrollBox:SetPoint("TOPLEFT", self, "TOPLEFT", inset, -(inset + height))
+	end
 
 	return panel
 end

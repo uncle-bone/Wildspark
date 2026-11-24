@@ -602,9 +602,9 @@ EventUtil.ContinueOnAddOnLoaded(addonName, function()
 	inviteMessageData.parentSetting = inviteAutoWhisper
 	layout:AddInitializer(Settings.CreateSettingInitializer(MESSAGE_ROW_TEMPLATE, inviteMessageData))
 
-	-- Search: a header, then two checkboxes, both labelled with our own text:
-	-- Show all level activities (Blizzard's Group Finder has the same option) and
-	-- Show suggested level ranges (which it has not).
+	-- Search: a header, then Show all level activities (Blizzard's Group Finder
+	-- has the same option), Show suggested level ranges (which it has not), the
+	-- two marks, Sort players by and Show listing notes.
 	layout:AddInitializer(CreateSettingsListSectionHeaderInitializer(SEARCH_HEADER))
 
 	local showAllLevelRanges = RegisterSetting(category, "showAllLevelRanges",
@@ -636,6 +636,13 @@ EventUtil.ContinueOnAddOnLoaded(addonName, function()
 	Settings.SetOnValueChangedCallback(SAVED.playerSortOrder.variable, function(_, _, value)
 		EventRegistry:TriggerEvent(LFGF.EVENT_PLAYER_SORT_ORDER_CHANGED, value)
 	end)
+
+	-- Show listing notes: the last row of Search. Read when the players list
+	-- builds its tree, so a change shows on the next search and nothing is
+	-- announced. .claude/rules/inline-note.md
+	local showListingNotes = RegisterSetting(category, "showListingNotes",
+		L.SETTINGS_SHOW_LISTING_NOTES_LABEL)
+	Settings.CreateCheckbox(category, showListingNotes, L.SETTINGS_SHOW_LISTING_NOTES_TOOLTIP)
 
 	-- Miscellaneous: the header, then the key binding, Player ratings, Show
 	-- minimap button, the language packs sentence, Report a bug and Reset

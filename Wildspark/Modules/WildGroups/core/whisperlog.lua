@@ -76,6 +76,24 @@ local ACTION_LINK_GAP = 4
 -- HIDE is a visibility toggle and DELETE destroys data.
 local LOCATION_LABEL = L.LOCATION
 
+-- LOCATION SHOWS ITS ANSWER IN PLACE OF THE WORD: the sender's zone once /who
+-- has found them, "Not found" when it has not, Searching... while the question
+-- is out (core/wholookup.lua). A zone is as wide as its words up to this, the
+-- players list's own limit for a zone (core/listpanel.lua), and cut off with
+-- "..." past it.
+local LOCATION_MAX_WIDTH = 200
+
+-- "Looked up 5 Minutes ago": the time in Blizzard's own words for a span
+-- (D_MINUTES, D_HOURS ...), on a formatter of OUR OWN, so nothing is written
+-- onto one Blizzard shares (patterns-taint.md, A Blizzard Helper With A Shared
+-- Object Writes It In Your Call). Under a minute it says "< 1 Minute", and it
+-- names one unit: "1 Hour", not "1 Hour 5 Minutes" (SecondsFormatterMixin,
+-- TimeUtil.lua).
+local agoFormatter = CreateFromMixins(SecondsFormatterMixin)
+agoFormatter:Init(SECONDS_PER_MIN, SecondsFormatter.Abbreviation.None)
+agoFormatter:SetMinInterval(SecondsFormatter.Interval.Minutes)
+agoFormatter:SetDesiredUnitCount(1)
+
 -- Two separators at most: between Remove and Location, and between Location and
 -- Invite. Fewer links show fewer of them.
 local MAX_SEPARATORS = 2
@@ -169,10 +187,10 @@ local function BuildRow(row)
 	row.RatingStrip = LFGF.CreateRatingStrip(row)
 
 	-- THE ACTION LINE, under the name: Remove | Location | Invite. Text links
-	-- drawn the way the filter panel draws its links. Location and Invite come
-	-- from the shared action factory in core/main.lua -- the same cooldown as
-	-- the players list's plus. Remove is a plain link: it touches only this log,
-	-- so it is not paced (see below).
+	-- drawn the way the filter panel draws its links. Invite comes from the
+	-- shared action factory in core/main.lua -- the same cooldown as the players
+	-- list's plus. Remove and Location are plain links: neither reaches another
+	-- player, so neither is paced (see below).
 	--
 	-- A FRAME for the line, and a plain one: it does not take the mouse, so a
 	-- right-click between the links still reaches the row. Two corner anchors
@@ -200,7 +218,37 @@ local function BuildRow(row)
 	end)
 	row.RemoveLink = remove
 
-	row.LocationLink = LFGF.CreateRowActionLink(actions, LOCATION_LABEL)
+	-- LOCATION IS NOT ON THE SHARED ACTION COOLDOWN either, by the author's
+	-- decision: a /who reaches no other player, and the one-question-at-a-time
+	-- rule (core/wholookup.lua) already keeps it to one lookup. So its click
+	-- greys no Invite or Ask to Join, theirs grey no Location, and a zone just
+	-- answered can be clicked again at once; the server's own /who limit is the
+	-- only wait. The action is set on every fill (UpdateActions) and read at
+	-- click time, because rows are pooled.
+	--
+	-- It carries an answer as its words (ShowLocation), cut off with "..."
+	-- rather than wrapped, and a tooltip that says what a click does and how old
+	-- the answer is. A disabled link fires no OnEnter, so Searching... has none.
+	local location = LFGF.CreateRowLink(actions, LOCATION_LABEL)
+	location:SetScript("OnClick", function(self)
+		if self.action then
+			LFGF.PlayClick()
+			self.action()
+		end
+	end)
+	location:GetFontString():SetWordWrap(false)
+	location:SetScript("OnEnter", function(self)
+		local line = L.LOCATION_TOOLTIP
+		if self.lookedUpAt then
+			-- At least a second, so an answer from this very second reads
+			-- "< 1 Minute" rather than the formatter's "0 Minutes".
+			local seconds = math.max(1, GetServerTime() - self.lookedUpAt)
+			line = L.LOCATION_LOOKED_UP_FORMAT:format(agoFormatter:Format(seconds))
+		end
+		LFGF.ShowTooltip(self, LOCATION_LABEL, line)
+	end)
+	location:SetScript("OnLeave", GameTooltip_Hide)
+	row.LocationLink = location
 	row.InviteLink = LFGF.CreateRowActionLink(actions, L.INVITE)
 
 	-- The addon's one separator (core/main.lua), the same pipe the players
@@ -252,36 +300,33 @@ local function BuildRow(row)
 	end)
 end
 
---- Open the chat box with `/who "Firstname Surname"` typed in.
+--- Write what is known of the sender's whereabouts into the Location link:
+--- Searching..., their zone, Not found, or the plain word, and size the link
+--- to its words up to LOCATION_MAX_WIDTH. A zone comes from the server, so its
+--- every | is doubled for the font string (LFGF.ShownName).
 ---
---- IT DOES NOT SEND THE /who, and cannot. The first version did, with
---- C_FriendList.SendWho straight from this click, and the client refused it:
----     [ADDON_ACTION_BLOCKED] AddOn 'LFGForever' tried to call the protected
----     function 'SendWho()'.
---- The sources say only HasRestrictions = true (FriendListDocumentation.lua
---- :330-334), and RunMacroText is the same (UIMacrosDocumentation.lua:41-44).
---- So the addon stops one step short: the player presses Enter, and Blizzard's
---- chat box runs its own /who handler (ChatFrameEditBox.lua:442-446 ->
---- ParseText -> SlashCommands.lua:1106-1117), which sends it. ChatFrameUtil
---- .OpenChat (ChatFrameUtil.lua:433) is how ChatFrameUtil.SendTell pre-fills a
---- whisper (:367-386), which the players list already uses.
----
---- IT NEVER OPENS BLIZZARD'S GROUP FINDER. The version before this opened the
---- Who tab from this click. Blizzard's LFGParentFrameMixin:OnShow then wrote
---- LFGParentFrame.selectedTab inside our call (ParentFrame.lua:56-57 ->
---- PanelTemplates_SetTab, SharedUIPanelTemplates.lua:442), so the field
---- carried our taint. LFGVanilla_ToggleFrame reads it before ShowUIPanel
---- (:138), so from then on the player's own Group Finder key and micro button
---- were refused in combat (UIParentPanelManager.lua:854-861) with "Interface
---- action failed because of an AddOn". Reproduced in the client.
----
---- THE QUERY IS THE QUOTED FULL NAME. Tested in the client: `/who "Firstname
---- Surname"` finds the player, while Blizzard's own exact-name tag, x- (what a
---- shift-click on a name sends, ItemRefHandlers.lua:38), and n- do not. A name
---- here has two parts (CHARACTERNAME_SURNAME_SEPARATOR is a space,
---- LuaEnum.lua:9533), and the quotes keep them one term.
-local function OpenWhoFor(name)
-	ChatFrameUtil.OpenChat('/who "' .. name .. '"')
+--- SIZED ON EVERY FILL, because the words change with the answer and rows are
+--- pooled. The font string's width is set back to 0 first, so a link that held
+--- a long zone shrinks back to "Location".
+local function ShowLocation(link, state, area)
+	local text = LOCATION_LABEL
+	if state == "searching" then
+		text = L.SEARCHING
+	elseif state == "found" then
+		text = LFGF.ShownName(area)
+	elseif state == "notfound" then
+		text = L.LOCATION_NOT_FOUND
+	end
+	link:SetText(text)
+
+	local label = link:GetFontString()
+	label:SetWidth(0)
+	local width = label:GetStringWidth()
+	if width > LOCATION_MAX_WIDTH then
+		label:SetWidth(LOCATION_MAX_WIDTH)
+		width = LOCATION_MAX_WIDTH
+	end
+	link:SetSize(width, ACTION_LINE_HEIGHT)
 end
 
 --- Place the shown links, RIGHT-ALIGNED and so BUILT RIGHT TO LEFT: the last
@@ -331,29 +376,31 @@ end
 --- lockdown a row therefore shows Remove alone -- a link that errors when
 --- clicked is worse than none.
 ---
---- LOCATION IS DROPPED WHEN BLIZZARD'S /who CANNOT RUN: under
---- IngameWhoListDisabled, the rule it checks first and then does nothing
---- (SlashCommands.lua:1107-1110), and while WhoFrameEditBox does not exist. The
---- handler writes that box with no nil check (:1116), and it belongs to the
---- LoadOnDemand Group Finder (WhoList.xml:141), so pressing Enter without it
---- would raise an error in Blizzard's code.
+--- LOCATION IS DROPPED UNDER IngameWhoListDisabled, the rule Blizzard's own
+--- /who checks first and then does nothing (SlashCommands.lua:1107-1110).
+--- Otherwise it shows what core/wholookup.lua knows of the sender, and a click
+--- asks again. While any question is out, every Location link is off: one
+--- question at a time. Nothing else turns it off (it is not on the shared
+--- action cooldown, see BuildRow).
 ---
---- Set on EVERY fill, because rows are pooled. The lock is re-applied for the
---- same reason -- a row filled mid-cooldown must show it.
+--- Set on EVERY fill, because rows are pooled. Invite's lock is re-applied for
+--- the same reason -- a row filled mid-cooldown must show it.
 local function UpdateActions(row, entry)
 	local invite, location = row.InviteLink, row.LocationLink
 	invite.action, location.action = nil, nil
-	LFGF.ApplyActionLockTo(invite)
-	LFGF.ApplyActionLockTo(location)
+	location.lookedUpAt = nil
 
 	local links = { row.RemoveLink }
 
 	local name = entry.actionName
 	if name ~= nil then
-		if WhoFrameEditBox
-			and not C_GameRules.IsGameRuleActive(Enum.GameRule.IngameWhoListDisabled) then
+		if not C_GameRules.IsGameRuleActive(Enum.GameRule.IngameWhoListDisabled) then
+			local state, area, time = LFGF.LocationLookup(name)
+			ShowLocation(location, state, area)
+			location.lookedUpAt = time
+			location:SetEnabled(not LFGF.LocationLookupBusy())
 			location.action = function()
-				OpenWhoFor(name)
+				LFGF.LookUpLocation(name)
 			end
 			table.insert(links, location)
 		end
@@ -364,6 +411,7 @@ local function UpdateActions(row, entry)
 		table.insert(links, invite)
 	end
 
+	LFGF.ApplyActionLockTo(invite)
 	LayOutActions(row, links)
 end
 
@@ -527,6 +575,19 @@ function LFGF.CreateWhisperLog(parent)
 	end
 	EventRegistry:RegisterCallback(LFGF.EVENT_PLAYER_RATING_CHANGED, RemarkRows, log)
 	EventRegistry:RegisterCallback(LFGF.EVENT_PLAYER_RATINGS_CHANGED, RemarkRows, log)
+
+	-- A LOCATION LOOKUP ASKED, ANSWERED OR OVER: every drawn row's action line is
+	-- laid out again, so each row of that player shows the answer and every
+	-- other row's Location follows the one-question-at-a-time rule. Hidden or
+	-- not, so a window closed mid-question opens up to date: its rows are not
+	-- refilled when it comes back.
+	EventRegistry:RegisterCallback(LFGF.EVENT_LOCATION_LOOKUP_CHANGED, function()
+		scrollBox:ForEachFrame(function(row, entry)
+			if row.LocationLink and entry then
+				UpdateActions(row, entry)
+			end
+		end)
+	end, log)
 
 	-- The size setting moved (core/settings.lua). The log is the owner, so one
 	-- log registers once however often the setting changes.

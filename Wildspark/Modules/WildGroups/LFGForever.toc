@@ -4,7 +4,7 @@
 ## Category: Group Finder
 ## IconAtlas: friends-icon-tab-quickJoin
 ## Author: Artefius
-## Version: 2.5.0
+## Version: 2.6.0
 ## X-License: GPLv3
 ## X-Category: Chat/Communication
 ## X-Curse-Project-ID: 1707849
@@ -88,6 +88,9 @@
 # core/rateleavers.lua (the "rate players who left" chat line) comes after them
 # too: its link opens that window, on the Player ratings tab.
 # .claude/rules/rate-leavers.md
+# core/wholookup.lua (the whisper log's Location lookup) comes just before
+# core/whisperlog.lua, which asks it when a row is filled or a link clicked.
+# .claude/rules/whisper-location-lookup.md
 core\locale.lua
 core\db.lua
 core\activitynames.lua
@@ -98,6 +101,7 @@ core\settings.lua
 core\settings.xml
 core\listpanel.lua
 core\playerrow.lua
+core\wholookup.lua
 core\whisperlog.lua
 core\recentparty.lua
 core\playerratings.lua

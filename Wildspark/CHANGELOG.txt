@@ -1,3 +1,9 @@
+WildSpark 2.2.72 (stable)
+- Update WildFire Kit to 1.11.2 with paced, combat-safe channel maintenance and filtered join/leave notices. Keep WildSpark's own artwork, WildFire Settings title, and optional Happy Camper defaults.
+- Update WildGroups to upstream 2.6.0, including compact mode, listing notes, and in-place whisper locations; retain WildSpark branding and module controls.
+- Package QuestDB 0.2.0 and QuestieDB Forever 1.1.6; update WildInfo's database provenance notice.
+- Packaging workflow checks pass; live-client behavior was not tested.
+
 WildSpark 2.2.71 (stable)
 - Change the embedded camping settings-window title to "WildFire Settings"; other kit naming and stored settings are unchanged.
 

@@ -51,17 +51,18 @@ jobs:
           set -euxo pipefail
           mkdir -p dist/stage/WildSpark
           cp -a Wildspark/. dist/stage/WildSpark/
-          curl --fail --location --retry 3 --output "$RUNNER_TEMP/QuestDB.zip" "https://www.curseforge.com/api/v1/mods/1700352/files/9014639/download"
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/QuestDB.zip" "https://www.curseforge.com/api/v1/mods/1700352/files/9768606/download"
           mkdir -p "$RUNNER_TEMP/questdb-package"
           unzip -q "$RUNNER_TEMP/QuestDB.zip" -d "$RUNNER_TEMP/questdb-package"
           QDB_DIR="$RUNNER_TEMP/questdb-package/QuestDB"
           test -f "$QDB_DIR/QuestDB_Camelot.toc"
           test -f "$QDB_DIR/LibQuestDB-1.0.lua"
           test -f "$QDB_DIR/LICENSE"
+          grep -Fx '## Version: QuestDB-v0.2.0' "$QDB_DIR/QuestDB_Camelot.toc"
           mkdir -p dist/stage/WildSpark/Libs/QuestDB
           cp -a "$QDB_DIR/." dist/stage/WildSpark/Libs/QuestDB/
 
-          curl --fail --location --retry 3 --output "$RUNNER_TEMP/QuestieDB.zip" "https://www.curseforge.com/api/v1/mods/1696795/files/9687647/download"
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/QuestieDB.zip" "https://www.curseforge.com/api/v1/mods/1696795/files/9793696/download"
           mkdir -p "$RUNNER_TEMP/questiedb-package"
           unzip -q "$RUNNER_TEMP/QuestieDB.zip" -d "$RUNNER_TEMP/questiedb-package"
           QIE_DIR="$RUNNER_TEMP/questiedb-package/QuestieDB"
@@ -71,7 +72,7 @@ jobs:
             cp "$QIE_DIR/gpl-3.0.md" "$QIE_DIR/LICENSE.md"
           fi
           test -f "$QIE_DIR/LICENSE.md"
-          grep -q '^## Version: 1.1.3$' "$QIE_DIR/QuestieDB_Forever.toc"
+          grep -q '^## Version: 1.1.6$' "$QIE_DIR/QuestieDB_Forever.toc"
           mkdir -p dist/stage/WildSpark/Libs/QuestieDB
           cp -a "$QIE_DIR/." dist/stage/WildSpark/Libs/QuestieDB/
 
@@ -108,8 +109,8 @@ jobs:
 
           sed -i 's/\r$//' "$MAIN_TOC"
           grep -Fx "## Version: $VERSION" "$MAIN_TOC"
-          grep -Fx '## X-WildFireKit-Version: 1.11.1' "$MAIN_TOC"
-          grep -Fx '## X-WildGroups-Version: 2.5.0' "$MAIN_TOC"
+          grep -Fx '## X-WildFireKit-Version: 1.11.2' "$MAIN_TOC"
+          grep -Fx '## X-WildGroups-Version: 2.6.0' "$MAIN_TOC"
           grep -Fx '## X-Flavor: Forever' "$MAIN_TOC"
           grep -Fq 'Libs\QuestDB\Data\Forever\_core\Drops.lua' "$MAIN_TOC"
           grep -Fq 'Libs\QuestieDB\src\api.lua' "$MAIN_TOC"
@@ -169,6 +170,7 @@ jobs:
           grep -Fqx 'Modules\WildGroups\core\settings.lua' "$MAIN_TOC"
           grep -Fqx 'Modules\WildGroups\core\filterpanel_search.lua' "$MAIN_TOC"
           grep -Fqx 'Modules\WildGroups\core\blizzardlisting.lua' "$MAIN_TOC"
+          grep -Fqx 'Modules\WildGroups\core\wholookup.lua' "$MAIN_TOC"
           grep -Fqx 'WildFireKitEmbedded\CampNet.lua' "$MAIN_TOC"
           grep -Fqx 'WildFireKitEmbedded\Camping.lua' "$MAIN_TOC"
           grep -Fqx 'WildFireKitEmbedded\Libs\KitCore\KitCore.lua' "$MAIN_TOC"
@@ -177,6 +179,7 @@ jobs:
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildGroups/core/settings.lua$'
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildGroups/core/filterpanel_search.lua$'
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildGroups/core/blizzardlisting.lua$'
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildGroups/core/wholookup.lua$'
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/WildFireKitEmbedded/CampNet.lua$'
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/WildFireKitEmbedded/Camping.lua$'
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/WildFireKitEmbedded/Libs/KitCore/KitCore.lua$'

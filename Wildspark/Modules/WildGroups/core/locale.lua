@@ -20,8 +20,7 @@
 -- pack; the %class%-style placeholders; the name "WildGroups"; and anything
 -- the game itself names -- dungeons, zones, categories, playstyles.
 local addonName, root = ...
-local LFGF = root.WildGroups or {}
-root.WildGroups = LFGF
+local LFGF = root.WildGroups
 
 --- The client's own string, so a German client keeps Blizzard's German for
 --- these words when no pack is installed, as it always did; the English is
@@ -114,7 +113,7 @@ local L = {
 	SETTINGS_MARK_FRIENDS_LABEL = "Mark friends",
 	SETTINGS_MARK_FRIENDS_TOOLTIP = "Show a friends icon beside your WoW and Battle.net friends "
 		.. "and list them first.",
-	-- "Sort players by", the last row of Search: a dropdown whose tooltip adds
+	-- "Sort players by", in Search: a dropdown whose tooltip adds
 	-- one "<name>: <line>" per order (Blizzard_Settings.lua:416-496). Keep each
 	-- name short: the dropdown is 220 wide (Blizzard_SettingControls.lua:818).
 	SETTINGS_PLAYER_SORT_LABEL = "Sort players by",
@@ -131,6 +130,11 @@ local L = {
 	PLAYER_SORT_LEVEL_LOW_TOOLTIP = "Lower levels at the top.",
 	PLAYER_SORT_CLASS = Blizzard("CLASS", "Class"),
 	PLAYER_SORT_CLASS_TOOLTIP = "Listings grouped by class.",
+	-- "Show listing notes", the last row of Search: a listing's details text on
+	-- a line of its own in the players list (core/listpanel.lua, InlineNote).
+	SETTINGS_SHOW_LISTING_NOTES_LABEL = "Show listing notes",
+	SETTINGS_SHOW_LISTING_NOTES_TOOLTIP = "Show the details text players and groups wrote for "
+		.. "their listing on a line of its own in the players list. Takes effect on your next search.",
 	-- The key binding's label, on Blizzard's Keybindings page (core/slash.lua)
 	-- and on the key binding row of WildGroups's page. The key opens and
 	-- closes it. The row's button opens Blizzard's Keybindings page.
@@ -156,6 +160,14 @@ local L = {
 	-- The window header's Report a bug, beside Blizzard's bug icon. Its
 	-- tooltip is the two sentences above.
 	REPORT_BUG = "Report a bug",
+	-- core/window.lua: Compact mode's toggle, left of the Filters tab, and the
+	-- warning beside it while a hidden filter is set (its title is
+	-- COLLAPSED_FILTERS_TITLE). The toggle's titles are Blizzard's own words.
+	COMPACT_COLLAPSE = Blizzard("CONTEXT_ACTION_LABEL_COLLAPSE", "Collapse"),
+	COMPACT_COLLAPSE_TOOLTIP = "Hide the filters, whispers and player ratings to make the window narrower. Your filters still apply.",
+	COMPACT_EXPAND = Blizzard("CONTEXT_ACTION_LABEL_EXPAND", "Expand"),
+	COMPACT_EXPAND_TOOLTIP = "Show the filters, whispers and player ratings again.",
+	COMPACT_FILTERS_TOOLTIP = "The filters are hidden, but they are still used in your search.",
 	SETTINGS_RESET_WINDOW_LABEL = "Window position and size",
 	SETTINGS_RESET_WINDOW_TOOLTIP = "Move the WildGroups window back to where it first opened, at its original size.",
 	MISCELLANEOUS = Blizzard("MISCELLANEOUS", "Miscellaneous"),
@@ -188,6 +200,12 @@ local L = {
 	WHISPERS_TAB_TITLE = "Whispers",
 	WHISPERS_SECTION_TITLE = "Messages from players",
 	LOCATION = "Location",
+	-- The Location link once /who did not find the sender, its tooltip before
+	-- any lookup, and after one: %s is how long ago, in the client's own words
+	-- for a span ("5 Minutes", "< 1 Minute", "1 Hour").
+	LOCATION_NOT_FOUND = "Not found",
+	LOCATION_TOOLTIP = "Look up where this player is now, with /who.",
+	LOCATION_LOOKED_UP_FORMAT = "Looked up %s ago. Click to look again.",
 	NO_WHISPERS = "No whispers yet.",
 	REMOVE = Blizzard("REMOVE", "Remove"),
 	INVITE = Blizzard("INVITE", "Invite"),

@@ -24,6 +24,10 @@
 -- Deliberately NOT used: any LFG* template. They live inside the LoadOnDemand
 -- Blizzard_GroupFinder_VanillaStyle, so CreateFrame against them errors until
 -- that addon is pulled in.
+--
+-- COMPACT MODE (section below): a toggle left of the Filters tab hides the
+-- filter column and narrows the window; the search row moves over the list.
+-- .claude/rules/compact-mode.md
 local _, root = ...
 local LFGF = root.WildGroups
 -- Every word this file shows, from core/locale.lua (loaded first).
@@ -99,6 +103,19 @@ local DEFAULT_TOP_OFFSET = -116
 -- Frames are never garbage collected, so this is built once and reused.
 local window
 
+-- COMPACT MODE: the filter column hidden and the window that much narrower,
+-- Category, Activity and Search at the top of the players list instead
+-- (SetCompact, below). IN MEMORY ONLY, by the author's decision: closing and
+-- opening the window keeps it, a /reload opens the full window. Its SIZE is
+-- saved, apart from the full window's (compactWindowWidth / Height); its
+-- PLACE is the full window's, sharing the top-left corner.
+-- .claude/rules/compact-mode.md
+local compact = false
+-- What Compact mode takes off the window, in its own units: the filter
+-- panel's width and the gutter before it. Set when the columns are built:
+-- the filter panel widens for a language pack's longer words.
+local filterColumnWidth = 0
+
 -- THE CONTENT SPLIT
 -- -----------------
 -- Two InsetFrameTemplate panels side by side: the group/player list on the
@@ -149,6 +166,9 @@ local function BuildContentPanels(content)
 	filter:SetPoint("TOPRIGHT", content, "TOPRIGHT", INSET_RIGHT, INSET_TOP)
 	filter:SetPoint("BOTTOMRIGHT", content, "BOTTOMRIGHT", INSET_RIGHT, INSET_BOTTOM)
 	content.FilterPanel = filter
+	-- Its width is the measured one, a plain number of ours (MeasureLayout,
+	-- core/filterpanel.lua), never read back from the frame.
+	filterColumnWidth = filter.Layout.panelWidth + PANEL_GUTTER
 
 	-- The list gets no width from anywhere -- see core/listpanel.lua. TOPLEFT
 	-- against the content region and BOTTOMRIGHT against the filter panel's left
@@ -314,14 +334,90 @@ local function ReadableScale(frame)
 	return scale
 end
 
---- Put the window's centre at (x, y) from the screen's centre, in UIParent
---- units. One anchor, replaced each time. SetPoint offsets are in the frame's
---- OWN scaled units, which is why they are divided by the scale -- what the
---- panel manager does with every placement (UIParentPanelManager.lua:644, :696).
+-- THE SAVED SIZE is LFGForeverDB.windowWidth / windowHeight, in the window's
+-- own units (before the fit scales it), account-wide. Both values or neither:
+-- a hand edit that leaves one, or anything that is not a finite number, is
+-- unusable, and the window opens at the default size.
+--
+-- A USABLE VALUE BELOW ITS MINIMUM IS RAISED TO IT, and the other is kept
+-- (0.22.0-dev.1, the author's decision). The default height grew from 535 to
+-- 620 then, so a size 0.21.0 saved can be a real choice and still short of
+-- the new minimum; throwing it away would lose the player's width too. The
+-- saved values are left as they are until the next resize writes new ones.
+--
+-- This is the FULL window's size, in either mode: Compact mode's is apart
+-- (ModeSize), and the full window's place is measured from this one.
+local function SavedSize()
+	local width, height = LFGF.SavedValue("windowWidth"), LFGF.SavedValue("windowHeight")
+	if LFGF.IsFiniteNumber(width) and LFGF.IsFiniteNumber(height) then
+		return math.max(width, WIDTH), math.max(height, HEIGHT)
+	end
+	return WIDTH, HEIGHT
+end
+
+--- The smallest Compact mode gets: the default full window less the filter
+--- column (556 x 620 in English), but never narrower than the search row it
+--- carries needs -- the row's own width, its padding each side and the
+--- content insets -- which matters only if a language pack widened the filter
+--- panel a long way.
+local function CompactMinimumSize()
+	local rowRoom = INSET_LEFT - INSET_RIGHT + 2 * LFGF.FilterShared.ROW_PADDING
+		+ LFGF.SEARCH_ROW_WIDTH
+	return math.max(WIDTH - filterColumnWidth, rowRoom), HEIGHT
+end
+
+--- The smallest the window may be in the mode it is in.
+local function MinimumSize()
+	if compact then
+		return CompactMinimumSize()
+	end
+	return WIDTH, HEIGHT
+end
+
+--- The size the window takes in the mode it is in. The full window's is
+--- SavedSize. Compact mode's is its own saved size, by the author's decision
+--- (2026-11-23) -- the same rules as the full window's: both or neither,
+--- finite, raised to the minimum -- and until there is one, the full size
+--- less the filter column, so the list keeps its width.
+local function ModeSize()
+	if not compact then
+		return SavedSize()
+	end
+	local minWidth, minHeight = CompactMinimumSize()
+	local width, height = LFGF.SavedValue("compactWindowWidth"), LFGF.SavedValue("compactWindowHeight")
+	if LFGF.IsFiniteNumber(width) and LFGF.IsFiniteNumber(height) then
+		return math.max(width, minWidth), math.max(height, minHeight)
+	end
+	local fullWidth, fullHeight = SavedSize()
+	return math.max(fullWidth - filterColumnWidth, minWidth), fullHeight
+end
+
+--- How far this window's centre is from the FULL window's centre, in its own
+--- units, when the two share their top-left corner: half the difference in
+--- size, rightwards and upwards. Nothing in the full window. In Compact mode
+--- -- narrower, and maybe of another height -- it is what keeps the left edge
+--- and the top where the full window has them, so the saved place
+--- (windowX / windowY, always the full window's centre) serves both modes.
+local function OffsetFromFull(frame)
+	local fullWidth, fullHeight = SavedSize()
+	local width, height = LFGF.ReadableNumbers(frame:GetSize())
+	if width == nil then
+		return 0, 0
+	end
+	return (width - fullWidth) / 2, (fullHeight - height) / 2
+end
+
+--- Put the window where the full window's centre is (x, y) from the screen's
+--- centre, in UIParent units: there itself in the full window, sharing that
+--- window's top-left corner in Compact mode (OffsetFromFull). One anchor,
+--- replaced each time. SetPoint offsets are in the frame's OWN scaled units,
+--- which is why they are divided by the scale -- what the panel manager does
+--- with every placement (UIParentPanelManager.lua:644, :696).
 local function Place(frame, x, y)
 	local scale = ReadableScale(frame)
+	local dx, dy = OffsetFromFull(frame)
 	frame:ClearAllPoints()
-	frame:SetPoint("CENTER", UIParent, "CENTER", x / scale, y / scale)
+	frame:SetPoint("CENTER", UIParent, "CENTER", x / scale + dx, y / scale + dy)
 end
 
 --- Where Blizzard's panel manager would put this window's top, from the top of
@@ -345,10 +441,15 @@ end
 
 --- Centred across, the top at DefaultTop. Divided by the scale for the same
 --- reason as Place, and as the manager does (UIParentPanelManager.lua:644).
+--- In Compact mode the full window's default left edge is kept: the TOP
+--- point is moved by OffsetFromFull's x. The top is measured for the window
+--- as it is, which differs from the full window's only on a screen short
+--- enough for ClampUIPanelY to move it.
 local function PlaceAtDefault(frame)
 	local scale = ReadableScale(frame)
+	local dx = OffsetFromFull(frame)
 	frame:ClearAllPoints()
-	frame:SetPoint("TOP", UIParent, "TOP", 0, DefaultTop(frame) / scale)
+	frame:SetPoint("TOP", UIParent, "TOP", dx, DefaultTop(frame) / scale)
 end
 
 --- Where the window belongs now: the saved position, or the default.
@@ -361,8 +462,10 @@ local function Restore(frame)
 	end
 end
 
---- Where the window's centre is now, as an offset from the screen's centre in
---- UIParent units -- or nothing, if that cannot be read.
+--- Where the FULL window's centre is now, as an offset from the screen's
+--- centre in UIParent units -- or nothing, if that cannot be read. In Compact
+--- mode, the centre of the full window sharing this one's top-left corner
+--- (Place, the other way round).
 ---
 --- GetCenter is MayReturnNothing and SecretWhenAnchoringSecret
 --- (SimpleScriptRegionAPIDocumentation.lua:145). Neither is expected for this
@@ -376,7 +479,8 @@ local function CurrentPosition(frame)
 		return nil
 	end
 	local scale = ReadableScale(frame)
-	return centerX * scale - parentX, centerY * scale - parentY
+	local dx, dy = OffsetFromFull(frame)
+	return (centerX - dx) * scale - parentX, (centerY - dy) * scale - parentY
 end
 
 --- After a drag: save where the window was dropped and take the anchor back.
@@ -401,24 +505,6 @@ local function SavePosition(frame)
 	LFGF.SaveValue("windowX", x)
 	LFGF.SaveValue("windowY", y)
 	Place(frame, x, y)
-end
-
--- THE SAVED SIZE is LFGForeverDB.windowWidth / windowHeight, in the window's
--- own units (before the fit scales it), account-wide. Both values or neither:
--- a hand edit that leaves one, or anything that is not a finite number, is
--- unusable, and the window opens at the default size.
---
--- A USABLE VALUE BELOW ITS MINIMUM IS RAISED TO IT, and the other is kept
--- (0.22.0-dev.1, the author's decision). The default height grew from 535 to
--- 620 then, so a size 0.21.0 saved can be a real choice and still short of
--- the new minimum; throwing it away would lose the player's width too. The
--- saved values are left as they are until the next resize writes new ones.
-local function SavedSize()
-	local width, height = LFGF.SavedValue("windowWidth"), LFGF.SavedValue("windowHeight")
-	if LFGF.IsFiniteNumber(width) and LFGF.IsFiniteNumber(height) then
-		return math.max(width, WIDTH), math.max(height, HEIGHT)
-	end
-	return WIDTH, HEIGHT
 end
 
 --- The window's centre and size, in its own units, or nothing if any of them
@@ -449,15 +535,17 @@ local function PinTopLeft(frame)
 	return true
 end
 
---- After a resize: save the new size, then the centre it moved to (the
---- top-left stayed, so the centre did not) with SavePosition, which also takes
---- the anchor back and keeps the client's layout cache out of it. If the size
---- cannot be read, the saved one is kept.
+--- After a resize: save the new size, as the size of the mode the window is
+--- in (Compact mode's apart, by the author's decision), then the centre it
+--- moved to (the top-left stayed, so the centre did not) with SavePosition,
+--- which also takes the anchor back and keeps the client's layout cache out
+--- of it. In that order: SavePosition measures the full window's place from
+--- the full window's size. If the size cannot be read, the saved one is kept.
 local function SaveSize(frame)
 	local _, _, width, height = ReadableRect(frame)
 	if width ~= nil then
-		LFGF.SaveValue("windowWidth", width)
-		LFGF.SaveValue("windowHeight", height)
+		LFGF.SaveValue(compact and "compactWindowWidth" or "windowWidth", width)
+		LFGF.SaveValue(compact and "compactWindowHeight" or "windowHeight", height)
 	end
 	SavePosition(frame)
 end
@@ -602,6 +690,170 @@ local function ClampToScreen(frame)
 	frame:SetClampRectInsets(0, tabWidth, 0, 0)
 end
 
+-------------------------------------------------------
+---------- Compact mode
+-------------------------------------------------------
+-- THE TOGGLE is Blizzard's own, from its camelot Character frame, whose
+-- button hides that window's right pane the same way: a 28x28 button with
+-- the spellbook's page arrows, back to collapse and forward to expand, and an
+-- ADD highlight (Camelot/CharacterFrame.xml:553-566, the arrows swapped at
+-- Camelot/CharacterFrame.lua:325-337), the window's open and close sounds
+-- (:286). Files, not atlases: that the client ships them rests on Blizzard's
+-- camelot frame using them.
+--
+-- WHERE: in the full window, left of the Filters tab, at the tabs' middle --
+-- the tab strip starts LFGF.FILTER_TAB_STRIP_INSET_X in from the filter panel
+-- and a tab body is 36 high (uiframe-tab-left, AtlasInfo.lua), standing on the
+-- panel's top. In Compact mode, at the same height on the window's right
+-- edge, which is the list's, so it moves a little left; Report a bug, which
+-- sat there, is hidden (the author's decision).
+--
+-- THE WARNING left of it, in Compact mode only, is a collapsed section's
+-- (core/filterpanel_shared.lua): its icon, its title, a line of its own. It
+-- shows while any filter is set (panel:AnyFilterSet).
+-- .claude/rules/compact-mode.md
+local TOGGLE_SIZE = 28
+local TOGGLE_COLLAPSE_UP = "Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Up"
+local TOGGLE_COLLAPSE_DOWN = "Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Down"
+local TOGGLE_EXPAND_UP = "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up"
+local TOGGLE_EXPAND_DOWN = "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Down"
+local TOGGLE_HIGHLIGHT = "Interface\\Buttons\\UI-Common-MouseHilight"
+-- The toggle's centre above the panels' top edge. Half a tab body's 36
+-- (18) sat about 2 px above the tab labels in the client, so 16, by eye.
+local TOGGLE_ABOVE_PANELS = 16
+local TOGGLE_TO_TABS_GAP = 2
+local WARNING_TO_TOGGLE_GAP = 2
+-- Below the compact search row and above the Groups list: the row is
+-- ROW_PADDING in from the list's top, as it is from the filter panel's, and
+-- the Search button overhangs the dropdowns by LFGF.SEARCH_ROW_OVERHANG.
+local COMPACT_ROW_TO_LIST_GAP = 8
+
+--- Point the toggle the way it acts, and put it where the mode has it.
+local function LayOutToggle(frame)
+	local content = frame.Content
+	local toggle = frame.CompactToggle
+	toggle:ClearAllPoints()
+	if compact then
+		toggle:SetPoint("RIGHT", content, "TOPRIGHT", INSET_RIGHT, INSET_TOP + TOGGLE_ABOVE_PANELS)
+		toggle:SetNormalTexture(TOGGLE_EXPAND_UP)
+		toggle:SetPushedTexture(TOGGLE_EXPAND_DOWN)
+	else
+		toggle:SetPoint("RIGHT", content.FilterPanel, "TOPLEFT",
+			LFGF.FILTER_TAB_STRIP_INSET_X - TOGGLE_TO_TABS_GAP, TOGGLE_ABOVE_PANELS)
+		toggle:SetNormalTexture(TOGGLE_COLLAPSE_UP)
+		toggle:SetPushedTexture(TOGGLE_COLLAPSE_DOWN)
+	end
+end
+
+--- Show the warning in Compact mode while a filter is set; hide it, with a
+--- tooltip it owns, otherwise -- the icon can go from under the mouse, and the
+--- sources do not say a tooltip hides with its owner (TabSystemTemplates.lua
+--- :73 hides it the same way).
+local function UpdateCompactWarning(frame)
+	local warning = frame.CompactWarning
+	local show = compact and frame.Content.FilterPanel:AnyFilterSet() or false
+	if not show and GameTooltip:IsOwned(warning) then
+		GameTooltip:Hide()
+	end
+	warning:SetShown(show)
+end
+
+--- The window's minimum in the mode it is in, for the client and for the
+--- grip. The grip keeps its own copy, read while it is held
+--- (PanelResizeButtonMixin:Init, SharedUIPanelTemplates.lua:1637-1674): set as
+--- its fields, because calling Init again would wrap the window's
+--- OnSizeChanged once more on every switch. The grip is a frame of ours.
+local function ApplyMinimumSize(frame)
+	local width, height = MinimumSize()
+	frame:SetResizeBounds(width, height)
+	frame.ResizeButton.minWidth = width
+	frame.ResizeButton.minHeight = height
+end
+
+--- Switch Compact mode on or off. Every piece is a plain frame of ours, so
+--- this is allowed in combat (none of it is protected).
+---
+--- The filter panel is hidden WHOLE: its tabs, sections, Role Check and the
+--- settings gear go with it (the author's decision). The list's right edge
+--- moves to the content's, and the list keeps its width, as it is given none.
+--- The search row's frame (the panel's sibling, core/filterpanel_search.lua)
+--- moves to the list's top, ROW_PADDING in, as it sits on the panel; the list
+--- starts below it. Then the window takes the mode's size and is fitted and
+--- placed again, so the top-left corner stays where the full window has it.
+local function SetCompact(frame, on)
+	if compact == on then
+		return
+	end
+	compact = on
+
+	local content = frame.Content
+	local filter, list, row = content.FilterPanel, content.ListPanel, content.FilterPanel.SearchRow
+	local padding = LFGF.FilterShared.ROW_PADDING
+
+	filter:SetShown(not on)
+	row:ClearAllPoints()
+	if on then
+		list:SetPoint("BOTTOMRIGHT", content, "BOTTOMRIGHT", INSET_RIGHT, INSET_BOTTOM)
+		row:SetPoint("TOPLEFT", list, "TOPLEFT", padding, -padding)
+		list:ReserveTop(padding + row:GetHeight() + LFGF.SEARCH_ROW_OVERHANG
+			+ COMPACT_ROW_TO_LIST_GAP - LFGF.SCROLL_LIST_INSET)
+	else
+		list:SetPoint("BOTTOMRIGHT", filter, "BOTTOMLEFT", -PANEL_GUTTER, 0)
+		row:SetPoint("TOPLEFT", filter, "TOPLEFT", padding, -padding)
+		list:ReserveTop(0)
+	end
+	content.ReportBug:SetShown(not on)
+
+	LayOutToggle(frame)
+	UpdateCompactWarning(frame)
+	ApplyMinimumSize(frame)
+	frame:SetSize(ModeSize())
+	FitAndPlace(frame)
+end
+
+--- Build the toggle and its warning. The toggle's tooltip is the addon's
+--- usual shape (LFGF.ShowTooltip), titled with Blizzard's own Collapse /
+--- Expand. A click hides that tooltip: the button moves out from under the
+--- mouse, and the next hover shows the new words.
+local function BuildCompactToggle(frame, content)
+	local toggle = CreateFrame("Button", nil, content)
+	toggle:SetSize(TOGGLE_SIZE, TOGGLE_SIZE)
+	toggle:SetHighlightTexture(TOGGLE_HIGHLIGHT, "ADD")
+	toggle:SetScript("OnEnter", function(self)
+		if compact then
+			LFGF.ShowTooltip(self, L.COMPACT_EXPAND, L.COMPACT_EXPAND_TOOLTIP)
+		else
+			LFGF.ShowTooltip(self, L.COMPACT_COLLAPSE, L.COMPACT_COLLAPSE_TOOLTIP)
+		end
+	end)
+	toggle:SetScript("OnLeave", GameTooltip_Hide)
+	toggle:SetScript("OnClick", function(self)
+		if GameTooltip:IsOwned(self) then
+			GameTooltip:Hide()
+		end
+		SetCompact(frame, not compact)
+		PlaySound(compact and SOUNDKIT.IG_CHARACTER_INFO_CLOSE or SOUNDKIT.IG_CHARACTER_INFO_OPEN)
+	end)
+	frame.CompactToggle = toggle
+
+	-- LFGF.CreateTooltipIcon (core/main.lua): hover only, hidden until shown.
+	local warning = LFGF.CreateTooltipIcon(content, LFGF.FilterShared.WARNING_ICON_SIZE, function(self)
+		LFGF.ShowTooltip(self, L.COLLAPSED_FILTERS_TITLE, L.COMPACT_FILTERS_TOOLTIP)
+	end)
+	warning.Icon:SetTexture(LFGF.FilterShared.WARNING_ICON_FILE)
+	warning:SetPoint("RIGHT", toggle, "LEFT", -WARNING_TO_TOGGLE_GAP, 0)
+	frame.CompactWarning = warning
+	-- The filters can change while Compact mode hides them only through
+	-- Blizzard's Defaults; the filter panel announces after it has put the
+	-- boxes back (core/filterpanel.lua, ApplyFilters). Owned by the warning:
+	-- one callback per owner per event.
+	EventRegistry:RegisterCallback(LFGF.EVENT_FILTERS_APPLIED, function()
+		UpdateCompactWarning(frame)
+	end, warning)
+
+	LayOutToggle(frame)
+end
+
 local function BuildWindow()
 	local frame = CreateFrame("Frame", FRAME_NAME, UIParent)
 	frame:SetSize(SavedSize())
@@ -662,6 +914,7 @@ local function BuildWindow()
 	BuildDragBar(frame, content)
 	BuildReportBug(content)
 	BuildResizeButton(frame, content)
+	BuildCompactToggle(frame, content)
 	ClampToScreen(frame)
 
 	-- Escape closes it: CloseAllWindows, Blizzard's Escape handler, ends in
@@ -681,19 +934,21 @@ local function Prepare()
 	return window
 end
 
---- Forget the saved position and size, and put the window back at its default
---- size, scale and place if it exists -- open or closed, in combat or not (a
---- plain frame's SetSize and SetPoint are not refused). The fit runs again
---- because a big saved size may have scaled the window down. A window not
---- built yet needs nothing more: it opens that way. Called by the settings
---- page's Reset button and on Blizzard's Defaults (core/settings.lua).
+--- Forget the saved position and both saved sizes, the full window's and
+--- Compact mode's, and put the window back at its default size, scale and
+--- place if it exists -- open or closed, in combat or not (a plain frame's
+--- SetSize and SetPoint are not refused). Compact mode stays as it is, at its
+--- default size. The fit runs again because a big saved size may have scaled
+--- the window down. A window not built yet needs nothing more: it opens that
+--- way. Called by the settings page's Reset button and on Blizzard's Defaults
+--- (core/settings.lua).
 function LFGF.ResetWindowPosition()
-	LFGF.SaveValue("windowX", nil)
-	LFGF.SaveValue("windowY", nil)
-	LFGF.SaveValue("windowWidth", nil)
-	LFGF.SaveValue("windowHeight", nil)
+	for _, key in ipairs({ "windowX", "windowY", "windowWidth", "windowHeight",
+		"compactWindowWidth", "compactWindowHeight" }) do
+		LFGF.SaveValue(key, nil)
+	end
 	if window then
-		window:SetSize(WIDTH, HEIGHT)
+		window:SetSize(ModeSize())
 		FitAndPlace(window)
 	end
 end
@@ -743,11 +998,14 @@ function LFGF.OpenForListing(activityIDs)
 end
 
 --- Open the window on the Player ratings tab, building it if needed. Used by
---- the "rate players who left" chat link (core/rateleavers.lua). Shown first,
---- so the tab's list is shown once, when the tab switch reaches it.
+--- the "rate players who left" chat link (core/rateleavers.lua). Compact mode
+--- hides the tabs, so it ends first (the author's decision), before the
+--- window shows, so a closed window opens once, full. Shown before the tab
+--- switch, so the tab's list is shown once, when the switch reaches it.
 function LFGF.OpenPlayerRatings()
 	if LFGF.IsEnabled and not LFGF.IsEnabled() then return end
 	local frame = Prepare()
+	SetCompact(frame, false)
 	frame:Show()
 	frame.Content.FilterPanel:ShowPlayerRatingsTab()
 end

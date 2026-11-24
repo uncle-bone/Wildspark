@@ -6,11 +6,13 @@
 --
 -- A BUILDER, called first by LFGF.CreateFilterPanel (core/filterpanel.lua):
 -- LFGF.BuildSearchRow puts the row's state, events and methods on the panel
--- and returns its category dropdown UNANCHORED. core/filterpanel.lua places
--- it, hangs Role Check, the settings gear and every section off it, and lays
--- out from the sizes published below. What Search sends of the Filters tab
--- is asked of the panel when Search is clicked (panel:CurrentFilters,
--- panel.LevelRange). .claude/rules/filterpanel-search-row.md
+-- and returns the row's own frame, holding the three controls, UNANCHORED.
+-- core/filterpanel.lua places it, hangs Role Check, the settings gear and
+-- every section off its controls, and lays out from the sizes published
+-- below; Compact mode (core/window.lua) moves it over the players list.
+-- What Search sends of the Filters tab is asked of the panel when Search is
+-- clicked (panel:CurrentFilters, panel.LevelRange).
+-- .claude/rules/filterpanel-search-row.md
 --
 -- THE DEFAULT FILTER ROW
 -- ----------------------
@@ -741,7 +743,7 @@ local function BuildSearchButton(panel)
 	-- handlers to nudge the icon a pixel while held, and four textures; a
 	-- labelled button needs none of that art, and gets the tooltip from its
 	-- template (below).
-	local button = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+	local button = CreateFrame("Button", nil, panel.SearchRow, "UIPanelButtonTemplate")
 	button:SetSize(SEARCH_BUTTON_WIDTH, SEARCH_BUTTON_HEIGHT)
 
 	-- SEARCH ("Search", GlobalStrings/enUS.lua:19010) rather than Blizzard's
@@ -977,11 +979,30 @@ end
 ---------- The row
 -------------------------------------------------------
 
---- Build the search row on `panel`: its state, its events, its methods
+--- Build the search row for `panel`: its state, its events, its methods
 --- (the ones core/window.lua and core/filterpanel.lua call), the three
---- controls, and the first category. Returns the category dropdown
---- UNANCHORED, for the panel to place.
+--- controls, and the first category. Returns the row's frame UNANCHORED, for
+--- the panel to place.
+---
+--- THE CONTROLS LIVE IN A FRAME OF THEIR OWN, a sibling of the panel rather
+--- than a child of it, so Compact mode (core/window.lua) can hide the whole
+--- panel and hang the row over the players list instead, with one anchor.
+--- Never reparented: what SetParent does to a frame's level is not in the
+--- sources, while a frame level set before the children exist is. One level
+--- above the panel, so the row draws over the panel's background, and over
+--- the list's in Compact mode. The state, the events and the methods stay on
+--- the panel: hiding it stops none of them (a hidden frame still gets its
+--- events). .claude/rules/compact-mode.md
+---
+--- As wide as the row and as tall as the dropdowns, so it is a rectangle the
+--- client can anchor to; the Search button overhangs it by
+--- LFGF.SEARCH_ROW_OVERHANG above and below.
 function LFGF.BuildSearchRow(panel)
+	local row = CreateFrame("Frame", nil, panel:GetParent())
+	row:SetFrameLevel(panel:GetFrameLevel() + 1)
+	row:SetSize(LFGF.SEARCH_ROW_WIDTH, DROPDOWN_HEIGHT)
+	panel.SearchRow = row
+
 	panel.selectedCategoryID = 0
 	panel.selectedActivityIDs = {}
 	panel.searching = false
@@ -1082,12 +1103,13 @@ function LFGF.BuildSearchRow(panel)
 	--- neither (.claude/rules/saved-filters.md).
 	function panel:SelectedActivityIDs() return CopyTable(self.selectedActivityIDs) end
 
-	local category = CreateFrame("DropdownButton", nil, panel, "WowStyle1DropdownTemplate")
+	local category = CreateFrame("DropdownButton", nil, row, "WowStyle1DropdownTemplate")
 	category:SetWidth(CATEGORY_DROPDOWN_WIDTH)
 	category:SetDefaultText(L.CATEGORY)
+	category:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
 	panel.CategoryDropdown = category
 
-	local activity = CreateFrame("DropdownButton", nil, panel, "WowStyle1DropdownTemplate")
+	local activity = CreateFrame("DropdownButton", nil, row, "WowStyle1DropdownTemplate")
 	activity:SetWidth(ACTIVITY_DROPDOWN_WIDTH)
 	activity:SetDefaultText(L.ACTIVITY_HEADER_DEFAULT)
 	activity:SetPoint("LEFT", category, "RIGHT", CATEGORY_TO_ACTIVITY_GAP, 0)
@@ -1108,5 +1130,5 @@ function LFGF.BuildSearchRow(panel)
 		LevelRangesChanged(panel)
 	end, panel)
 
-	return category
+	return row
 end

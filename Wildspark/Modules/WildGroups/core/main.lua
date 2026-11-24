@@ -71,6 +71,11 @@ LFGF.EVENT_WHISPER_RECEIVED = "LFGForever.WhisperReceived"
 -- so the log never has to know the Settings API exists.
 LFGF.EVENT_WHISPER_LOG_SIZE_CHANGED = "LFGForever.WhisperLogSizeChanged"
 
+-- Raised by core/wholookup.lua, with the player's key, when a Location lookup
+-- is asked, answered, or over; core/whisperlog.lua listens and redraws its
+-- Location links. .claude/rules/whisper-location-lookup.md
+LFGF.EVENT_LOCATION_LOOKUP_CHANGED = "LFGForever.LocationLookupChanged"
+
 -- THE SAVED TABLES (LFGForeverDB account-wide, LFGForeverCharDB per
 -- character), every key in them and every default live in core/db.lua. The
 -- readers below are named wrappers over its LFGF.SavedSetting.
@@ -113,6 +118,12 @@ end
 -- its boxes back to their defaults. Over EventRegistry, like the other events
 -- here, so core/settings.lua never has to reach into the window.
 LFGF.EVENT_FILTERS_FORGOTTEN = "LFGForever.FiltersForgotten"
+
+-- Raised by the filter panel (core/filterpanel.lua) at the end of every
+-- ApplyFilters -- the restore at build, Reset filters, one of My filters,
+-- Blizzard's Defaults -- once the boxes say what they were given. Heard by
+-- Compact mode's warning (core/window.lua), which asks the boxes afterwards.
+LFGF.EVENT_FILTERS_APPLIED = "LFGForever.FiltersApplied"
 
 -- The sections of on/off values: the three sections of boxes, and the
 -- Playstyle, Languages and group class dropdowns' ticks. Levels are handled on
@@ -467,6 +478,13 @@ function LFGF.ShowActivityLevelRanges()
 	return LFGF.SavedSetting("showActivityLevelRanges")
 end
 
+--- Is "Show listing notes" on? No change event: the players list reads it
+--- when it builds its tree (core/listpanel.lua), so a change shows on the
+--- next search.
+function LFGF.ShowListingNotes()
+	return LFGF.SavedSetting("showListingNotes")
+end
+
 --- The orders "Sort players by" offers, in its dropdown's order
 --- (core/settings.lua), for the Players box of the list (core/listpanel.lua).
 --- Each is SAVED BY NAME, so reordering the menu never changes a player's
@@ -773,8 +791,7 @@ end
 -- so copied. Its listings are the one kind with no activity to pick:
 -- Blizzard's Create Listing ticks every zone it offers for the category
 -- (Blizzard_LFGVanilla_Listing.lua:373-374, :453-457), so their activities do
--- not say what the group is doing. core/listpanel.lua's inline note reads it
--- too.
+-- not say what the group is doing.
 LFGF.QUESTS_CATEGORY_ID = 116
 
 --- Is the game in English? GetLocale names the client's language, one string
@@ -1475,6 +1492,9 @@ end
 -- The list's place in its parent: 4 in on every side, with a 22 gutter on the
 -- right for the scroll bar, which sits 4 beside the list.
 local SCROLL_LIST_INSET = 4
+-- Published for the players list's room above it in Compact mode
+-- (panel:ReserveTop, core/listpanel.lua), counted from this same inset.
+LFGF.SCROLL_LIST_INSET = SCROLL_LIST_INSET
 local SCROLL_LIST_GUTTER = 22
 local SCROLL_BAR_GAP = 4
 -- The empty notice keeps this far in from each side of the list.
@@ -1561,8 +1581,8 @@ end
 ---------- Row action buttons
 -------------------------------------------------------
 -- ONE LOCK, TWO LISTS. core/listpanel.lua puts an invite and an ask-to-join on
--- a search result as icon buttons; core/whisperlog.lua puts Invite and Location
--- under an incoming whisper as text links (CreateRowActionLink, below). Sharing
+-- a search result as icon buttons; core/whisperlog.lua puts Invite under an
+-- incoming whisper as a text link (CreateRowActionLink, below). Sharing
 -- the SHAPE is tidiness. Sharing the COOLDOWN is correctness: two copies would
 -- be two independent locks, and the property worth having is that one action
 -- paces every control the player can see, wherever it sits and however it is
@@ -1861,7 +1881,8 @@ end
 -- isLoaded = false (we are still *loading*), so this takes the register branch
 -- and fires on our own ADDON_LOADED.
 EventUtil.ContinueOnAddOnLoaded(addonName, function()
-	local version = C_AddOns.GetAddOnMetadata(addonName, "X-WildGroups-Version") or C_AddOns.GetAddOnMetadata(addonName, "Version")
+	local version = C_AddOns.GetAddOnMetadata(addonName, "X-WildGroups-Version")
+		or C_AddOns.GetAddOnMetadata(addonName, "Version")
 
 	-- print() is the FrameXML global from Blizzard_PrintHandler.lua:93; it
 	-- routes through securecall to the default chat frame.

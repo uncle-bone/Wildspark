@@ -109,6 +109,12 @@ LFGF.SAVED_KEYS = {
 	-- .claude/rules/player-sort-order.md
 	{ key = "playerSortOrder", scope = ACCOUNT, variable = "LFGFOREVER_PLAYER_SORT_ORDER",
 		type = "string", default = "newest" },
+	-- SHOW LISTING NOTES: a listing's details text on a line of its own in the
+	-- players list, in every category (InlineNote, core/listpanel.lua). Read
+	-- when the list is built. On by default, so Quests & Zones keep the note
+	-- they always had. .claude/rules/inline-note.md
+	{ key = "showListingNotes", scope = ACCOUNT, variable = "LFGFOREVER_SHOW_LISTING_NOTES",
+		type = "boolean", default = true },
 
 	-- THE MINIMAP BUTTON (core/minimap.lua). The addon compartment entry is
 	-- declared in the TOC and is not governed by this: it is Blizzard's menu.
@@ -163,6 +169,12 @@ LFGF.SAVED_KEYS = {
 	{ key = "windowY", scope = ACCOUNT, type = "number" },
 	{ key = "windowWidth", scope = ACCOUNT, type = "number" },
 	{ key = "windowHeight", scope = ACCOUNT, type = "number" },
+	-- The window's size in Compact mode, saved apart from the full window's
+	-- by the author's decision (core/window.lua; .claude/rules/compact-mode.md).
+	-- Compact mode itself is never saved. With nothing saved, Compact mode is
+	-- the full size less the filter column.
+	{ key = "compactWindowWidth", scope = ACCOUNT, type = "number" },
+	{ key = "compactWindowHeight", scope = ACCOUNT, type = "number" },
 
 	-- Where on the minimap's rim the button sits, in degrees counter-clockwise
 	-- from the right (core/minimap.lua). 225 -- bottom left -- is LibDBIcon's

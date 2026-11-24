@@ -124,6 +124,8 @@ local SETTINGS_GEAR_PRESS_X, SETTINGS_GEAR_PRESS_Y = 1, -1
 -- filters" as readily as "reset them". Words say it; see AddHeaderLink.
 
 local TAB_STRIP_INSET_X = 18
+-- Compact mode's toggle sits just left of the strip (core/window.lua).
+LFGF.FILTER_TAB_STRIP_INSET_X = TAB_STRIP_INSET_X
 -- Flush: a top tab's art is drawn to meet the panel it belongs to, and
 -- FriendsFrame leaves no gap either. A seam here would be the first thing to
 -- adjust after seeing it in the client.
@@ -582,6 +584,11 @@ local function ApplyFilters(panel, filters)
 	for _, section in ipairs(panel.FilterSections) do
 		UpdateSectionWarning(section)
 	end
+	-- And Compact mode's warning (core/window.lua), for the same reason: with
+	-- the whole panel hidden, Blizzard's Defaults is the only way the boxes
+	-- change. An event AFTER the boxes are set, because a listener of the
+	-- Defaults event itself cannot know whether this panel's callback ran yet.
+	EventRegistry:TriggerEvent(LFGF.EVENT_FILTERS_APPLIED)
 end
 
 -------------------------------------------------------
@@ -1604,6 +1611,21 @@ function LFGF.CreateFilterPanel(parent)
 	--- so the list starts filtered the way the restored boxes say.
 	function panel:CurrentFilters() return FilterSnapshot(self) end
 
+	--- Whether any Filters-tab section is off its defaults: the test a
+	--- collapsed section's warning makes (UpdateSectionWarning,
+	--- core/filterpanel_shared.lua), asked of every section. Compact mode's
+	--- warning shows on it (core/window.lua). The boxes, not the last search:
+	--- what the next Search sends. Category and activity choices are not
+	--- filters here, by the author's decision.
+	function panel:AnyFilterSet()
+		for _, section in ipairs(self.FilterSections) do
+			if section.IsAtDefaults and not section:IsAtDefaults() then
+				return true
+			end
+		end
+		return false
+	end
+
 	--- Switch to the Player ratings tab, while its setting shows it. Called by
 	--- LFGF.OpenPlayerRatings (core/window.lua). SetTab, so the tab's list is
 	--- shown and the other tabs' content hidden (TabSystemOwner.lua:46-51).
@@ -1616,7 +1638,9 @@ function LFGF.CreateFilterPanel(parent)
 	-- The search row (core/filterpanel_search.lua): the category and activity
 	-- dropdowns, the Search button and searching. Built first: Role Check and
 	-- the gear hang off its Search button, and the sections off its category
-	-- dropdown. It also chooses the first category.
+	-- dropdown. It also chooses the first category. Its frame is the panel's
+	-- sibling, so Compact mode (core/window.lua) can move it; this is where it
+	-- sits in the full window.
 	LFGF.BuildSearchRow(panel):SetPoint("TOPLEFT", panel, "TOPLEFT", ROW_PADDING, -ROW_PADDING)
 
 	panel.RoleCheckButton = BuildRoleCheckButton(panel)

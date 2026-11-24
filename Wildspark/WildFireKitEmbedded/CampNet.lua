@@ -346,12 +346,24 @@ local JOIN_CHECK = 5       -- seconds after a join to see whether it took
 local REFUSED_WAIT = 600   -- seconds before trying again after being turned away
 local REFUSALS = { NOT_ALLOWED_IN_CHANNEL = true, WRONG_PASSWORD = true, BANNED = true }
 
+-- Pacing (1.11.2). The server limits how fast you can join and leave
+-- channels; asking faster gets "You are doing this too quickly" in chat for
+-- each request turned down. 1.11.1 could ask for several at once (a pile of
+-- strays after a /reload) and asked again every 5 seconds for any leave that
+-- hadn't taken, which kept a throttled player throttled. Now: one join or
+-- leave every OP_GAP seconds at most; a leave that didn't take is asked again
+-- after LEAVE_FIRST seconds, doubling up to LEAVE_MAX; a channel that drops
+-- out from under the kit is rejoined after DROP_WAIT, doubling.
+local OP_GAP = 3
+local LEAVE_FIRST = 10
+local LEAVE_MAX = 300
+local DROP_WAIT = 30
+local STRAY_WAIT = 60      -- seconds after loading before strays are left while your zone's channel isn't known
+
 local chans = {}           -- [name] = channel state (Net.ManageChannel)
 local current              -- this zone's channel name (zone channels, below)
 local previous = {}        -- [name] = GetTime() to leave it: the zone you just left
 local listSig, listSince   -- the channel list, and since when it's held still
-local pendingLeaves = {}   -- joined kit channels to leave after combat lockdown ends
-local retiredLayerChannelsCleaned = false
 
 local function ChannelNumber(name)
     local id = GetChannelName and GetChannelName(name) or 0
@@ -360,11 +372,33 @@ local function ChannelNumber(name)
 end
 
 
-local function HideFromChat(name)
-    if not ChatFrame_RemoveChannel then return end
+-- Whether a chat window shows a channel: true, false, or nil if it can't tell.
+local function Listed(cf, name)
+    local list = cf.channelList
+    if type(list) ~= "table" then return nil end
+    local up = name:upper()
+    for _, v in pairs(list) do
+        if type(v) == "string" and not U.Sealed(v) and v:upper() == up then return true end
+    end
+    return false
+end
+
+-- 12.x moved chat onto the chat frame's own methods and ChatFrameUtil; the
+-- old ChatFrame_* globals are only aliases that load with the
+-- loadDeprecationFallbacks CVar, so without it this used to do nothing.
+-- onlyIfListed: skip windows that don't show it (or can't tell), so the
+-- CHANNEL_UI_UPDATE check doesn't remove the same channel over and over.
+local function HideFromChat(name, onlyIfListed)
     for i = 1, (NUM_CHAT_WINDOWS or 10) do
         local cf = _G["ChatFrame" .. i]
-        if cf then pcall(ChatFrame_RemoveChannel, cf, name) end
+        local listed = cf and Listed(cf, name)
+        if cf and (listed or (listed == nil and not onlyIfListed)) then
+            if cf.RemoveChannel then
+                pcall(cf.RemoveChannel, cf, name)
+            elseif ChatFrame_RemoveChannel then
+                pcall(ChatFrame_RemoveChannel, cf, name)
+            end
+        end
     end
 end
 
@@ -408,12 +442,6 @@ function Net.WorldChannelsIn()
     return type(slot) == "number" and slot > 0
 end
 
--- Kept for WildSpark's optional Happy Camper bridge. New Camping Kit never
--- moves channels because that can taint chat; external channels need no move.
-function Net.StepBehindWorld(name)
-    if name then HideFromChat(name) end
-end
-
 -- Why a join can't happen yet, or nil if it can.
 local function NotYet(t)
     if InInstance() then return "in an instance" end
@@ -424,72 +452,23 @@ local function NotYet(t)
     return nil
 end
 
-local function LeaveName(name)
-    if not ChannelNumber(name) then pendingLeaves[name] = nil; return end
-    if InCombatLockdown and InCombatLockdown() then
-        pendingLeaves[name] = true
-        return
-    end
-    if LeaveChannelByName then
-        pendingLeaves[name] = nil
-        pcall(LeaveChannelByName, name)
-    end
+local lastOp = -math.huge  -- when the kit last asked to join or leave a channel
+local function TakeTurn(t)
+    if t - lastOp < OP_GAP then return false end
+    lastOp = t
+    return true
 end
 
-local function RetryPendingLeaves()
-    if InCombatLockdown and InCombatLockdown() then return end
-    for name in pairs(pendingLeaves) do LeaveName(name) end
-end
-
--- Find kit zone channels left behind by a /reload or a late join completion.
--- The client's temporary channel list survives reloads, but our in-memory
--- channel registry does not. Leave only names matching this addon's private
--- CK zone-channel format, and only when no live channel entry still wants one.
-local CK_ZONE_CHANNEL = "^CK[AH]%d+L.+Z%d+$"
-local CK_STRAY_RETRY = 5
-local ckStrayLeaveAt = {}
-
-local function LeaveStrayCKChannels(t)
-    if not GetChannelList then return end
-    local list = { GetChannelList() }
-    for i = 2, #list, 3 do
-        local name = list[i]
-        if type(name) == "string" and not U.Sealed(name) and name:match(CK_ZONE_CHANNEL) then
-            local channel = chans[name]
-            local wanted = channel and channel.want and channel.want()
-            if not wanted and t - (ckStrayLeaveAt[name] or 0) >= CK_STRAY_RETRY then
-                ckStrayLeaveAt[name] = t
-                LeaveName(name) -- defers during combat lockdown
-            end
-        end
-    end
-end
-
--- WildLayer used to join these coordination channels. Remove its leftover
--- joins once, now that the module is retired, so they do not occupy slots.
-local function CleanupRetiredLayerChannels(t)
-    if retiredLayerChannelsCleaned or not listSince or t - listSince < STABLE or not Net.WorldChannelsIn() then return end
-    retiredLayerChannelsCleaned = true
-    local maxChannels = Constants and Constants.ChatFrameConstants
-        and Constants.ChatFrameConstants.MaxChatChannels or 20
-    for i = 1, maxChannels do
-        local _, name = GetChannelName(i)
-        if type(name) == "string" and not U.Sealed(name) and (name == "layer" or name == "layer2" or name == "layer3"
-            or name:match("^layer%x%x%x%x%x%x%x%x$")) then
-            LeaveName(name)
-        end
-    end
-end
-
-local function Leave(c)
-    LeaveName(c.name)
-    c.joinAt = nil
+-- Channels to leave, by name; LeaveStrays does it, one at a time.
+local toLeave = {}
+function Net.LeaveSoon(name)
+    if type(name) == "string" then toLeave[name] = true end
 end
 
 local function TickChannel(c, t)
     local id = ChannelNumber(c.name)
     if not c.want() then
-        if id and c.ours then Leave(c) end
+        if id and c.ours then toLeave[c.name] = true end
         c.ours, c.joinAt, c.state = nil, nil, "off"
         return
     end
@@ -499,7 +478,13 @@ local function TickChannel(c, t)
         if c.state ~= "in" then c.state, c.since = "in", t end
         return
     end
-    if c.ours and c.state == "in" then c.state = "dropped" end
+    if c.ours and c.state == "in" then
+        -- Gone without the kit leaving it (a /leave, another addon, a loading
+        -- screen): don't ask to join again straight away.
+        c.drops = c.drops + 1
+        c.state, c.refusedUntil = "dropped", t + math.min(REFUSED_WAIT, DROP_WAIT * 2 ^ (c.drops - 1))
+        return
+    end
     if c.joinAt then
         if t - c.joinAt < JOIN_CHECK then return end
         -- The join didn't take: turned away (or a notice we didn't recognise).
@@ -514,6 +499,10 @@ local function TickChannel(c, t)
         return
     end
     if JoinTemporaryChannel then
+        if not TakeTurn(t) then
+            c.state = "waiting its turn"
+            return
+        end
         pcall(JoinTemporaryChannel, c.name)
         c.joinAt, c.state = t, "joining"
     end
@@ -521,7 +510,7 @@ end
 
 -- Look after a hidden channel: want() says whether it should be joined.
 function Net.ManageChannel(name, want)
-    chans[name] = { name = name, want = want, state = "off", refusedUntil = 0, refusals = 0, sent = 0, heard = 0 }
+    chans[name] = { name = name, want = want, state = "off", refusedUntil = 0, refusals = 0, drops = 0, sent = 0, heard = 0 }
     return chans[name]
 end
 
@@ -531,12 +520,129 @@ function Net.RetryChannel(name)
     if c then c.refusedUntil = 0 end
 end
 
+-- Kit zone channels you're in that the kit no longer wants: left over from
+-- a /reload (temporary channels survive it, the kit's list of them doesn't),
+-- or a join that came through after the kit had already moved on (it never
+-- saw the channel as its own, so never left it). Found by name, so they're
+-- left whatever happened. (1.11.1)
+-- Every leave goes through here (1.11.2), paced (see TakeTurn) and backing off.
+local ZONE_CHANNEL = "^CK[AH]%d+L.+Z%d+$"
+local leaving = {}         -- [name] = { at = when to ask again, wait = seconds it waited last }
+local loadedAt = GetTime()
+
+local function Wanted(name)
+    local c = chans[name]
+    return c and c.want() or false
+end
+
+local function Stray(name)
+    if not name:find(ZONE_CHANNEL) then return false end
+    return not Wanted(name)
+end
+
+local function LeaveStrays(t)
+    if not (GetChannelList and LeaveChannelByName) then return end
+    if InCombatLockdown and InCombatLockdown() then return end
+    -- Just after a /reload the kit doesn't know your zone's channel yet (it
+    -- needs your layer), so the one you're in looks like a stray: it was
+    -- left, then joined again moments later. Wait until it's known, or a minute.
+    local strays = current or t - loadedAt >= STRAY_WAIT
+    local list, there = { GetChannelList() }, {}
+    for i = 2, #list, 3 do
+        local name = list[i]
+        if type(name) == "string" and not U.Sealed(name) then
+            there[name] = true
+            local go = false
+            if toLeave[name] then
+                if Wanted(name) then toLeave[name] = nil else go = true end -- wanted again (back over the border)
+            end
+            if not go and strays and Stray(name) then go = true end
+            local l = leaving[name]
+            if go and (not l or t >= l.at) and TakeTurn(t) then
+                local wait = l and math.min(LEAVE_MAX, l.wait * 2) or LEAVE_FIRST
+                leaving[name] = { at = t + wait, wait = wait }
+                pcall(LeaveChannelByName, name)
+            end
+        end
+    end
+    -- Left (or never there): forget them.
+    for name in pairs(leaving) do if not there[name] then leaving[name] = nil end end
+    for name in pairs(toLeave) do if not there[name] then toLeave[name] = nil end end
+end
+
+-- The retired WildLayer addon used these shared channels. Clean up its old
+-- joins once, after the game's own channels are present, using the paced,
+-- combat-safe leave queue above.
+local retiredLayerChannelsCleaned = false
+local function CleanupRetiredLayerChannels(t)
+    if retiredLayerChannelsCleaned or not listSince or t - listSince < STABLE or not Net.WorldChannelsIn() then return end
+    retiredLayerChannelsCleaned = true
+    local maxChannels = Constants and Constants.ChatFrameConstants
+        and Constants.ChatFrameConstants.MaxChatChannels or 20
+    for i = 1, maxChannels do
+        local _, name = GetChannelName(i)
+        if type(name) == "string" and not U.Sealed(name) and (name == "layer" or name == "layer2" or name == "layer3"
+            or name:match("^layer%x%x%x%x%x%x%x%x$")) then
+            Net.LeaveSoon(name)
+        end
+    end
+end
+
+-- Keeping the kit's channels out of chat (1.11.2). Zone channels are joined
+-- and left as you travel, and the game prints "Joined Channel" / "Left
+-- Channel" for each, before the kit can take the channel out of the chat
+-- windows. A chat filter drops every notice (and "X joined / left" line) for
+-- a channel the kit looks after: its zone channels, 1.10's CampingKitNet, and
+-- any name passed to Net.QuietChannel (Happy Camper's, when the kit leaves it
+-- for a player without Happy Camper). Matched by name only, so General,
+-- Trade and every other channel are untouched. A notice the game hands over
+-- sealed (secret) is let through: it can't be read.
+local NOTICE_EVENTS = { "CHAT_MSG_CHANNEL_NOTICE", "CHAT_MSG_CHANNEL_NOTICE_USER",
+    "CHAT_MSG_CHANNEL_JOIN", "CHAT_MSG_CHANNEL_LEAVE" }
+local quiet = { [OLD_CHANNEL:upper()] = true }
+local chatFiltered = false
+
+function Net.QuietChannel(name)
+    if type(name) == "string" then quiet[name:upper()] = true end
+end
+
+-- Compatibility with WildSpark's optional Happy Camper bridge.
+function Net.StepBehindWorld(name)
+    if name then
+        Net.QuietChannel(name)
+        HideFromChat(name)
+    end
+end
+
+local function KitChannel(name)
+    if not name or U.Sealed(name) or type(name) ~= "string" or name == "" then return false end
+    name = name:gsub("^%d+%.%s*", ""):upper() -- "6. CKH1L618Z1411" -> "CKH1L618Z1411"
+    return quiet[name] == true or name:find(ZONE_CHANNEL) ~= nil
+end
+
+-- (chatFrame, event, text, player, language, channel string, ..., base name)
+local function NoticeFilter(_, _, _, _, _, channel, _, _, _, _, base)
+    return KitChannel(base) or KitChannel(channel)
+end
+
+local function AddChatFilter()
+    if chatFiltered then return end
+    local add = (ChatFrameUtil and ChatFrameUtil.AddMessageEventFilter) or ChatFrame_AddMessageEventFilter
+    if not add then return end
+    local ok = false
+    for _, e in ipairs(NOTICE_EVENTS) do
+        if pcall(add, e, NoticeFilter) then ok = true end
+    end
+    chatFiltered = ok
+end
+AddChatFilter() -- Blizzard's chat code is loaded before addons; tried again at login if not
+
 -- Once a second.
 local function TickChannels()
     local t = GetTime()
     local _, _, sig = ChannelList()
     if sig ~= listSig then listSig, listSince = sig, t end
-    LeaveStrayCKChannels(t)
+    LeaveStrays(t)
     for name, c in pairs(chans) do
         TickChannel(c, t)
         -- A zone channel you've moved on from, left: forget it.
@@ -574,7 +680,7 @@ end
 
 function Net.ChannelStatus()
     local lines, t, names = {}, GetTime(), {}
-    if not Enabled() then
+    if not CampSharingEnabled() and not RespawnSharingEnabled() then
         lines[#lines + 1] = "Camp sharing is off."
     elseif not current then
         lines[#lines + 1] = layer and "No zone channel here (an instance, or no zone)."
@@ -582,12 +688,15 @@ function Net.ChannelStatus()
     else
         lines[#lines + 1] = "This zone's channel: " .. current
     end
+    if not chatFiltered then
+        lines[#lines + 1] = "Couldn't add the chat filter: Joined / Left Channel lines for the kit's channels may show."
+    end
     for name in pairs(chans) do names[#names + 1] = name end
     table.sort(names)
     for _, name in ipairs(names) do
         local c = chans[name]
         local state = c.state
-        if state:find("^turned away") then
+        if state ~= "in" and c.refusedUntil > t then -- turned away, or dropped
             state = ("%s, trying again in %d min"):format(state, math.max(1, math.ceil((c.refusedUntil - t) / 60)))
         end
         local role = c.zone and (name == current and " (this zone)" or " (zone you left)") or ""
@@ -595,6 +704,12 @@ function Net.ChannelStatus()
             c.refusals > 0 and (" (turned away %d times this session)"):format(c.refusals) or "")
         Roll(c)
         lines[#lines + 1] = ("  last minute: %d sent, %d heard"):format(c.lastSent or 0, c.lastHeard or 0)
+    end
+    local gone = {}
+    for name in pairs(leaving) do gone[#gone + 1] = name end
+    table.sort(gone)
+    for _, name in ipairs(gone) do
+        lines[#lines + 1] = ("Leaving %s: still there, asking again in %d s"):format(name, math.max(0, math.ceil(leaving[name].at - t)))
     end
     return lines
 end
@@ -682,7 +797,7 @@ local leftOld = false
 local function LeaveOldChannel()
     if leftOld then return end
     leftOld = true
-    LeaveName(OLD_CHANNEL)
+    if ChannelNumber(OLD_CHANNEL) then Net.LeaveSoon(OLD_CHANNEL) end
 end
 
 function Net.ZoneChannel() return current end
@@ -778,6 +893,18 @@ local function OnMessage(prefix, msg, _, sender, target, _, _, channelName)
     if not r or not r.from then return end
     Merge(r)
     if ns.CampMap then ns.CampMap.Refresh() end
+end
+
+-- WildInfo shares confirmed local respawn observations over this hidden
+-- channel. The message is isolated from camp records by its R| prefix.
+function Net.ShareRespawnSample(npcID, seconds, bucket)
+    if not RespawnSharingEnabled() then return false end
+    npcID, seconds, bucket = tonumber(npcID), tonumber(seconds), tonumber(bucket)
+    if not npcID or npcID < 1 or npcID > 999999999
+        or not seconds or seconds < 10 or seconds > 604800
+        or not bucket or bucket < 1 then return false end
+    Send(("R|1|%d|%d|%d"):format(math.floor(npcID), math.floor(seconds + 0.5), math.floor(bucket)))
+    return true
 end
 
 ---------------------------------------------------------------------------
@@ -876,18 +1003,6 @@ local function MySpotCounts(f)
 end
 
 local nextBeat = HEARTBEAT + math.random(0, HEARTBEAT_JITTER)
-
--- WildInfo shares confirmed local respawn observations over this hidden
--- channel. The message is isolated from camp records by its R| prefix.
-function Net.ShareRespawnSample(npcID, seconds, bucket)
-    if not RespawnSharingEnabled() then return false end
-    npcID, seconds, bucket = tonumber(npcID), tonumber(seconds), tonumber(bucket)
-    if not npcID or npcID < 1 or npcID > 999999999
-        or not seconds or seconds < 10 or seconds > 604800
-        or not bucket or bucket < 1 then return false end
-    Send(("R|1|%d|%d|%d"):format(math.floor(npcID), math.floor(seconds + 0.5), math.floor(bucket)))
-    return true
-end
 
 -- why: "spot" (always), "change", "settled" or "heartbeat".
 local function SendMine(why)
@@ -1116,6 +1231,7 @@ local heartbeat, cookTick = 0, 0
 
 ev:SetScript("OnEvent", function(_, event, ...)
     if event == "PLAYER_LOGIN" then
+        AddChatFilter()
         if C_ChatInfo and C_ChatInfo.RegisterAddonMessagePrefix then C_ChatInfo.RegisterAddonMessagePrefix(PREFIX) end
         for _, e in ipairs({ "CHAT_MSG_ADDON", "NAME_PLATE_UNIT_ADDED", "PLAYER_TARGET_CHANGED",
             "UPDATE_MOUSEOVER_UNIT", "PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA", "GROUP_JOINED",
@@ -1133,7 +1249,7 @@ ev:SetScript("OnEvent", function(_, event, ...)
         SeeUnit("mouseover")
     elseif event == "CHANNEL_UI_UPDATE" then
         for name, c in pairs(chans) do
-            if c.ours and ChannelNumber(name) then HideFromChat(name) end
+            if c.ours and ChannelNumber(name) then HideFromChat(name, true) end
         end
     elseif event == "CHAT_MSG_CHANNEL_NOTICE" or event == "CHAT_MSG_CHANNEL_NOTICE_USER" then
         -- text, ..., channel string (4th), ..., channel base name (9th)
@@ -1154,11 +1270,10 @@ ev:SetScript("OnUpdate", function(_, elapsed)
     cookTick = cookTick + elapsed
     if cookTick >= 1 then
         cookTick = 0
-        RetryPendingLeaves()
-        CleanupRetiredLayerChannels(GetTime())
         LeaveOldChannel()
         TickZone()
         TickChannels()
+        CleanupRetiredLayerChannels(GetTime())
         Net.CheckCooking()
     end
     heartbeat = heartbeat + elapsed
