@@ -168,6 +168,10 @@ jobs:
             exit 1
           fi
           grep -Fqx 'Modules\WildGroups\core\whisperlog.lua' "$MAIN_TOC"
+          grep -Fqx 'Modules\WildGroupsInit.lua' "$MAIN_TOC"
+          INIT_LINE="$(grep -nFx 'Modules\WildGroupsInit.lua' "$MAIN_TOC" | cut -d: -f1)"
+          LOCALE_LINE="$(grep -nFx 'Modules\WildGroups\core\locale.lua' "$MAIN_TOC" | cut -d: -f1)"
+          test "$INIT_LINE" -lt "$LOCALE_LINE"
           grep -Fqx 'Modules\WildGroups\core\activitynames.lua' "$MAIN_TOC"
           grep -Fqx 'Modules\WildGroups\core\settings.lua' "$MAIN_TOC"
           grep -Fqx 'Modules\WildGroups\core\filterpanel_search.lua' "$MAIN_TOC"
@@ -177,6 +181,7 @@ jobs:
           grep -Fqx 'WildFireKitEmbedded\Camping.lua' "$MAIN_TOC"
           grep -Fqx 'WildFireKitEmbedded\Libs\KitCore\KitCore.lua' "$MAIN_TOC"
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildGroups/core/whisperlog.lua$'
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildGroupsInit.lua$'
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildGroups/core/activitynames.lua$'
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildGroups/core/settings.lua$'
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildGroups/core/filterpanel_search.lua$'

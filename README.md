@@ -1,6 +1,6 @@
 # WildSpark
 
-> **[Download WildSpark 2.2.72 - Latest Published Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.72/WildSpark-2.2.72.zip)**
+> **[Download WildSpark 2.2.73 - Latest Published Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.73/WildSpark-2.2.73.zip)**
 
 **Latest published stable release: 2.2.72 for WoW Forever 1.60.1.** The package contains one install folder, `WildSpark`. QuestDB, QuestieDB Forever data, and WildInfo's quest-drop datasets are embedded and load automatically with WildSpark.
 
@@ -9,6 +9,11 @@ WildSpark is a modular WoW Forever utility suite for gathering highlights, quest
 Install the single `WildSpark` folder from the ZIP into `Interface/AddOns`. WildMaps keeps the integrated Minimap Lens based on the authorized Quantum Dungeon Tools lens source. The dungeon atlas and WildGear are saved on the GitHub archive branch `archive/wildgear-2.2.59` for possible future work.
 
 WildMaps enlarges the current minimap in place and restores its original size, position, shape, tracking and zoom when closed. The separate dungeon atlas has been removed from the active package.
+
+## What's new in 2.2.73
+
+- Fix WildGroups startup by creating its shared namespace before loading locale and core files; keep the adapter after core initialization.
+- Add package checks for the WildGroups namespace initialization file and load order. Live-client behavior was not tested.
 
 ## What's new in 2.2.72
 

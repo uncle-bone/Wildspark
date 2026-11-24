@@ -1,3 +1,7 @@
+WildSpark 2.2.73 (stable)
+- Fix WildGroups startup by initializing its namespace before locale/core files load; keep its adapter after core initialization.
+- Add release checks for the namespace initializer and its TOC ordering. Live-client behavior was not tested.
+
 WildSpark 2.2.72 (stable)
 - Update WildFire Kit to 1.11.2 with paced, combat-safe channel maintenance and filtered join/leave notices. Keep WildSpark's own artwork, WildFire Settings title, and optional Happy Camper defaults.
 - Update WildGroups to upstream 2.6.0, including compact mode, listing notes, and in-place whisper locations; retain WildSpark branding and module controls.
