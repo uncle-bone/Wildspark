@@ -1,0 +1,12 @@
+Everloot crowd-sourced drop-rate data
+
+The data in CrowdDropRates.lua is from Everloot (https://everloot.app) and is
+licensed under Creative Commons Attribution-ShareAlike 4.0 International:
+https://creativecommons.org/licenses/by-sa/4.0/
+
+Attribution: Data from Everloot (https://everloot.app), CC BY-SA 4.0.
+
+Changes made for this WildInfo snapshot: game-object sources were excluded;
+the API's rate fraction was converted to a percentage; records were keyed by
+NPC and item ID and serialized as Lua. Sample counts, reporter counts, and
+confidence tiers are retained. The snapshot date is in CrowdDropRates.lua.

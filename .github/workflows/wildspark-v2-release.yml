@@ -124,6 +124,9 @@ jobs:
           test -f Wildspark/Modules/WildMaps/ForeverMinimapTarget-LICENSE.txt
           test -f Wildspark/Modules/WildMaps/ForeverMinimapTarget-ATTRIBUTION.md
           grep -Fqx 'Modules\WildDrops\Respawn.lua' "$MAIN_TOC"
+          grep -Fqx 'Modules\WildDrops\CrowdDropRates.lua' "$MAIN_TOC"
+          grep -Fq 'Data from Everloot (https://everloot.app), CC BY-SA 4.0.' Wildspark/Modules/WildDrops/NOTICE.md
+          test -f Wildspark/Modules/WildDrops/CrowdDropRates-LICENSE.txt
           if grep -q 'WildPvP' "$MAIN_TOC"; then
             echo "WildPvP is archived and must not load in the active addon."
             exit 1
@@ -156,6 +159,9 @@ jobs:
             exit 1
           fi
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildDrops/Respawn.lua$'
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildDrops/CrowdDropRates.lua$'
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildDrops/CrowdDropRates-LICENSE.txt$'
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildDrops/NOTICE.md$'
           if unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -qE '^WildSpark/Modules/WildPvP'; then
             echo "Archived WildPvP source must not be packaged in the active addon."
             exit 1

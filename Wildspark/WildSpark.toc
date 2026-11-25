@@ -133,6 +133,7 @@ LootRollMover.lua
 Modules\WildDrops\Data.lua
 Modules\WildDrops\ManualData.lua
 Modules\WildDrops\QuestDropRatesData.lua
+Modules\WildDrops\CrowdDropRates.lua
 Modules\WildDrops\QuestDropData\LibStub.lua
 Modules\WildDrops\QuestDropData\Core.lua
 Modules\WildDrops\QuestDropData\Data.lua

@@ -138,21 +138,35 @@ local function AddTooltipLines(tooltip, guid)
     local added = false
     local maxRows = 8
     local shown = math.min(#order, maxRows)
+    local crowdData = addonNS.WildInfoCrowdDropRates
+    local showCrowdCredit = false
     for i = 1, shown do
         local row = rows[order[i]]
         local chance = ns.FormatChance(row.percent)
-        if not row.percent and ns.GetLocalDropRateEstimate then
-            local estimate = ns.GetLocalDropRateEstimate(npcID, row.itemID)
-            if estimate and estimate.percent then
-                chance = string.format("|cffffd100~%.1f%% local estimate (%d/%d looted corpses)|r", estimate.percent, estimate.drops, estimate.samples)
-            elseif estimate and estimate.samples then
-                chance = string.format("|cff808080rate unknown; local sample %d/%d looted corpses|r", estimate.samples, estimate.needed or 10)
+        local usedCrowdRate = false
+        if not row.percent then
+            local crowdNPC = crowdData and crowdData.data and crowdData.data[npcID]
+            local community = crowdNPC and crowdNPC[row.itemID]
+            if community and type(community.rate) == "number" and community.windows and community.reporters then
+                chance = string.format(
+                    "|cff80d8ff~%.1f%% community (%d/%d loot windows; %d reporters, %s)|r",
+                    community.rate, community.drops or 0, community.windows, community.reporters, community.tier or "reported"
+                )
+                usedCrowdRate = true
+                showCrowdCredit = true
+            elseif ns.GetLocalDropRateEstimate then
+                local estimate = ns.GetLocalDropRateEstimate(npcID, row.itemID)
+                if estimate and estimate.percent then
+                    chance = string.format("|cffffd100~%.1f%% local estimate (%d/%d looted corpses)|r", estimate.percent, estimate.drops, estimate.samples)
+                elseif estimate and estimate.samples then
+                    chance = string.format("|cff808080rate unknown; local sample %d/%d looted corpses|r", estimate.samples, estimate.needed or 10)
+                end
             end
         end
-        if row.rateSource and row.rateSource ~= "Classic reference" then
+        if not usedCrowdRate and row.rateSource and row.rateSource ~= "Classic reference" then
             local label = row.percent and (row.rateSource .. " data") or ("no " .. row.rateSource .. " rate")
             chance = chance .. " |cff808080(" .. label .. ")|r"
-        elseif row.rateSource == "Classic reference" then
+        elseif not usedCrowdRate and row.rateSource == "Classic reference" then
             chance = chance .. " |cffffc857(Classic reference)|r"
         end
         if row.questOnly then chance = chance .. " |cff808080(quest-only)|r" end
@@ -163,6 +177,10 @@ local function AddTooltipLines(tooltip, guid)
             tooltip:AddLine("    |cffffd100For: " .. questText .. "|r")
         end
         added = true
+    end
+    if showCrowdCredit then
+        local snapshot = crowdData and crowdData.dataAsOf and crowdData.dataAsOf:sub(1, 10) or "unknown date"
+        tooltip:AddLine("|cffaaaaaaData from Everloot (https://everloot.app), CC BY-SA 4.0. Snapshot: " .. snapshot .. "|r", nil, nil, nil, true)
     end
     if #order > shown then
         tooltip:AddLine("|cffaaaaaa…and " .. (#order - shown) .. " more unique drops|r")
