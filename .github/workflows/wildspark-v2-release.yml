@@ -200,7 +200,7 @@ jobs:
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildRolls/NOTICE.md$'
           unzip -p "dist/WildSpark-$VERSION.zip" WildSpark/LootRollMover.lua | grep -F 'function MOD.SetReceivedPreview' >/dev/null
           unzip -p "dist/WildSpark-$VERSION.zip" WildSpark/LootRollMover.lua | grep -F 'function MOD.SetStackUpwards' >/dev/null
-          unzip -p "dist/WildSpark-$VERSION.zip" WildSpark/Modules/WildGroups/core/blizzardlisting.lua | grep -F 'Automatic opening/closing after listing is disabled' >/dev/null
+          unzip -p "dist/WildSpark-$VERSION.zip" WildSpark/Modules/WildGroups/core/blizzardlisting.lua | grep -F 'Deliberately leave post-listing behavior to Blizzard.' >/dev/null
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildGroups/core/wholookup.lua$'
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/WildFireKitEmbedded/CampNet.lua$'
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/WildFireKitEmbedded/Camping.lua$'
