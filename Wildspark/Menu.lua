@@ -1070,16 +1070,28 @@ local function CreateMenu()
 		note:SetText(L.WILDLOOTROLLS_NOTE)
 		column.y = column.y - note:GetStringHeight() - 12
 		AddCheckbox(column, "WILDLOOTROLLS_ENABLED", rolls.IsEnabled, rolls.SetEnabled)
+		AddCheckbox(column, "WILDLOOTROLLS_COUNTS", rolls.GetVoteCounts, rolls.SetVoteCounts)
+		AddCheckbox(column, "WILDLOOTROLLS_EDIT_PREVIEWS", rolls.GetEditPreviews, rolls.SetEditPreviews)
+		AddCheckbox(column, "WILDLOOTROLLS_RECEIVED_PREVIEW", rolls.GetReceivedPreview, rolls.SetReceivedPreview)
+		AddCheckbox(column, "WILDLOOTROLLS_STACK", rolls.GetStackUpwards, rolls.SetStackUpwards)
+
 		local place = AddButton(column.parent, "WILDLOOTROLLS_PLACE", rolls.TogglePlacement, 210)
 		place:SetPoint("TOPLEFT", column.x, column.y - 4)
-		local smaller = AddButton(column.parent, "WILDLOOTROLLS_SMALLER", function() rolls.AdjustScale(-0.1) end, 100)
-		smaller:SetPoint("TOPLEFT", place, "BOTTOMLEFT", 0, -8)
-		local larger = AddButton(column.parent, "WILDLOOTROLLS_LARGER", function() rolls.AdjustScale(0.1) end, 100)
-		larger:SetPoint("LEFT", smaller, "RIGHT", 8, 0)
-		local tighter = AddButton(column.parent, "WILDLOOTROLLS_SPACING_LESS", function() rolls.AdjustSpacing(-10) end, 100)
-		tighter:SetPoint("TOPLEFT", smaller, "BOTTOMLEFT", 0, -8)
-		local wider = AddButton(column.parent, "WILDLOOTROLLS_SPACING_MORE", function() rolls.AdjustSpacing(10) end, 100)
-		wider:SetPoint("LEFT", tighter, "RIGHT", 8, 0)
+		column.y = column.y - 34
+
+		local function AddButtonRow(leftName, leftAction, rightName, rightAction)
+			local left = AddButton(column.parent, leftName, leftAction, 100)
+			left:SetPoint("TOPLEFT", column.x, column.y - 4)
+			local right = AddButton(column.parent, rightName, rightAction, 100)
+			right:SetPoint("LEFT", left, "RIGHT", 8, 0)
+			column.y = column.y - 30
+		end
+		AddButtonRow("WILDLOOTROLLS_SMALLER", function() rolls.AdjustScale(-0.1) end,
+			"WILDLOOTROLLS_LARGER", function() rolls.AdjustScale(0.1) end)
+		AddButtonRow("WILDLOOTROLLS_SPACING_LESS", function() rolls.AdjustSpacing(-5) end,
+			"WILDLOOTROLLS_SPACING_MORE", function() rolls.AdjustSpacing(5) end)
+		AddButtonRow("WILDLOOTROLLS_PREVIEW_LESS", function() rolls.AdjustPreviewCount(-1) end,
+			"WILDLOOTROLLS_PREVIEW_MORE", function() rolls.AdjustPreviewCount(1) end)
 	end
 
 	-- Page de la minimap : à gauche les icônes des filons et des plantes ; à droite l'alternance des

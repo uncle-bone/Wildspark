@@ -1,14 +1,20 @@
 # WildSpark
 
-> **[Download WildSpark 2.2.73 - Latest Published Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.73/WildSpark-2.2.73.zip)**
+> **[Download WildSpark 2.2.74 - Latest Published Stable](https://github.com/uncle-bone/Wildspark/releases/download/v2.2.74/WildSpark-2.2.74.zip)**
 
-**Latest published stable release: 2.2.72 for WoW Forever 1.60.1.** The package contains one install folder, `WildSpark`. QuestDB, QuestieDB Forever data, and WildInfo's quest-drop datasets are embedded and load automatically with WildSpark.
+**Latest stable release: 2.2.74 for WoW Forever 1.60.1.** The package contains one install folder, `WildSpark`. QuestDB, QuestieDB Forever data, and WildInfo's quest-drop datasets are embedded and load automatically with WildSpark.
 
 WildSpark is a modular WoW Forever utility suite for gathering highlights, quest-drop tooltips, buffs, the WildMaps minimap lens, WildFire camping, auctions, group finding, and WildInfo respawn estimates.
 
 Install the single `WildSpark` folder from the ZIP into `Interface/AddOns`. WildMaps keeps the integrated Minimap Lens based on the authorized Quantum Dungeon Tools lens source. The dungeon atlas and WildGear are saved on the GitHub archive branch `archive/wildgear-2.2.59` for possible future work.
 
 WildMaps enlarges the current minimap in place and restores its original size, position, shape, tracking and zoom when closed. The separate dungeon atlas has been removed from the active package.
+
+## What's new in 2.2.74
+
+- Integrate ForeverLootRollMover 1.3.4 as WildRolls with author permission, with Edit Mode previews and positioning, received-item alert placement, vote counts, gamepad support and the module's other roll controls. The WildSpark menu now has translated labels and controls for those features.
+- Stop WildGroups from automatically opening its panel and closing Blizzard's group finder after you create or update an LFG listing.
+- Package/workflow checks passed; live in-game behavior was not tested.
 
 ## What's new in 2.2.73
 

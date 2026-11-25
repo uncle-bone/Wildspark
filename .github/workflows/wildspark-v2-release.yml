@@ -112,6 +112,7 @@ jobs:
           sed -i 's/\r$//' "$MAIN_TOC"
           grep -Fx "## Version: $VERSION" "$MAIN_TOC"
           grep -Fx '## X-WildFireKit-Version: 1.11.2' "$MAIN_TOC"
+          grep -Fx '## X-WildRolls-Version: 1.3.4' "$MAIN_TOC"
           grep -Fx '## X-WildGroups-Version: 2.6.0' "$MAIN_TOC"
           grep -Fx '## X-Flavor: Forever' "$MAIN_TOC"
           grep -Fq 'Libs\QuestDB\Data\Forever\_core\Drops.lua' "$MAIN_TOC"
@@ -176,6 +177,16 @@ jobs:
           grep -Fqx 'Modules\WildGroups\core\settings.lua' "$MAIN_TOC"
           grep -Fqx 'Modules\WildGroups\core\filterpanel_search.lua' "$MAIN_TOC"
           grep -Fqx 'Modules\WildGroups\core\blizzardlisting.lua' "$MAIN_TOC"
+          if grep -Eq 'LFGF\.(OpenForListing|CloseBlizzardGroupFinder)' Wildspark/Modules/WildGroups/core/blizzardlisting.lua; then
+            echo "WildGroups must not automatically open or close its panel after a listing is posted."
+            exit 1
+          fi
+          grep -Fqx 'LootRollMover.lua' "$MAIN_TOC"
+          test -f Wildspark/Modules/WildRolls/NOTICE.md
+          grep -Fq 'showVoteCounts' Wildspark/LootRollMover.lua
+          grep -Fq 'showReceivedPreview' Wildspark/LootRollMover.lua
+          grep -Fq 'GamepadGroupLootRollFrame' Wildspark/LootRollMover.lua
+          grep -Fq 'EditModeManagerFrame' Wildspark/LootRollMover.lua
           grep -Fqx 'Modules\WildGroups\core\wholookup.lua' "$MAIN_TOC"
           grep -Fqx 'WildFireKitEmbedded\CampNet.lua' "$MAIN_TOC"
           grep -Fqx 'WildFireKitEmbedded\Camping.lua' "$MAIN_TOC"
@@ -186,6 +197,10 @@ jobs:
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildGroups/core/settings.lua$'
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildGroups/core/filterpanel_search.lua$'
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildGroups/core/blizzardlisting.lua$'
+          unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildRolls/NOTICE.md$'
+          unzip -p "dist/WildSpark-$VERSION.zip" WildSpark/LootRollMover.lua | grep -F 'function MOD.SetReceivedPreview' >/dev/null
+          unzip -p "dist/WildSpark-$VERSION.zip" WildSpark/LootRollMover.lua | grep -F 'function MOD.SetStackUpwards' >/dev/null
+          unzip -p "dist/WildSpark-$VERSION.zip" WildSpark/Modules/WildGroups/core/blizzardlisting.lua | grep -F 'Automatic opening/closing after listing is disabled' >/dev/null
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/Modules/WildGroups/core/wholookup.lua$'
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/WildFireKitEmbedded/CampNet.lua$'
           unzip -Z1 "dist/WildSpark-$VERSION.zip" | grep -q '^WildSpark/WildFireKitEmbedded/Camping.lua$'
