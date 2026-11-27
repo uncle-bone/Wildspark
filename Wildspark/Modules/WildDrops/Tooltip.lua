@@ -144,6 +144,7 @@ local function AddTooltipLines(tooltip, guid)
         local row = rows[order[i]]
         local chance = ns.FormatChance(row.percent)
         local usedCrowdRate = false
+        local usedLocalEstimate = false
         if not row.percent then
             local crowdNPC = crowdData and crowdData.data and crowdData.data[npcID]
             local community = crowdNPC and crowdNPC[row.itemID]
@@ -158,23 +159,27 @@ local function AddTooltipLines(tooltip, guid)
                 local estimate = ns.GetLocalDropRateEstimate(npcID, row.itemID)
                 if estimate and estimate.percent then
                     chance = string.format("|cffffd100~%.1f%% local estimate (%d/%d looted corpses)|r", estimate.percent, estimate.drops, estimate.samples)
+                    usedLocalEstimate = true
                 elseif estimate and estimate.samples then
                     chance = string.format("|cff808080rate unknown; local sample %d/%d looted corpses|r", estimate.samples, estimate.needed or 10)
+                    usedLocalEstimate = true
                 end
             end
         end
-        if not usedCrowdRate and row.rateSource and row.rateSource ~= "Classic reference" then
+        if not usedCrowdRate and not usedLocalEstimate and row.rateSource and row.rateSource ~= "Classic reference" then
             local label = row.percent and (row.rateSource .. " data") or ("no " .. row.rateSource .. " rate")
             chance = chance .. " |cff808080(" .. label .. ")|r"
-        elseif not usedCrowdRate and row.rateSource == "Classic reference" then
+        elseif not usedCrowdRate and not usedLocalEstimate and row.rateSource == "Classic reference" then
             chance = chance .. " |cffffc857(Classic reference)|r"
         end
         if row.questOnly then chance = chance .. " |cff808080(quest-only)|r" end
-        tooltip:AddDoubleLine(ns.GetItemName(row.itemID), chance)
+        -- A double-line row puts the whole chance string in a right column and
+        -- widens unit tooltips. Keep it in one wrapped left-column line instead.
+        tooltip:AddLine(ns.GetItemName(row.itemID) .. "    " .. chance, nil, nil, nil, true)
         if #row.quests > 0 then
             local questText = row.quests[1]
             if #row.quests > 1 then questText = questText .. " |cffaaaaaa(+" .. (#row.quests - 1) .. " more quests)|r" end
-            tooltip:AddLine("    |cffffd100For: " .. questText .. "|r")
+            tooltip:AddLine("    |cffffd100For: " .. questText .. "|r", nil, nil, nil, true)
         end
         added = true
     end
